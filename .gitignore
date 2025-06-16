@@ -1,0 +1,10 @@
+node_modules
+build
+.DS_Store
+.idea
+.vscode/*
+.history/
+
+build/**/*.fif
+bench-snapshots/*.last.json
+ton-tolk-js-*.tgz
