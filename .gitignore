@@ -5,6 +5,7 @@ build
 .vscode/*
 .history/
 
+fift-output/
 build/**/*.fif
 bench-snapshots/*.last.json
 ton-tolk-js-*.tgz
