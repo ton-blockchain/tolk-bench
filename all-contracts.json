@@ -1,2 +1,8 @@
 [
+  {
+    "numericFolder": "01_jetton",
+    "shortTitle": "basic jetton",
+    "description": "jetton v1.07, the same as Tact uses for benchmarks",
+    "originalUrl": "https://github.com/ton-blockchain/token-contract"
+  }
 ]

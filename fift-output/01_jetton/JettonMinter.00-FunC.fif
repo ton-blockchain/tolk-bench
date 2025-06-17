@@ -1,0 +1,323 @@
+"Asm.fif" include
+// automatically generated from `params.fc` incl:`stdlib.fc` `op-codes.fc` `discovery-params.fc` `jetton-utils.fc` `jetton-minter-discoverable.fc` 
+PROGRAM{
+  DECLPROC force_chain
+  DECLPROC is_resolvable?
+  DECLPROC pack_jetton_wallet_data
+  DECLPROC calculate_jetton_wallet_state_init
+  DECLPROC calculate_jetton_wallet_address
+  DECLPROC calculate_user_jetton_wallet_address
+  DECLPROC load_data
+  DECLPROC save_data
+  DECLPROC mint_tokens
+  DECLPROC recv_internal
+  106029 DECLMETHOD get_jetton_data
+  103289 DECLMETHOD get_wallet_address
+  force_chain PROC:<{
+    REWRITESTDADDR
+    DROP
+    0 PUSHINT
+    EQUAL
+    333 THROWIFNOT
+  }>
+  is_resolvable? PROCINLINE:<{
+    REWRITESTDADDR
+    DROP
+    0 PUSHINT
+    EQUAL
+  }>
+  pack_jetton_wallet_data PROCINLINE:<{
+    NEWC
+    s0 s4 XCHG2
+    STVARUINT16
+    ROT
+    STSLICER
+    SWAP
+    STSLICER
+    STREF
+    ENDC
+  }>
+  calculate_jetton_wallet_state_init PROCINLINE:<{
+    0 PUSHINT
+    s0 s1 s2 XCPUXC
+    s4 s0 s3 XC2PU
+    pack_jetton_wallet_data INLINECALLDICT
+    s2 PUSH
+    NEWC
+    2 STU
+    s1 s2 XCHG
+    STDICT
+    STDICT
+    1 STU
+    ENDC
+  }>
+  calculate_jetton_wallet_address PROCINLINE:<{
+    HASHCU
+    0 PUSHINT
+    4 PUSHINT
+    NEWC
+    3 STU
+    8 STI
+    256 STU
+    ENDC
+    CTOS
+  }>
+  calculate_user_jetton_wallet_address PROCINLINE:<{
+    calculate_jetton_wallet_state_init INLINECALLDICT
+    calculate_jetton_wallet_address INLINECALLDICT
+  }>
+  load_data PROCINLINE:<{
+    c4 PUSH
+    CTOS
+    LDVARUINT16
+    LDMSGADDR
+    LDREF
+    LDREF
+    DROP
+  }>
+  save_data PROCINLINE:<{
+    NEWC
+    s0 s4 XCHG2
+    STVARUINT16
+    ROT
+    STSLICER
+    STREF
+    STREF
+    ENDC
+    c4 POP
+  }>
+  mint_tokens PROC:<{
+    MYADDR
+    s4 s0 s3 XCHG3
+    calculate_jetton_wallet_state_init INLINECALLDICT
+    DUP
+    calculate_jetton_wallet_address INLINECALLDICT
+    7 PUSHINT
+    24 PUSHINT
+    NEWC
+    6 STU
+    ROT
+    STSLICER
+    s0 s4 XCHG2
+    STVARUINT16
+    s1 s3 XCHG
+    108 STU
+    s1 s2 XCHG
+    STREF
+    STREF
+    ENDC
+    1 PUSHINT
+    SENDRAWMSG
+  }>
+  recv_internal PROC:<{
+    DUP
+    SEMPTY
+    IFJMP:<{
+      3 BLKDROP
+    }>
+    SWAP
+    CTOS
+    4 LDU
+    SWAP
+    1 PUSHINT
+    AND
+    IFJMP:<{
+      3 BLKDROP
+    }>
+    LDMSGADDR
+    LDMSGADDR
+    NIP
+    LDVARUINT16
+    NIP
+    1 PUSHINT
+    SDSKIPFIRST
+    LDVARUINT16
+    NIP
+    LDVARUINT16
+    DROP
+    3 PUSHINT
+    1 MULRSHIFT#
+    s0 s2 XCHG
+    32 LDU
+    64 LDU
+    load_data INLINECALLDICT
+    21 PUSHINT
+    s7 s(-1) PUXC
+    EQUAL
+    IFJMP:<{
+      s5 POP
+      s5 POP
+      s6 POP
+      s6 POP
+      s3 s4 XCPU
+      SDEQ
+      73 THROWIFNOT
+      s0 s2 XCHG
+      LDMSGADDR
+      LDVARUINT16
+      LDREF
+      DROP
+      DUP
+      CTOS
+      96 PUSHINT
+      SDSKIPFIRST
+      LDVARUINT16
+      DROP
+      s5 PUSH
+      s3 s4 XCHG
+      s4 s2 XCHG2
+      mint_tokens CALLDICT
+      s1 s4 XCHG
+      ADD
+      s3 s3 XCHG2
+      save_data INLINECALLDICT
+    }>
+    0x7bdd97de PUSHINT
+    s7 s(-1) PUXC
+    EQUAL
+    IFJMP:<{
+      s6 POP
+      s7 POP
+      s7 POP
+      SWAP
+      LDVARUINT16
+      LDMSGADDR
+      MYADDR
+      s2 s0 s6 XC2PU
+      calculate_user_jetton_wallet_address INLINECALLDICT
+      s0 s6 XCHG2
+      SDEQ
+      74 THROWIFNOT
+      SUB
+      s0 s3 XCHG
+      s5 s4 s5 XCHG3
+      save_data INLINECALLDICT
+      SWAP
+      LDMSGADDR
+      DROP
+      DUP
+      2 PLDU
+      0 NEQINT
+      IF:<{
+        0xd53276db PUSHINT
+        0 PUSHINT
+        16 PUSHINT
+        NEWC
+        6 STU
+        s0 s3 XCHG2
+        STSLICER
+        s2 PUSH
+        STVARUINT16
+        s1 s2 XCHG
+        107 STU
+        32 STU
+        64 STU
+        ENDC
+        66 PUSHINT
+        SENDRAWMSG
+      }>ELSE<{
+        2DROP
+      }>
+    }>
+    0x2c76b973 PUSHINT
+    s7 s(-1) PUXC
+    EQUAL
+    IFJMP:<{
+      s6 POP
+      3 BLKDROP
+      10000000 PUSHINT
+      s1 s5 XCHG
+      ADD
+      s1 s5 XCHG
+      GREATER
+      75 THROWIFNOT
+      s0 s2 XCHG
+      LDMSGADDR
+      1 LDU
+      DROP
+      IF:<{
+        NEWC
+        OVER
+        STSLICER
+        ENDC
+      }>ELSE<{
+        PUSHNULL
+      }>
+      0xd1735400 PUSHINT
+      0 PUSHINT
+      24 PUSHINT
+      NEWC
+      6 STU
+      s0 s5 XCHG2
+      STSLICER
+      s4 PUSH
+      STVARUINT16
+      s1 s4 XCHG
+      107 STU
+      s1 s3 XCHG
+      32 STU
+      s1 s4 XCHG
+      64 STU
+      s3 PUSH
+      is_resolvable? INLINECALLDICT
+      IF:<{
+        MYADDR
+        s4 s0 s3 XCHG3
+        calculate_user_jetton_wallet_address INLINECALLDICT
+        STSLICER
+      }>ELSE<{
+        2 2 BLKDROP2
+        0 PUSHINT
+        SWAP
+        2 STU
+      }>
+      STOPTREF
+      ENDC
+      64 PUSHINT
+      SENDRAWMSG
+    }>
+    s5 POP
+    s7 POP
+    s7 POP
+    s3 PUSH
+    3 EQINT
+    IFJMP:<{
+      s3 POP
+      s3 s5 XCHG2
+      SDEQ
+      73 THROWIFNOT
+      s0 s3 XCHG
+      LDMSGADDR
+      DROP
+      -ROT
+      save_data INLINECALLDICT
+    }>
+    s5 POP
+    s0 s2 XCHG
+    4 EQINT
+    IFJMP:<{
+      s2 s4 XCPU
+      SDEQ
+      73 THROWIFNOT
+      LDREF
+      DROP
+      s3 s0 s0 XCHG3
+      save_data INLINECALLDICT
+    }>
+    5 BLKDROP
+    16 PUSHPOW2DEC
+    THROWANY
+  }>
+  get_jetton_data PROC:<{
+    load_data INLINECALLDICT
+    -1 PUSHINT
+    3 -ROLL
+  }>
+  get_wallet_address PROC:<{
+    load_data INLINECALLDICT
+    3 1 BLKDROP2
+    MYADDR
+    SWAP
+    calculate_user_jetton_wallet_address INLINECALLDICT
+  }>
+}END>c

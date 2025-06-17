@@ -1,0 +1,411 @@
+"Asm.fif" include
+// automatically generated from `params.fc` incl:`stdlib.fc` `op-codes.fc` `jetton-utils.fc` `jetton-wallet.fc` incl:`discovery-params.fc` 
+PROGRAM{
+  DECLPROC force_chain
+  DECLPROC pack_jetton_wallet_data
+  DECLPROC calculate_jetton_wallet_state_init
+  DECLPROC calculate_jetton_wallet_address
+  DECLPROC calculate_user_jetton_wallet_address
+  DECLPROC is_resolvable?
+  DECLPROC load_data
+  DECLPROC save_data
+  DECLPROC send_tokens
+  DECLPROC receive_tokens
+  DECLPROC burn_tokens
+  DECLPROC on_bounce
+  DECLPROC recv_internal
+  97026 DECLMETHOD get_wallet_data
+  force_chain PROC:<{
+    REWRITESTDADDR
+    DROP
+    0 PUSHINT
+    EQUAL
+    333 THROWIFNOT
+  }>
+  pack_jetton_wallet_data PROCINLINE:<{
+    NEWC
+    s0 s4 XCHG2
+    STVARUINT16
+    ROT
+    STSLICER
+    SWAP
+    STSLICER
+    STREF
+    ENDC
+  }>
+  calculate_jetton_wallet_state_init PROCINLINE:<{
+    0 PUSHINT
+    s0 s1 s2 XCPUXC
+    s4 s0 s3 XC2PU
+    pack_jetton_wallet_data INLINECALLDICT
+    s2 PUSH
+    NEWC
+    2 STU
+    s1 s2 XCHG
+    STDICT
+    STDICT
+    1 STU
+    ENDC
+  }>
+  calculate_jetton_wallet_address PROCINLINE:<{
+    HASHCU
+    0 PUSHINT
+    4 PUSHINT
+    NEWC
+    3 STU
+    8 STI
+    256 STU
+    ENDC
+    CTOS
+  }>
+  calculate_user_jetton_wallet_address PROCINLINE:<{
+    calculate_jetton_wallet_state_init INLINECALLDICT
+    calculate_jetton_wallet_address INLINECALLDICT
+  }>
+  is_resolvable? PROCINLINE:<{
+    REWRITESTDADDR
+    DROP
+    0 PUSHINT
+    EQUAL
+  }>
+  load_data PROCINLINE:<{
+    c4 PUSH
+    CTOS
+    LDVARUINT16
+    LDMSGADDR
+    LDMSGADDR
+    LDREF
+    DROP
+  }>
+  save_data PROCINLINE:<{
+    pack_jetton_wallet_data INLINECALLDICT
+    c4 POP
+  }>
+  send_tokens PROC:<{
+    s0 s3 XCHG
+    64 LDU
+    LDVARUINT16
+    LDMSGADDR
+    OVER
+    force_chain CALLDICT
+    load_data INLINECALLDICT
+    s3 s6 XCPU
+    SUB
+    s2 s9 PUXC
+    SDEQ
+    705 THROWIFNOT
+    s8 PUSH
+    -1 GTINT
+    706 THROWIFNOT
+    s4 s4 s2 XCPU2
+    calculate_jetton_wallet_state_init INLINECALLDICT
+    DUP
+    calculate_jetton_wallet_address INLINECALLDICT
+    s0 s4 XCHG
+    LDMSGADDR
+    LDDICT
+    NIP
+    LDVARUINT16
+    DUP
+    SBITS
+    0 GTINT
+    708 THROWIFNOT
+    7 PUSHINT
+    24 PUSHINT
+    NEWC
+    6 STU
+    s0 s8 XCHG2
+    STSLICER
+    0 PUSHINT
+    STVARUINT16
+    s1 s7 XCHG
+    108 STU
+    s1 s3 XCHG
+    STREF
+    0x178d4519 PUSHINT
+    NEWC
+    32 STU
+    s1 s9 XCHG
+    64 STU
+    s0 s7 XCHG2
+    STVARUINT16
+    s2 PUSH
+    STSLICER
+    s0 s6 XCHG2
+    STSLICER
+    s5 PUSH
+    STVARUINT16
+    s0 s3 XCHG2
+    STSLICER
+    ENDC
+    s0 s5 XCHG2
+    STREF
+    s3 PUSH
+    IF:<{
+      2 PUSHINT
+    }>ELSE<{
+      1 PUSHINT
+    }>
+    s0 s8 XCHG2
+    MUL
+    s1 s3 XCHG
+    ADD
+    15000000 PUSHINT
+    1 LSHIFT#
+    10000000 PUSHINT
+    ADD
+    ADD
+    s1 s4 XCHG
+    GREATER
+    709 THROWIFNOT
+    s0 s4 XCHG
+    ENDC
+    64 PUSHINT
+    SENDRAWMSG
+    s2 s3 XCHG
+    save_data INLINECALLDICT
+  }>
+  receive_tokens PROC:<{
+    load_data INLINECALLDICT
+    s0 s8 XCHG
+    64 LDU
+    LDVARUINT16
+    s5 s1 XCPU
+    ADD
+    s0 s5 XCHG
+    LDMSGADDR
+    LDMSGADDR
+    s5 s11 PUSH2
+    SDEQ
+    s3 s6 s13 PUSH3
+    calculate_user_jetton_wallet_address INLINECALLDICT
+    s0 s13 XCHG2
+    SDEQ
+    s1 s12 XCHG
+    OR
+    707 THROWIFNOT
+    s0 s10 XCHG
+    LDVARUINT16
+    s10 s8 XCPU
+    SUB
+    10000000 PUSHINT
+    10000000 PUSHINT
+    s1 s2 XCHG
+    MIN
+    SUB
+    15000000 PUSHINT
+    ADD
+    s1 s8 XCHG
+    SUB
+    s7 PUSH
+    IF:<{
+      s7 s8 PUXC
+      ADD
+      s1 s8 XCHG
+      SUB
+      0x7362d09c PUSHINT
+      NEWC
+      32 STU
+      s3 s(-1) PUXC
+      64 STU
+      ROT
+      STVARUINT16
+      s0 s7 XCHG2
+      STSLICER
+      s0 s7 XCHG2
+      STSLICER
+      ENDC
+      1 PUSHINT
+      16 PUSHINT
+      NEWC
+      6 STU
+      s4 PUSH
+      STSLICER
+      s0 s6 XCHG2
+      STVARUINT16
+      s1 s5 XCHG
+      107 STU
+      s1 s4 XCHG
+      STREF
+      ENDC
+      1 PUSHINT
+      SENDRAWMSG
+      s2 s4 XCHG
+      s2 s3 XCHG
+    }>ELSE<{
+      s4 s9 XCHG
+      s3 s8 XCHG
+      s7 POP
+      4 BLKDROP
+    }>
+    s5 PUSH
+    2 PLDU
+    0 NEQINT
+    s3 PUSH
+    0 GTINT
+    AND
+    IF:<{
+      0xd53276db PUSHINT
+      0 PUSHINT
+      16 PUSHINT
+      NEWC
+      6 STU
+      s0 s8 XCHG2
+      STSLICER
+      s0 s4 XCHG2
+      STVARUINT16
+      s1 s6 XCHG
+      107 STU
+      s1 s2 XCHG
+      32 STU
+      s1 s2 XCHG
+      64 STU
+      ENDC
+      2 PUSHINT
+      SENDRAWMSG
+    }>ELSE<{
+      s5 POP
+      2 1 BLKDROP2
+    }>
+    s0 s3 XCHG
+    save_data INLINECALLDICT
+  }>
+  burn_tokens PROC:<{
+    load_data INLINECALLDICT
+    s0 s7 XCHG
+    64 LDU
+    LDVARUINT16
+    LDMSGADDR
+    DROP
+    s5 s1 XCPU
+    SUB
+    s4 s8 PUXC
+    SDEQ
+    705 THROWIFNOT
+    s7 PUSH
+    -1 GTINT
+    706 THROWIFNOT
+    15000000 PUSHINT
+    1 LSHIFT#
+    s1 s6 XCHG
+    ADD
+    s1 s6 XCHG
+    GREATER
+    707 THROWIFNOT
+    0x7bdd97de PUSHINT
+    NEWC
+    32 STU
+    s1 s5 XCHG
+    64 STU
+    s0 s3 XCHG2
+    STVARUINT16
+    s2 PUSH
+    STSLICER
+    SWAP
+    STSLICER
+    ENDC
+    1 PUSHINT
+    24 PUSHINT
+    NEWC
+    6 STU
+    s4 PUSH
+    STSLICER
+    0 PUSHINT
+    STVARUINT16
+    107 STU
+    STREF
+    ENDC
+    64 PUSHINT
+    SENDRAWMSG
+    s0 s1 s3 XCHG3
+    save_data INLINECALLDICT
+  }>
+  on_bounce PROC:<{
+    32 PUSHINT
+    SDSKIPFIRST
+    load_data INLINECALLDICT
+    s0 s4 XCHG
+    32 LDU
+    0x178d4519 PUSHINT
+    s2 s(-1) PUXC
+    EQUAL
+    0x7bdd97de PUSHINT
+    s1 s3 XCHG
+    EQUAL
+    s1 s2 XCHG
+    OR
+    709 THROWIFNOT
+    64 LDU
+    NIP
+    LDVARUINT16
+    DROP
+    s1 s3 XCHG
+    ADD
+    s2 s3 XCHG2
+    save_data INLINECALLDICT
+  }>
+  recv_internal PROC:<{
+    DUP
+    SEMPTY
+    IFJMP:<{
+      4 BLKDROP
+    }>
+    SWAP
+    CTOS
+    4 LDU
+    SWAP
+    1 PUSHINT
+    AND
+    IFJMP:<{
+      s1 s3 XCHG
+      3 BLKDROP
+      on_bounce CALLDICT
+    }>
+    LDMSGADDR
+    LDMSGADDR
+    NIP
+    LDVARUINT16
+    NIP
+    1 PUSHINT
+    SDSKIPFIRST
+    LDVARUINT16
+    NIP
+    LDVARUINT16
+    DROP
+    3 PUSHINT
+    1 MULRSHIFT#
+    s0 s2 XCHG
+    32 LDU
+    0xf8a7ea5 PUSHINT
+    s2 s(-1) PUXC
+    EQUAL
+    IFJMP:<{
+      NIP
+      s4 POP
+      -ROT
+      send_tokens CALLDICT
+    }>
+    0x178d4519 PUSHINT
+    s2 s(-1) PUXC
+    EQUAL
+    IFJMP:<{
+      NIP
+      s4 s4 s4 XCHG3
+      s0 s3 XCHG
+      receive_tokens CALLDICT
+    }>
+    s5 POP
+    0x595f07bc PUSHINT
+    EQUAL
+    IFJMP:<{
+      -ROT
+      burn_tokens CALLDICT
+    }>
+    4 BLKDROP
+    16 PUSHPOW2DEC
+    THROWANY
+  }>
+  get_wallet_data PROC:<{
+    load_data INLINECALLDICT
+  }>
+}END>c
