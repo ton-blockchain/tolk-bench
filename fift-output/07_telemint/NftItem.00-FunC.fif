@@ -1,0 +1,1101 @@
+"Asm.fif" include
+// automatically generated from `nft-item-no-dns-cheap.fc` incl:`stdlib.fc` incl:`common.fc` 
+PROGRAM{
+  DECLPROC force_chain
+  DECLPROC get_top_domain_bits
+  DECLPROC load_text
+  DECLPROC load_text_ref
+  DECLPROC store_text
+  DECLPROC unpack_token_info
+  DECLPROC pack_token_info
+  DECLPROC pack_state_init
+  DECLPROC pack_init_int_message
+  DECLPROC send_msg
+  DECLPROC calculate_address
+  DECLPROC unpack_item_config
+  DECLPROC pack_item_config
+  DECLPROC unpack_item_data
+  DECLPROC pack_nft_royalty_params
+  DECLPROC unpack_nft_royalty_params
+  DECLPROC pack_item_data
+  DECLPROC pack_item_content
+  DECLPROC unpack_item_content
+  DECLPROC unpack_item_state
+  DECLPROC pack_item_state
+  DECLPROC save_item_data
+  DECLPROC pack_item_state_init
+  DECLPROC pack_teleitem_msg_deploy
+  DECLPROC unpack_teleitem_msg_deploy
+  DECLPROC unpack_collection_data
+  DECLPROC save_collection_data
+  DECLPROC unpack_signed_cmd
+  DECLPROC unpack_deploy_msg
+  DECLPROC unpack_last_bid
+  DECLPROC pack_last_bid
+  DECLPROC unpack_auction_state
+  DECLPROC pack_auction_state
+  DECLPROC unpack_auction_config
+  DECLPROC unpack_auction
+  DECLPROC pack_auction
+  DECLPROC unpack_nft_cmd_transfer
+  DECLPROC send_money
+  DECLPROC maybe_end_auction
+  DECLPROC process_new_bid
+  DECLPROC prepare_auction
+  DECLPROC deploy_item
+  DECLPROC transfer_ownership
+  DECLPROC recv_internal
+  DECLPROC recv_external
+  102351 DECLMETHOD get_nft_data
+  69506 DECLMETHOD get_telemint_token_name
+  122498 DECLMETHOD get_telemint_auction_state
+  129619 DECLMETHOD get_telemint_auction_config
+  85719 DECLMETHOD royalty_params
+  force_chain PROCINLINE:<{
+    REWRITESTDADDR
+    DROP
+    0 EQINT
+    333 THROWIFNOT
+  }>
+  get_top_domain_bits PROCINLINE:<{
+    -8 PUSHINT
+    1 PUSHINT
+    WHILE:<{
+    }>DO<{
+      8 ADDCONST
+      SWAP
+      8 LDU
+      -ROT
+    }>
+    NIP
+    DUP
+    201 THROWIFNOT
+  }>
+  load_text PROCINLINE:<{
+    8 LDU
+    SWAP
+    3 LSHIFT#
+    LDSLICEX
+    SWAP
+  }>
+  load_text_ref PROCINLINE:<{
+    LDREF
+    SWAP
+    CTOS
+    load_text INLINECALLDICT
+    NIP
+  }>
+  store_text PROCINLINE:<{
+    DUP
+    SBITS
+    8 PUSHINT
+    DIVMOD
+    201 THROWIF
+    ROT
+    8 STU
+    SWAP
+    STSLICER
+  }>
+  unpack_token_info PROCINLINE:<{
+    CTOS
+    load_text INLINECALLDICT
+    SWAP
+    load_text INLINECALLDICT
+    SWAP
+    ENDS
+  }>
+  pack_token_info PROC:<{
+    NEWC
+    ROT
+    store_text INLINECALLDICT
+    SWAP
+    store_text INLINECALLDICT
+    ENDC
+  }>
+  pack_state_init PROCINLINE:<{
+    0 PUSHINT
+    DUP
+    NEWC
+    2 STU
+    s1 s3 XCHG
+    STOPTREF
+    STOPTREF
+    1 STU
+    ENDC
+  }>
+  pack_init_int_message PROCINLINE:<{
+    7 PUSHINT
+    24 PUSHINT
+    NEWC
+    6 STU
+    s0 s4 XCHG2
+    STSLICER
+    0 PUSHINT
+    STGRAMS
+    s1 s3 XCHG
+    108 STU
+    STREF
+    STREF
+    ENDC
+  }>
+  send_msg PROCINLINE:<{
+    0 PUSHINT
+    16 PUSHINT
+    NEWC
+    6 STU
+    s0 s7 XCHG2
+    STSLICER
+    s0 s5 XCHG2
+    STGRAMS
+    s1 s5 XCHG
+    107 STU
+    s1 s2 XCHG
+    32 STU
+    64 STU
+    s2 PUSH
+    ISNULL
+    IFNOT:<{
+      ROT
+      STBR
+      SWAP
+    }>ELSE<{
+      s2 POP
+    }>
+    SWAP
+    ENDC
+    SWAP
+    SENDRAWMSG
+  }>
+  calculate_address PROCINLINE:<{
+    HASHCU
+    4 PUSHINT
+    NEWC
+    3 STU
+    s1 s2 XCHG
+    8 STI
+    256 STU
+    ENDC
+    CTOS
+  }>
+  unpack_item_config PROCINLINE:<{
+    CTOS
+    256 LDU
+    LDMSGADDR
+    ENDS
+  }>
+  pack_item_config PROCINLINE:<{
+    SWAP
+    NEWC
+    256 STU
+    SWAP
+    STSLICER
+    ENDC
+  }>
+  unpack_item_data PROCINLINE:<{
+    c4 PUSH
+    CTOS
+    LDREF
+    LDOPTREF
+    ENDS
+  }>
+  pack_nft_royalty_params PROCINLINE:<{
+    s0 s2 XCHG
+    NEWC
+    16 STU
+    16 STU
+    SWAP
+    STSLICER
+    ENDC
+  }>
+  unpack_nft_royalty_params PROCINLINE:<{
+    CTOS
+    16 LDU
+    16 LDU
+    LDMSGADDR
+    ENDS
+  }>
+  pack_item_data PROCINLINE:<{
+    SWAP
+    NEWC
+    STREF
+    STOPTREF
+    ENDC
+  }>
+  pack_item_content PROCINLINE:<{
+    s0 s2 XCHG
+    NEWC
+    STREF
+    STDICT
+    STREF
+    ENDC
+  }>
+  unpack_item_content PROCINLINE:<{
+    CTOS
+    LDREF
+    LDDICT
+    LDREF
+    ENDS
+  }>
+  unpack_item_state PROCINLINE:<{
+    CTOS
+    LDMSGADDR
+    LDREF
+    LDOPTREF
+    LDREF
+    ENDS
+  }>
+  pack_item_state PROCINLINE:<{
+    NEWC
+    s0 s4 XCHG2
+    STSLICER
+    s1 s2 XCHG
+    STREF
+    STOPTREF
+    STREF
+    ENDC
+  }>
+  save_item_data PROCINLINE:<{
+    pack_item_data INLINECALLDICT
+    c4 POP
+  }>
+  pack_item_state_init PROCINLINE:<{
+    MYADDR
+    s1 s2 XCHG
+    pack_item_config INLINECALLDICT
+    PUSHNULL
+    pack_item_data INLINECALLDICT
+    pack_state_init INLINECALLDICT
+  }>
+  pack_teleitem_msg_deploy PROCINLINE:<{
+    697974293 PUSHINT
+    NEWC
+    32 STU
+    s0 s6 XCHG2
+    STSLICER
+    s0 s4 XCHG2
+    STGRAMS
+    s1 s2 XCHG
+    STREF
+    STREF
+    STREF
+    STREF
+    ENDC
+  }>
+  unpack_teleitem_msg_deploy PROCINLINE:<{
+    LDMSGADDR
+    LDGRAMS
+    LDREF
+    LDREF
+    LDREF
+    LDREF
+    DROP
+  }>
+  unpack_collection_data PROCINLINE:<{
+    c4 PUSH
+    CTOS
+    1 LDI
+    32 LDU
+    256 LDU
+    LDREF
+    LDREF
+    load_text_ref INLINECALLDICT
+    SWAP
+    LDREF
+    ENDS
+  }>
+  save_collection_data PROCINLINE:<{
+    NEWC
+    ROT
+    store_text INLINECALLDICT
+    ENDC
+    s0 s6 XCHG
+    NEWC
+    1 STI
+    s1 s5 XCHG
+    32 STU
+    s1 s3 XCHG
+    256 STU
+    STREF
+    STREF
+    s1 s2 XCHG
+    STREF
+    STREF
+    ENDC
+    c4 POP
+  }>
+  unpack_signed_cmd PROCINLINE:<{
+    9 PUSHPOW2
+    LDSLICEX
+    DUP
+    HASHSU
+    SWAP
+    32 LDU
+    32 LDU
+    32 LDU
+  }>
+  unpack_deploy_msg PROCINLINE:<{
+    load_text INLINECALLDICT
+    SWAP
+    LDREF
+    LDREF
+    LDOPTREF
+    ENDS
+  }>
+  unpack_last_bid PROCINLINE:<{
+    CTOS
+    LDMSGADDR
+    LDGRAMS
+    32 LDU
+    ENDS
+  }>
+  pack_last_bid PROCINLINE:<{
+    NEWC
+    s0 s3 XCHG2
+    STSLICER
+    SWAP
+    STGRAMS
+    32 STU
+    ENDC
+  }>
+  unpack_auction_state PROCINLINE:<{
+    CTOS
+    LDOPTREF
+    LDGRAMS
+    32 LDU
+    ENDS
+  }>
+  pack_auction_state PROCINLINE:<{
+    s0 s2 XCHG
+    NEWC
+    STOPTREF
+    SWAP
+    STGRAMS
+    32 STU
+    ENDC
+  }>
+  unpack_auction_config PROCINLINE:<{
+    CTOS
+    LDMSGADDR
+    LDGRAMS
+    LDGRAMS
+    8 LDU
+    32 LDU
+    32 LDU
+    ENDS
+  }>
+  unpack_auction PROCINLINE:<{
+    CTOS
+    LDREF
+    LDREF
+    ENDS
+  }>
+  pack_auction PROCINLINE:<{
+    SWAP
+    NEWC
+    STREF
+    STREF
+    ENDC
+  }>
+  unpack_nft_cmd_transfer PROCINLINE:<{
+    64 LDU
+    LDMSGADDR
+    LDMSGADDR
+    LDOPTREF
+    LDGRAMS
+  }>
+  send_money PROC:<{
+    s2 PUSH
+    30000000 PUSHINT
+    SUB
+    SWAP
+    MIN
+    DUP
+    0 GTINT
+    IF:<{
+      923790417 PUSHINT
+      LTIME
+      s2 PUSH
+      s3 s4 XCHG
+      -ROT
+      PUSHNULL
+      2 PUSHINT
+      send_msg INLINECALLDICT
+      SUB
+    }>ELSE<{
+      2DROP
+    }>
+  }>
+  maybe_end_auction PROC:<{
+    s2 PUSH
+    unpack_auction INLINECALLDICT
+    SWAP
+    unpack_auction_state INLINECALLDICT
+    NOW
+    s2 POP
+    LESS
+    IFJMP:<{
+      4 BLKDROP
+    }>
+    s4 POP
+    SWAP
+    IF:<{
+      ACCEPT
+    }>
+    s2 PUSH
+    ISNULL
+    IFJMP:<{
+      3 BLKDROP
+      PUSHNULL
+    }>
+    unpack_auction_config INLINECALLDICT
+    5 BLKDROP
+    s0 s2 XCHG
+    unpack_last_bid INLINECALLDICT
+    s0 s3 XCHG
+    unpack_nft_royalty_params INLINECALLDICT
+    0 PUSHINT
+    85167505 PUSHINT
+    LTIME
+    940735969 PUSHINT
+    s3 PUSH
+    NEWC
+    s0 s13 XCHG2
+    STSLICER
+    s1 s12 XCHG
+    1 STI
+    s1 s11 XCHG
+    32 STU
+    s6 PUSH
+    STGRAMS
+    s1 s8 XCHG
+    32 STU
+    s6 PUSH
+    s3 s1 s4 XCHG3
+    s8 s10 s10 XCHG3
+    1 PUSHINT
+    send_msg INLINECALLDICT
+    DUP
+    0 GTINT
+    s6 PUSH
+    0 GTINT
+    AND
+    s4 s5 PUSH2
+    SDEQ
+    NOT
+    AND
+    IF:<{
+      s1 s0 s5 PUXC2
+      MULDIV
+      s4 s(-1) PUXC
+      MIN
+      s4 s4 XCPU
+      SUB
+      s5 s5 s4 XCHG3
+      send_money CALLDICT
+      s3 s1 s3 XCHG3
+    }>ELSE<{
+      DROP
+      s2 POP
+      s3 POP
+    }>
+    s2 s3 XCHG
+    send_money CALLDICT
+    SWAP
+    PUSHNULL
+  }>
+  process_new_bid PROC:<{
+    unpack_auction INLINECALLDICT
+    SWAP
+    unpack_auction_state INLINECALLDICT
+    s4 s1 PUXC
+    LESS
+    211 THROWIF
+    s2 PUSH
+    unpack_auction_config INLINECALLDICT
+    DROP
+    s3 POP
+    s3 POP
+    s7 s6 XCPU
+    NOW
+    pack_last_bid INLINECALLDICT
+    NOW
+    ROT
+    ADD
+    s1 s3 XCHG
+    MAX
+    s6 PUSH
+    0 GTINT
+    s6 s7 PUXC
+    GEQ
+    s1 s7 XCHG
+    AND
+    IF:<{
+      0 PUSHINT
+      s6 POP
+    }>
+    s4 PUSH
+    1000000000 PUSHINT
+    ADD
+    SWAP
+    100 ADDCONST
+    s1 s5 XCHG
+    MUL
+    99 ADDCONST
+    100 PUSHINT
+    DIV
+    s1 s4 XCHG
+    MAX
+    OVER
+    ISNULL
+    IFNOT:<{
+      SWAP
+      unpack_last_bid INLINECALLDICT
+      DROP
+      s6 PUSH
+      30000000 PUSHINT
+      SUB
+      SWAP
+      MIN
+      DUP
+      0 GTINT
+      IF:<{
+        1434249760 PUSHINT
+        LTIME
+        s2 PUSH
+        s3 s4 XCHG
+        -ROT
+        PUSHNULL
+        1 PUSHINT
+        send_msg INLINECALLDICT
+        s1 s5 XCHG
+        SUB
+        s0 s4 XCHG
+      }>ELSE<{
+        2DROP
+      }>
+    }>ELSE<{
+      NIP
+    }>
+    s0 s3 XCHG2
+    pack_auction_state INLINECALLDICT
+    SWAP
+    pack_auction INLINECALLDICT
+  }>
+  prepare_auction PROC:<{
+    DUP
+    unpack_auction_config INLINECALLDICT
+    s5 POP
+    s3 PUSH
+    60000000 PUSHINT
+    LESS
+    s3 PUSH
+    0 NEQINT
+    s4 s5 XCPU
+    LESS
+    s1 s4 XCHG
+    AND
+    s1 s3 XCHG
+    OR
+    SWAP
+    1 LESSINT
+    OR
+    SWAP
+    604800 PUSHINT
+    GREATER
+    OR
+    s2 PUSH
+    31536000 PUSHINT
+    GREATER
+    OR
+    IFJMP:<{
+      3 BLKDROP
+      PUSHNULL
+    }>
+    PUSHNULL
+    NOW
+    s0 s3 XCHG2
+    ADD
+    pack_auction_state INLINECALLDICT
+    SWAP
+    pack_auction INLINECALLDICT
+  }>
+  deploy_item PROC:<{
+    unpack_teleitem_msg_deploy INLINECALLDICT
+    SWAP
+    prepare_auction CALLDICT
+    DUP
+    ISNULL
+    IFJMP:<{
+      7 BLKDROP
+      PUSHNULL
+    }>
+    s3 s6 XCHG
+    s5 s4 s0 XCHG3
+    process_new_bid CALLDICT
+    b{00} PUSHSLICE
+    s1 s3 XCPU
+    0 PUSHINT
+    maybe_end_auction CALLDICT
+    s2 POP
+    s1 s3 XCHG
+    PUSHNULL
+    s0 s5 XCHG2
+    pack_item_content INLINECALLDICT
+    -ROT
+    pack_item_state INLINECALLDICT
+  }>
+  transfer_ownership PROCINLINE:<{
+    SWAP
+    unpack_nft_cmd_transfer INLINECALLDICT
+    s2 POP
+    s3 PUSH
+    force_chain INLINECALLDICT
+    s0 s7 XCHG
+    30000000 PUSHINT
+    SUB
+    s7 PUSH
+    IF:<{
+      s7 s5 PUSH2
+      ADD
+      SUB
+    }>
+    s2 PUSH
+    2 PLDU
+    0 NEQINT
+    DUP
+    IF:<{
+      s0 s6 XCHG
+      SUB
+    }>ELSE<{
+      s6 POP
+    }>
+    DUP
+    -1 GTINT
+    206 THROWIFNOT
+    s7 PUSH
+    IF:<{
+      85167505 PUSHINT
+      NEWC
+      s0 s8 XCHG2
+      STSLICER
+      ROT
+      STSLICER
+      1 PUSHINT
+      s4 PUSH
+      s4 s6 XCPU
+      s4 s10 XCHG
+      s3 s9 XCHG
+      s9 s2 XCHG2
+      send_msg INLINECALLDICT
+      s3 s4 XCHG
+    }>ELSE<{
+      s2 s7 XCHG
+      s6 POP
+      2DROP
+    }>
+    s0 s2 XCHG
+    IF:<{
+      s3 PUSH
+      force_chain INLINECALLDICT
+      s3 s3 s0 XCHG3
+      3576854235 PUSHINT
+      SWAP
+      PUSHNULL
+      1 PUSHINT
+      send_msg INLINECALLDICT
+    }>ELSE<{
+      s1 s3 XCHG
+      3 BLKDROP
+    }>
+  }>
+  recv_internal PROC:<{
+    c2 SAVE
+    SAMEALTSAVE
+    BALANCE
+    FIRST
+    s0 s2 XCHG
+    CTOS
+    4 LDU
+    SWAP
+    1 PUSHINT
+    AND
+    IFJMP:<{
+      4 BLKDROP
+    }>
+    LDMSGADDR
+    LDMSGADDR
+    NIP
+    LDGRAMS
+    NIP
+    LDOPTREF
+    NIP
+    LDGRAMS
+    NIP
+    LDGRAMS
+    DROP
+    3 PUSHINT
+    1 MULRSHIFT#
+    s2 PUSH
+    SEMPTY
+    IF:<{
+      0 PUSHINT
+    }>ELSE<{
+      s0 s2 XCHG
+      32 LDU
+      s3 s3 XCHG2
+    }>
+    unpack_item_data INLINECALLDICT
+    OVER
+    unpack_item_config INLINECALLDICT
+    s0 s6 PUSH2
+    SDEQ
+    IFJMP:<{
+      2DROP
+      s3 POP
+      s3 POP
+      s5 POP
+      s0 s4 XCHG
+      697974293 PUSHINT
+      EQUAL
+      213 THROWIFNOT
+      s0 s3 XCHG
+      ISNULL
+      IF:<{
+        TUCK
+        deploy_item CALLDICT
+        DUP
+        ISNULL
+        IFNOTJMP:<{
+          NIP
+          save_item_data INLINECALLDICT
+          RETALT
+        }>
+        DROP
+        NIP
+      }>ELSE<{
+        2 1 BLKDROP2
+      }>
+      LDMSGADDR
+      DROP
+      0 PUSHINT
+      2754750433 PUSHINT
+      LTIME
+      PUSHNULL
+      64 PUSHINT
+      send_msg INLINECALLDICT
+    }>
+    s2 PUSH
+    ISNULL
+    210 THROWIF
+    s0 s2 XCHG
+    unpack_item_state INLINECALLDICT
+    s7 PUSH
+    1765620048 PUSHINT
+    EQUAL
+    IFJMP:<{
+      s11 POP
+      8 BLKDROP
+      s3 POP
+      64 LDU
+      DROP
+      0 PUSHINT
+      2831876269 PUSHINT
+      NEWC
+      s0 s4 XCHG
+      CTOS
+      s1 s4 XCHG
+      STSLICER
+      s3 s3 s0 XCHG3
+      64 PUSHINT
+      send_msg INLINECALLDICT
+    }>
+    s7 PUSH
+    801842850 PUSHINT
+    EQUAL
+    IFJMP:<{
+      4 BLKDROP
+      s7 s8 XCHG2
+      5 BLKDROP
+      SWAP
+      64 LDU
+      DROP
+      0 PUSHINT
+      2339837749 PUSHINT
+      s0 s5 XCHG
+      NEWC
+      256 STU
+      s0 s4 XCHG2
+      STSLICER
+      s2 s4 XCHG
+      64 PUSHINT
+      send_msg INLINECALLDICT
+    }>
+    s4 POP
+    s4 POP
+    s5 PUSH
+    0 EQINT
+    s9 PUSH
+    x{23746f707570} PUSHSLICE
+    SDEQ
+    AND
+    s9 PUSH
+    SREFS
+    0 EQINT
+    AND
+    IFJMP:<{
+      11 BLKDROP
+    }>
+    s3 PUSH
+    ISNULL
+    IFNOT:<{
+      s9 s10 XCPU
+      SUB
+      s0 s1 s3 XCHG3
+      s3 PUSH
+      0 PUSHINT
+      maybe_end_auction CALLDICT
+      DUP
+      ISNULL
+      IF:<{
+        s1 s9 s0 PUSH3
+        s6 PUSH
+        pack_item_state INLINECALLDICT
+        s5 s(-1) PUXC
+        save_item_data INLINECALLDICT
+      }>
+      s2 s10 XCPU
+      ADD
+      s3 s1 s9 XCHG3
+    }>
+    s5 PUSH
+    924203182 PUSHINT
+    EQUAL
+    IFJMP:<{
+      s5 POP
+      s5 POP
+      s7 POP
+      s7 POP
+      s6 PUSH
+      ISNULL
+      219 THROWIF
+      2OVER
+      SDEQ
+      220 THROWIFNOT
+      s0 s4 XCHG
+      64 LDU
+      DROP
+      s0 s6 XCHG
+      unpack_auction INLINECALLDICT
+      DROP
+      unpack_auction_state INLINECALLDICT
+      2DROP
+      ISNULL
+      221 THROWIFNOT
+      ROT
+      PUSHNULL
+      s0 s5 XCHG2
+      pack_item_state INLINECALLDICT
+      s3 PUSH
+      IF:<{
+        s1 s2 XCHG
+        0 PUSHINT
+        2742684035 PUSHINT
+        ROT
+        s0 s5 XCHG
+        PUSHNULL
+        64 PUSHINT
+        send_msg INLINECALLDICT
+        SWAP
+      }>ELSE<{
+        2 2 BLKDROP2
+      }>
+      save_item_data INLINECALLDICT
+    }>
+    s3 PUSH
+    ISNULL
+    IFNOTJMP:<{
+      s6 POP
+      s7 POP
+      s0 s3 XCHG
+      0 EQINT
+      214 THROWIFNOT
+      s3 s6 XCHG
+      s4 s7 s0 XCHG3
+      process_new_bid CALLDICT
+      s1 s3 s0 XCHG3
+      s3 PUSH
+      0 PUSHINT
+      maybe_end_auction CALLDICT
+      s2 POP
+      s3 s1 s3 XCHG3
+      pack_item_state INLINECALLDICT
+      save_item_data INLINECALLDICT
+    }>
+    s10 POP
+    s4 PUSH
+    0 EQINT
+    IFJMP:<{
+      s7 POP
+      5 BLKDROP
+      s3 POP
+      NIP
+      SDEQ
+      215 THROWIFNOT
+    }>
+    s4 PUSH
+    1215991425 PUSHINT
+    EQUAL
+    IFJMP:<{
+      s2 POP
+      s3 POP
+      s3 POP
+      s5 POP
+      s2 s1 PUSH2
+      SDEQ
+      220 THROWIFNOT
+      s0 s3 XCHG
+      64 LDU
+      LDREF
+      DROP
+      prepare_auction CALLDICT
+      DUP
+      ISNULL
+      223 THROWIF
+      s2 s3 XCHG
+      s6 s0 s4 XCHG3
+      pack_item_state INLINECALLDICT
+      OVER
+      IF:<{
+        s1 s3 XCHG
+        0 PUSHINT
+        2742684035 PUSHINT
+        ROT
+        s0 s5 XCHG
+        PUSHNULL
+        64 PUSHINT
+        send_msg INLINECALLDICT
+      }>ELSE<{
+        s3 POP
+        DROP
+      }>
+      SWAP
+      save_item_data INLINECALLDICT
+    }>
+    s0 s4 XCHG
+    1607220500 PUSHINT
+    EQUAL
+    IFJMP:<{
+      s5 s3 XCPU
+      SDEQ
+      216 THROWIFNOT
+      s0 s6 XCHG
+      s5 s3 XCHG2
+      transfer_ownership INLINECALLDICT
+      s4 s3 s3 XCHG3
+      pack_item_state INLINECALLDICT
+      save_item_data INLINECALLDICT
+    }>
+    9 BLKDROP
+    208 THROW
+  }>
+  recv_external PROC:<{
+    DROP
+    BALANCE
+    FIRST
+    unpack_item_data INLINECALLDICT
+    unpack_item_state INLINECALLDICT
+    s5 s3 s3 XCHG3
+    s3 PUSH
+    -1 PUSHINT
+    maybe_end_auction CALLDICT
+    s2 POP
+    s0 s3 XCHG
+    s4 s1 s4 XCHG3
+    pack_item_state INLINECALLDICT
+    save_item_data INLINECALLDICT
+  }>
+  get_nft_data PROC:<{
+    unpack_item_data INLINECALLDICT
+    SWAP
+    unpack_item_config INLINECALLDICT
+    s2 PUSH
+    ISNULL
+    IFJMP:<{
+      s2 POP
+      0 PUSHINT
+      b{00} PUSHSLICE
+      s1 s3 XCHG
+      PUSHNULL
+    }>
+    s0 s2 XCHG
+    unpack_item_state INLINECALLDICT
+    2DROP
+    unpack_item_content INLINECALLDICT
+    2DROP
+    -1 PUSHINT
+    s4 s4 s4 XCHG3
+  }>
+  get_telemint_token_name PROC:<{
+    unpack_item_data INLINECALLDICT
+    NIP
+    unpack_item_state INLINECALLDICT
+    s2 s3 XCHG
+    3 BLKDROP
+    unpack_item_content INLINECALLDICT
+    2 1 BLKDROP2
+    unpack_token_info INLINECALLDICT
+    DROP
+  }>
+  get_telemint_auction_state PROC:<{
+    unpack_item_data INLINECALLDICT
+    NIP
+    unpack_item_state INLINECALLDICT
+    s1 s3 XCHG
+    3 BLKDROP
+    DUP
+    ISNULL
+    219 THROWIF
+    unpack_auction INLINECALLDICT
+    DROP
+    unpack_auction_state INLINECALLDICT
+    PUSHNULL
+    0 PUSHINT
+    s0 s4 PUSH2
+    ISNULL
+    IFNOT:<{
+      3 BLKDROP
+      s0 s2 XCHG
+      unpack_last_bid INLINECALLDICT
+      s4 s4 s4 XCHG3
+    }>ELSE<{
+      s5 POP
+    }>
+    3 2 BLKSWAP
+  }>
+  get_telemint_auction_config PROC:<{
+    unpack_item_data INLINECALLDICT
+    NIP
+    unpack_item_state INLINECALLDICT
+    s1 s3 XCHG
+    3 BLKDROP
+    DUP
+    ISNULL
+    IFJMP:<{
+      DROP
+      PUSHNULL
+      0 PUSHINT
+      s0 s0 s0 PUSH3
+      DUP
+    }>
+    unpack_auction INLINECALLDICT
+    NIP
+    unpack_auction_config INLINECALLDICT
+  }>
+  royalty_params PROC:<{
+    unpack_item_data INLINECALLDICT
+    NIP
+    unpack_item_state INLINECALLDICT
+    3 1 BLKDROP2
+    unpack_nft_royalty_params INLINECALLDICT
+  }>
+}END>c

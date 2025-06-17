@@ -1,0 +1,574 @@
+"Asm.fif" include
+// automatically generated from `nft-collection-no-dns.fc` incl:`stdlib.fc` incl:`common.fc` 
+PROGRAM{
+  DECLPROC force_chain
+  DECLPROC get_top_domain_bits
+  DECLPROC load_text
+  DECLPROC load_text_ref
+  DECLPROC store_text
+  DECLPROC unpack_token_info
+  DECLPROC pack_token_info
+  DECLPROC pack_state_init
+  DECLPROC pack_init_int_message
+  DECLPROC send_msg
+  DECLPROC calculate_address
+  DECLPROC unpack_item_config
+  DECLPROC pack_item_config
+  DECLPROC unpack_item_data
+  DECLPROC pack_nft_royalty_params
+  DECLPROC unpack_nft_royalty_params
+  DECLPROC pack_item_data
+  DECLPROC pack_item_content
+  DECLPROC unpack_item_content
+  DECLPROC unpack_item_state
+  DECLPROC pack_item_state
+  DECLPROC save_item_data
+  DECLPROC pack_item_state_init
+  DECLPROC pack_teleitem_msg_deploy
+  DECLPROC unpack_teleitem_msg_deploy
+  DECLPROC unpack_collection_data
+  DECLPROC save_collection_data
+  DECLPROC unpack_signed_cmd
+  DECLPROC unpack_deploy_msg
+  DECLPROC unpack_last_bid
+  DECLPROC pack_last_bid
+  DECLPROC unpack_auction_state
+  DECLPROC pack_auction_state
+  DECLPROC unpack_auction_config
+  DECLPROC unpack_auction
+  DECLPROC pack_auction
+  DECLPROC unpack_nft_cmd_transfer
+  DECLPROC unwrap_signed_cmd
+  DECLPROC unpack_deploy_msg_v2
+  DECLPROC check_restrictions
+  DECLPROC deploy_item
+  DECLPROC recv_internal
+  DECLPROC recv_external
+  102491 DECLMETHOD get_collection_data
+  92067 DECLMETHOD get_nft_address_by_index
+  68445 DECLMETHOD get_nft_content
+  force_chain PROCINLINE:<{
+    REWRITESTDADDR
+    DROP
+    0 EQINT
+    333 THROWIFNOT
+  }>
+  get_top_domain_bits PROCINLINE:<{
+    -8 PUSHINT
+    1 PUSHINT
+    WHILE:<{
+    }>DO<{
+      8 ADDCONST
+      SWAP
+      8 LDU
+      -ROT
+    }>
+    NIP
+    DUP
+    201 THROWIFNOT
+  }>
+  load_text PROCINLINE:<{
+    8 LDU
+    SWAP
+    3 LSHIFT#
+    LDSLICEX
+    SWAP
+  }>
+  load_text_ref PROCINLINE:<{
+    LDREF
+    SWAP
+    CTOS
+    load_text INLINECALLDICT
+    NIP
+  }>
+  store_text PROCINLINE:<{
+    DUP
+    SBITS
+    8 PUSHINT
+    DIVMOD
+    201 THROWIF
+    ROT
+    8 STU
+    SWAP
+    STSLICER
+  }>
+  unpack_token_info PROCINLINE:<{
+    CTOS
+    load_text INLINECALLDICT
+    SWAP
+    load_text INLINECALLDICT
+    SWAP
+    ENDS
+  }>
+  pack_token_info PROC:<{
+    NEWC
+    ROT
+    store_text INLINECALLDICT
+    SWAP
+    store_text INLINECALLDICT
+    ENDC
+  }>
+  pack_state_init PROCINLINE:<{
+    0 PUSHINT
+    DUP
+    NEWC
+    2 STU
+    s1 s3 XCHG
+    STOPTREF
+    STOPTREF
+    1 STU
+    ENDC
+  }>
+  pack_init_int_message PROCINLINE:<{
+    7 PUSHINT
+    24 PUSHINT
+    NEWC
+    6 STU
+    s0 s4 XCHG2
+    STSLICER
+    0 PUSHINT
+    STGRAMS
+    s1 s3 XCHG
+    108 STU
+    STREF
+    STREF
+    ENDC
+  }>
+  send_msg PROCINLINE:<{
+    0 PUSHINT
+    16 PUSHINT
+    NEWC
+    6 STU
+    s0 s7 XCHG2
+    STSLICER
+    s0 s5 XCHG2
+    STGRAMS
+    s1 s5 XCHG
+    107 STU
+    s1 s2 XCHG
+    32 STU
+    64 STU
+    s2 PUSH
+    ISNULL
+    IFNOT:<{
+      ROT
+      STBR
+      SWAP
+    }>ELSE<{
+      s2 POP
+    }>
+    SWAP
+    ENDC
+    SWAP
+    SENDRAWMSG
+  }>
+  calculate_address PROCINLINE:<{
+    HASHCU
+    4 PUSHINT
+    NEWC
+    3 STU
+    s1 s2 XCHG
+    8 STI
+    256 STU
+    ENDC
+    CTOS
+  }>
+  unpack_item_config PROCINLINE:<{
+    CTOS
+    256 LDU
+    LDMSGADDR
+    ENDS
+  }>
+  pack_item_config PROCINLINE:<{
+    SWAP
+    NEWC
+    256 STU
+    SWAP
+    STSLICER
+    ENDC
+  }>
+  unpack_item_data PROCINLINE:<{
+    c4 PUSH
+    CTOS
+    LDREF
+    LDOPTREF
+    ENDS
+  }>
+  pack_nft_royalty_params PROCINLINE:<{
+    s0 s2 XCHG
+    NEWC
+    16 STU
+    16 STU
+    SWAP
+    STSLICER
+    ENDC
+  }>
+  unpack_nft_royalty_params PROCINLINE:<{
+    CTOS
+    16 LDU
+    16 LDU
+    LDMSGADDR
+    ENDS
+  }>
+  pack_item_data PROCINLINE:<{
+    SWAP
+    NEWC
+    STREF
+    STOPTREF
+    ENDC
+  }>
+  pack_item_content PROCINLINE:<{
+    s0 s2 XCHG
+    NEWC
+    STREF
+    STDICT
+    STREF
+    ENDC
+  }>
+  unpack_item_content PROCINLINE:<{
+    CTOS
+    LDREF
+    LDDICT
+    LDREF
+    ENDS
+  }>
+  unpack_item_state PROCINLINE:<{
+    CTOS
+    LDMSGADDR
+    LDREF
+    LDOPTREF
+    LDREF
+    ENDS
+  }>
+  pack_item_state PROCINLINE:<{
+    NEWC
+    s0 s4 XCHG2
+    STSLICER
+    s1 s2 XCHG
+    STREF
+    STOPTREF
+    STREF
+    ENDC
+  }>
+  save_item_data PROCINLINE:<{
+    pack_item_data INLINECALLDICT
+    c4 POP
+  }>
+  pack_item_state_init PROCINLINE:<{
+    MYADDR
+    s1 s2 XCHG
+    pack_item_config INLINECALLDICT
+    PUSHNULL
+    pack_item_data INLINECALLDICT
+    pack_state_init INLINECALLDICT
+  }>
+  pack_teleitem_msg_deploy PROCINLINE:<{
+    697974293 PUSHINT
+    NEWC
+    32 STU
+    s0 s6 XCHG2
+    STSLICER
+    s0 s4 XCHG2
+    STGRAMS
+    s1 s2 XCHG
+    STREF
+    STREF
+    STREF
+    STREF
+    ENDC
+  }>
+  unpack_teleitem_msg_deploy PROCINLINE:<{
+    LDMSGADDR
+    LDGRAMS
+    LDREF
+    LDREF
+    LDREF
+    LDREF
+    DROP
+  }>
+  unpack_collection_data PROCINLINE:<{
+    c4 PUSH
+    CTOS
+    1 LDI
+    32 LDU
+    256 LDU
+    LDREF
+    LDREF
+    load_text_ref INLINECALLDICT
+    SWAP
+    LDREF
+    ENDS
+  }>
+  save_collection_data PROCINLINE:<{
+    NEWC
+    ROT
+    store_text INLINECALLDICT
+    ENDC
+    s0 s6 XCHG
+    NEWC
+    1 STI
+    s1 s5 XCHG
+    32 STU
+    s1 s3 XCHG
+    256 STU
+    STREF
+    STREF
+    s1 s2 XCHG
+    STREF
+    STREF
+    ENDC
+    c4 POP
+  }>
+  unpack_signed_cmd PROCINLINE:<{
+    9 PUSHPOW2
+    LDSLICEX
+    DUP
+    HASHSU
+    SWAP
+    32 LDU
+    32 LDU
+    32 LDU
+  }>
+  unpack_deploy_msg PROCINLINE:<{
+    load_text INLINECALLDICT
+    SWAP
+    LDREF
+    LDREF
+    LDOPTREF
+    ENDS
+  }>
+  unpack_last_bid PROCINLINE:<{
+    CTOS
+    LDMSGADDR
+    LDGRAMS
+    32 LDU
+    ENDS
+  }>
+  pack_last_bid PROCINLINE:<{
+    NEWC
+    s0 s3 XCHG2
+    STSLICER
+    SWAP
+    STGRAMS
+    32 STU
+    ENDC
+  }>
+  unpack_auction_state PROCINLINE:<{
+    CTOS
+    LDOPTREF
+    LDGRAMS
+    32 LDU
+    ENDS
+  }>
+  pack_auction_state PROCINLINE:<{
+    s0 s2 XCHG
+    NEWC
+    STOPTREF
+    SWAP
+    STGRAMS
+    32 STU
+    ENDC
+  }>
+  unpack_auction_config PROCINLINE:<{
+    CTOS
+    LDMSGADDR
+    LDGRAMS
+    LDGRAMS
+    8 LDU
+    32 LDU
+    32 LDU
+    ENDS
+  }>
+  unpack_auction PROCINLINE:<{
+    CTOS
+    LDREF
+    LDREF
+    ENDS
+  }>
+  pack_auction PROCINLINE:<{
+    SWAP
+    NEWC
+    STREF
+    STREF
+    ENDC
+  }>
+  unpack_nft_cmd_transfer PROCINLINE:<{
+    64 LDU
+    LDMSGADDR
+    LDMSGADDR
+    LDOPTREF
+    LDGRAMS
+  }>
+  unwrap_signed_cmd PROC:<{
+    DROP
+    s0 s2 XCHG
+    unpack_signed_cmd INLINECALLDICT
+    7 0 REVERSE
+    CHKSIGNU
+    202 THROWIFNOT
+    s1 s4 XCHG
+    EQUAL
+    203 THROWIFNOT
+    NOW
+    s3 s3 XCPU
+    LESS
+    204 THROWIFNOT
+    s1 s2 XCHG
+    LESS
+    205 THROWIFNOT
+  }>
+  unpack_deploy_msg_v2 PROCINLINE:<{
+    load_text INLINECALLDICT
+    SWAP
+    LDREF
+    LDREF
+    LDOPTREF
+    LDOPTREF
+    ENDS
+  }>
+  check_restrictions PROCINLINE:<{
+    OVER
+    ISNULL
+    NOT
+    IF:<{
+      SWAP
+      CTOS
+      1 LDU
+      SWAP
+      IF:<{
+        LDMSGADDR
+        s1 s2 XCPU
+        SDEQ
+        224 THROWIFNOT
+      }>
+      1 LDU
+      SWAP
+      IF:<{
+        NIP
+        LDMSGADDR
+        DROP
+      }>ELSE<{
+        DROP
+      }>
+    }>ELSE<{
+      NIP
+    }>
+  }>
+  deploy_item PROC:<{
+    s0 s2 XCHG
+    unpack_deploy_msg_v2 INLINECALLDICT
+    s0 s9 XCHG2
+    check_restrictions INLINECALLDICT
+    OVER
+    unpack_auction_config INLINECALLDICT
+    s4 s5 XCHG
+    5 BLKDROP
+    s8 s(-1) PUXC
+    GEQ
+    206 THROWIFNOT
+    s3 PUSH
+    SHA256U
+    s0 s7 XCHG2
+    pack_item_state_init INLINECALLDICT
+    0 PUSHINT
+    OVER
+    calculate_address INLINECALLDICT
+    s9 PUSH
+    ISNULL
+    IF:<{
+      s9 POP
+      s5 s8 XCHG
+    }>ELSE<{
+      s6 POP
+    }>
+    s3 s4 XCHG2
+    pack_token_info CALLDICT
+    s4 s6 XCHG
+    s0 s3 XCHG
+    s2 s7 XCHG2
+    pack_teleitem_msg_deploy INLINECALLDICT
+    s1 s2 XCHG
+    pack_init_int_message INLINECALLDICT
+    64 PUSHINT
+    SENDRAWMSG
+  }>
+  recv_internal PROC:<{
+    SWAP
+    CTOS
+    4 LDU
+    SWAP
+    1 PUSHINT
+    AND
+    IFJMP:<{
+      3 BLKDROP
+    }>
+    LDMSGADDR
+    DROP
+    OVER
+    SEMPTY
+    IF:<{
+      0 PUSHINT
+    }>ELSE<{
+      SWAP
+      32 LDU
+      -ROT
+    }>
+    DUP
+    0 EQINT
+    IFJMP:<{
+      s2 s3 XCHG
+      3 BLKDROP
+      DUP
+      x{23746f707570} PUSHSLICE
+      SDEQ
+      SWAP
+      SREFS
+      0 EQINT
+      AND
+      207 THROWIFNOT
+    }>
+    1178019995 PUSHINT
+    EQUAL
+    208 THROWIFNOT
+    unpack_collection_data INLINECALLDICT
+    s3 POP
+    s5 POP
+    s6 s6 s3 XCHG3
+    s7 PUSH
+    unwrap_signed_cmd CALLDICT
+    s0 s0 s3 XCHG3
+    s0 s5 XCHG
+    s0 s4 XCHG
+    deploy_item CALLDICT
+  }>
+  recv_external PROC:<{
+    DROP
+    unpack_collection_data INLINECALLDICT
+    s0 s6 XCHG
+    218 THROWIF
+    ACCEPT
+    TRUE
+    s0 s6 XCHG
+    save_collection_data INLINECALLDICT
+  }>
+  get_collection_data PROC:<{
+    unpack_collection_data INLINECALLDICT
+    s3 s6 XCHG
+    6 BLKDROP
+    -1 PUSHINT
+    b{00} PUSHSLICE
+    s1 s2 XCHG
+  }>
+  get_nft_address_by_index PROC:<{
+    unpack_collection_data INLINECALLDICT
+    s2 s6 XCHG
+    6 BLKDROP
+    pack_item_state_init INLINECALLDICT
+    0 PUSHINT
+    SWAP
+    calculate_address INLINECALLDICT
+  }>
+  get_nft_content PROC:<{
+    NIP
+  }>
+}END>c

@@ -35,5 +35,11 @@
     "shortTitle": "vesting wallet",
     "description": "original vesting with lots of globals and unreadable code",
     "originalUrl": "https://github.com/ton-blockchain/vesting-contract"
+  },
+  {
+    "numericFolder": "07_telemint",
+    "shortTitle": "telemint (telegram gifts)",
+    "description": "a mixture of NFT and auction, quite a specific and hard contract",
+    "originalUrl": "https://github.com/TelegramMessenger/telemint"
   }
 ]

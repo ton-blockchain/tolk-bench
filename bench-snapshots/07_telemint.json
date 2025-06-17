@@ -1,0 +1,26 @@
+[
+  {
+    "commitDesc": "original FunC",
+    "gas": {
+      "EXTERNAL to collection": 2569,
+      "DEPLOY item by admin": 23706,
+      "REJECT incorrect sender": 24142,
+      "OVERRIDE restrictions": 24069,
+      "GET royalty params": 4245,
+      "INCREASE next bid": 12640,
+      "AUCTION end on expire": 11317,
+      "AUCTION end reached max bid": 20497,
+      "AUCTION start by owner": 7762,
+      "AUCTION cancel if no bids": 6341,
+      "AUCTION first bid": 10394,
+      "AUCTION next bid": 12640,
+      "TRANSFER item": 9508
+    },
+    "codeSize": {
+      "NftCollection bits": 4649,
+      "NftCollection cells": 17,
+      "NftItem bits": 14785,
+      "NftItem cells": 37
+    }
+  }
+]
