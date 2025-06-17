@@ -1,0 +1,17 @@
+[
+  {
+    "commitDesc": "original FunC",
+    "gas": {
+      "DEPLOY nft": 10469,
+      "BATCH deploy nft": 1049281,
+      "TRANSFER nft": 7109,
+      "GET static data": 4535
+    },
+    "codeSize": {
+      "nft-item bits": 3441,
+      "nft-item cells": 14,
+      "nft-collection bits": 3564,
+      "nft-collection cells": 19
+    }
+  }
+]

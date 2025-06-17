@@ -1,0 +1,241 @@
+"Asm.fif" include
+// automatically generated from `nft-item.fc` incl:`stdlib.fc` incl:`params.fc` incl:`op-codes.fc` 
+PROGRAM{
+  DECLPROC force_chain
+  DECLPROC load_data
+  DECLPROC store_data
+  DECLPROC send_msg
+  DECLPROC transfer_ownership
+  DECLPROC recv_internal
+  102351 DECLMETHOD get_nft_data
+  force_chain PROC:<{
+    REWRITESTDADDR
+    DROP
+    0 PUSHINT
+    EQUAL
+    333 THROWIFNOT
+  }>
+  load_data PROC:<{
+    c4 PUSH
+    CTOS
+    64 LDU
+    LDMSGADDR
+    DUP
+    SBITS
+    0 GTINT
+    IFJMP:<{
+      -1 PUSHINT
+      SWAP
+      LDMSGADDR
+      LDREF
+      DROP
+      s2 s4 XCHG
+      s2 s3 XCHG
+    }>
+    DROP
+    0 PUSHINT
+    -ROT
+    PUSHNULL
+    PUSHNULL
+  }>
+  store_data PROC:<{
+    s0 s3 XCHG
+    NEWC
+    64 STU
+    ROT
+    STSLICER
+    SWAP
+    STSLICER
+    STREF
+    ENDC
+    c4 POP
+  }>
+  send_msg PROCINLINE:<{
+    0 PUSHINT
+    16 PUSHINT
+    NEWC
+    6 STU
+    s0 s7 XCHG2
+    STSLICER
+    s0 s5 XCHG2
+    STVARUINT16
+    s1 s5 XCHG
+    107 STU
+    s1 s2 XCHG
+    32 STU
+    64 STU
+    s2 PUSH
+    ISNULL
+    NOT
+    IF:<{
+      ROT
+      STBR
+      SWAP
+    }>ELSE<{
+      s2 POP
+    }>
+    SWAP
+    ENDC
+    SWAP
+    SENDRAWMSG
+  }>
+  transfer_ownership PROCINLINE:<{
+    s3 s5 XCPU
+    SDEQ
+    401 THROWIFNOT
+    LDMSGADDR
+    OVER
+    force_chain CALLDICT
+    LDMSGADDR
+    1 LDI
+    NIP
+    LDVARUINT16
+    DUP
+    SBITS
+    0 GTINT
+    708 THROWIFNOT
+    50000000 PUSHINT
+    s1 s11 XCHG
+    SUB
+    OVER
+    IF:<{
+      s1 s5 PUSH2
+      ADD
+      SUB
+    }>
+    s2 PUSH
+    2 PLDU
+    0 NEQINT
+    DUP
+    IF:<{
+      s0 s6 XCHG
+      SUB
+    }>ELSE<{
+      s6 POP
+    }>
+    DUP
+    -1 GTINT
+    402 THROWIFNOT
+    OVER
+    IF:<{
+      0x05138d91 PUSHINT
+      NEWC
+      s0 s9 XCHG2
+      STSLICER
+      s0 s11 XCHG2
+      STSLICER
+      1 PUSHINT
+      s4 PUSH
+      s9 s1 s4 XCHG3
+      s6 s9 s(-1) PUXC2
+      send_msg INLINECALLDICT
+      s4 s7 XCHG
+    }>ELSE<{
+      s2 s10 XCHG
+      s7 POP
+      2DROP
+    }>
+    s0 s2 XCHG
+    IF:<{
+      s6 PUSH
+      force_chain CALLDICT
+      0xd53276db PUSHINT
+      s3 s7 XCHG
+      s4 s0 s0 XCHG3
+      PUSHNULL
+      1 PUSHINT
+      send_msg INLINECALLDICT
+    }>ELSE<{
+      DROP
+      s2 POP
+      s4 POP
+    }>
+    3 ROLL
+    store_data CALLDICT
+  }>
+  recv_internal PROC:<{
+    s2 POP
+    OVER
+    SEMPTY
+    IFJMP:<{
+      3 BLKDROP
+    }>
+    CTOS
+    4 LDU
+    SWAP
+    1 PUSHINT
+    AND
+    IFJMP:<{
+      3 BLKDROP
+    }>
+    LDMSGADDR
+    LDMSGADDR
+    NIP
+    LDVARUINT16
+    NIP
+    1 PUSHINT
+    SDSKIPFIRST
+    LDVARUINT16
+    NIP
+    LDVARUINT16
+    DROP
+    3 PUSHINT
+    1 MULRSHIFT#
+    load_data CALLDICT
+    s0 s4 XCHG
+    NOT
+    IFJMP:<{
+      DROP
+      2 2 BLKDROP2
+      s4 POP
+      s3 s1 PUXC
+      SDEQ
+      405 THROWIFNOT
+      SWAP
+      LDMSGADDR
+      LDREF
+      DROP
+      s2 s3 XCHG
+      store_data CALLDICT
+    }>
+    s0 s6 XCHG
+    32 LDU
+    64 LDU
+    0x5fcc3d14 PUSHINT
+    s3 s(-1) PUXC
+    EQUAL
+    IFJMP:<{
+      s2 POP
+      s3 s7 XCHG
+      5 2 REVERSE
+      s0 s1 s3 XCHG3
+      transfer_ownership INLINECALLDICT
+    }>
+    DROP
+    s4 POP
+    s4 POP
+    s5 POP
+    s5 POP
+    0x2fcb26a2 PUSHINT
+    s1 s2 XCHG
+    EQUAL
+    IFJMP:<{
+      0 PUSHINT
+      0x8b771735 PUSHINT
+      s0 s5 XCHG
+      NEWC
+      256 STU
+      s0 s4 XCHG2
+      STSLICER
+      s2 s4 XCHG
+      64 PUSHINT
+      send_msg INLINECALLDICT
+    }>
+    4 BLKDROP
+    16 PUSHPOW2DEC
+    THROWANY
+  }>
+  get_nft_data PROC:<{
+    load_data CALLDICT
+  }>
+}END>c

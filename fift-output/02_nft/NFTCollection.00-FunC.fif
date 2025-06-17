@@ -1,0 +1,293 @@
+"Asm.fif" include
+// automatically generated from `nft-collection.fc` incl:`stdlib.fc` incl:`params.fc` incl:`op-codes.fc` 
+PROGRAM{
+  DECLPROC force_chain
+  DECLPROC load_data
+  DECLPROC save_data
+  DECLPROC calculate_nft_item_state_init
+  DECLPROC calculate_nft_item_address
+  DECLPROC deploy_nft_item
+  DECLPROC send_royalty_params
+  DECLPROC recv_internal
+  102491 DECLMETHOD get_collection_data
+  92067 DECLMETHOD get_nft_address_by_index
+  85719 DECLMETHOD royalty_params
+  68445 DECLMETHOD get_nft_content
+  force_chain PROC:<{
+    REWRITESTDADDR
+    DROP
+    0 PUSHINT
+    EQUAL
+    333 THROWIFNOT
+  }>
+  load_data PROCINLINE:<{
+    c4 PUSH
+    CTOS
+    LDMSGADDR
+    64 LDU
+    LDREF
+    LDREF
+    LDREF
+    DROP
+  }>
+  save_data PROCINLINE:<{
+    NEWC
+    s0 s5 XCHG2
+    STSLICER
+    s1 s3 XCHG
+    64 STU
+    STREF
+    STREF
+    STREF
+    ENDC
+    c4 POP
+  }>
+  calculate_nft_item_state_init PROC:<{
+    SWAP
+    NEWC
+    64 STU
+    MYADDR
+    STSLICER
+    ENDC
+    0 PUSHINT
+    DUP
+    NEWC
+    2 STU
+    s1 s3 XCHG
+    STDICT
+    STDICT
+    1 STU
+    ENDC
+  }>
+  calculate_nft_item_address PROC:<{
+    HASHCU
+    4 PUSHINT
+    NEWC
+    3 STU
+    s1 s2 XCHG
+    8 STI
+    256 STU
+    ENDC
+    CTOS
+  }>
+  deploy_nft_item PROC:<{
+    2SWAP
+    calculate_nft_item_state_init CALLDICT
+    0 PUSHINT
+    OVER
+    calculate_nft_item_address CALLDICT
+    7 PUSHINT
+    24 PUSHINT
+    NEWC
+    6 STU
+    ROT
+    STSLICER
+    s0 s4 XCHG2
+    STVARUINT16
+    s1 s3 XCHG
+    108 STU
+    s1 s2 XCHG
+    STREF
+    STREF
+    ENDC
+    1 PUSHINT
+    SENDRAWMSG
+  }>
+  send_royalty_params PROCINLINE:<{
+    0xa8cb00ad PUSHINT
+    0 PUSHINT
+    16 PUSHINT
+    NEWC
+    6 STU
+    s0 s5 XCHG2
+    STSLICER
+    s4 PUSH
+    STVARUINT16
+    s1 s4 XCHG
+    107 STU
+    s1 s3 XCHG
+    32 STU
+    64 STU
+    SWAP
+    STSLICER
+    ENDC
+    64 PUSHINT
+    SENDRAWMSG
+  }>
+  recv_internal PROC:<{
+    DUP
+    SEMPTY
+    IFJMP:<{
+      2DROP
+    }>
+    SWAP
+    CTOS
+    4 LDU
+    SWAP
+    1 PUSHINT
+    AND
+    IFJMP:<{
+      2DROP
+    }>
+    LDMSGADDR
+    DROP
+    SWAP
+    32 LDU
+    64 LDU
+    load_data INLINECALLDICT
+    0x693d3950 PUSHINT
+    s8 s(-1) PUXC
+    EQUAL
+    IFJMP:<{
+      s7 POP
+      5 BLKDROP
+      SWAP
+      CTOS
+      send_royalty_params INLINECALLDICT
+    }>
+    s6 POP
+    s7 s3 XCPU
+    SDEQ
+    401 THROWIFNOT
+    s5 PUSH
+    1 EQINT
+    IFJMP:<{
+      s5 POP
+      s0 s2 XCHG
+      64 LDU
+      s1 s3 PUSH2
+      LEQ
+      402 THROWIFNOT
+      s1 s3 PUSH2
+      EQUAL
+      SWAP
+      LDVARUINT16
+      LDREF
+      DROP
+      s8 PUSH
+      s3 s4 XCHG
+      -ROT
+      deploy_nft_item CALLDICT
+      IF:<{
+        SWAP
+        INC
+        s3 s4 s3 XCHG3
+        save_data INLINECALLDICT
+      }>ELSE<{
+        5 BLKDROP
+      }>
+    }>
+    s5 PUSH
+    2 EQINT
+    IFJMP:<{
+      s5 POP
+      0 PUSHINT
+      s0 s3 XCHG
+      LDREF
+      DROP
+      UNTIL:<{
+        64 PUSHINT
+        DICTUREMMIN
+        NULLSWAPIFNOT2
+        DUP
+        IF:<{
+          s0 s6 XCHG
+          INC
+          DUP
+          250 PUSHINT
+          GEQ
+          IF:<{
+            399 THROW
+          }>
+          403 PUSHINT
+          OVER
+          ADD
+          s2 s5 PUSH2
+          LEQ
+          THROWANYIFNOT
+          s0 s2 XCHG
+          LDVARUINT16
+          LDREF
+          DROP
+          s2 PUSH
+          s11 s2 s(-1) PUXC2
+          deploy_nft_item CALLDICT
+          s3 PUSH
+          EQUAL
+          IF:<{
+            s0 s2 XCHG
+            INC
+            s0 s2 XCHG
+          }>
+          s0 s4 XCHG
+        }>ELSE<{
+          2 1 BLKDROP2
+        }>
+        NOT
+      }>
+      DROP
+      s2 POP
+      s4 s4 XCHG2
+      s3 s1 s3 XCHG3
+      save_data INLINECALLDICT
+    }>
+    s2 POP
+    s0 s4 XCHG
+    3 EQINT
+    IFJMP:<{
+      SWAP
+      LDMSGADDR
+      DROP
+      s1 s4 s4 XCHG3
+      save_data INLINECALLDICT
+    }>
+    5 BLKDROP
+    16 PUSHPOW2DEC
+    THROWANY
+  }>
+  get_collection_data PROC:<{
+    load_data INLINECALLDICT
+    2DROP
+    CTOS
+    LDREF
+    DROP
+    ROT
+  }>
+  get_nft_address_by_index PROC:<{
+    load_data INLINECALLDICT
+    s1 s4 XCHG
+    4 BLKDROP
+    calculate_nft_item_state_init CALLDICT
+    0 PUSHINT
+    SWAP
+    calculate_nft_item_address CALLDICT
+  }>
+  royalty_params PROC:<{
+    load_data INLINECALLDICT
+    4 1 BLKDROP2
+    CTOS
+    16 LDU
+    16 LDU
+    LDMSGADDR
+    DROP
+  }>
+  get_nft_content PROC:<{
+    NIP
+    load_data INLINECALLDICT
+    s2 s4 XCHG
+    4 BLKDROP
+    CTOS
+    LDREF
+    NIP
+    LDREF
+    DROP
+    CTOS
+    1 PUSHINT
+    NEWC
+    8 STU
+    SWAP
+    STSLICER
+    STREF
+    ENDC
+  }>
+}END>c
