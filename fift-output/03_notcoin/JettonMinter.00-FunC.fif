@@ -1,0 +1,643 @@
+"Asm.fif" include
+// automatically generated from `jetton-minter-not.fc` incl:`stdlib-custom.fc` incl:`op-codes.fc` incl:`workchain.fc` incl:`jetton-utils.fc` incl:`gas.fc` 
+PROGRAM{
+  DECLPROC ~load_bool
+  DECLPROC store_bool
+  DECLPROC store_address_none
+  DECLPROC is_address_none
+  DECLPROC store_msg_flags_and_address_none
+  DECLPROC ~load_msg_flags
+  DECLPROC is_bounced
+  DECLPROC ~skip_bounced_prefix
+  DECLPROC store_statinit_ref_and_body_ref
+  DECLPROC store_only_body_ref
+  DECLPROC store_prefix_only_body
+  DECLPROC ~retrieve_fwd_fee
+  DECLPROC ~load_op
+  DECLPROC ~skip_op
+  DECLPROC store_op
+  DECLPROC ~load_query_id
+  DECLPROC ~skip_query_id
+  DECLPROC store_query_id
+  DECLPROC ~load_op_and_query_id
+  DECLPROC ~set_token_snake_metadata_entry
+  DECLPROC create_token_onchain_metadata
+  DECLPROC is_same_workchain
+  DECLPROC check_same_workchain
+  DECLPROC pack_jetton_wallet_data_builder
+  DECLPROC pack_jetton_wallet_data
+  DECLPROC calculate_jetton_wallet_state_init
+  DECLPROC calculate_jetton_wallet_address
+  DECLPROC calculate_user_jetton_wallet_address
+  DECLPROC check_either_forward_payload
+  DECLPROC calculate_jetton_wallet_min_storage_fee
+  DECLPROC forward_init_state_overhead
+  DECLPROC check_amount_is_enough_to_transfer
+  DECLPROC check_amount_is_enough_to_burn
+  DECLPROC load_data
+  DECLPROC save_data
+  DECLPROC send_to_jetton_wallet
+  DECLPROC recv_internal
+  DECLPROC build_content_cell
+  106029 DECLMETHOD get_jetton_data
+  103289 DECLMETHOD get_wallet_address
+  78683 DECLMETHOD get_next_admin_address
+  ~load_bool PROCINLINE:<{
+    1 LDI
+    SWAP
+  }>
+  store_bool PROCINLINE:<{
+    SWAP
+    1 STI
+  }>
+  store_address_none PROCINLINE:<{
+    0 PUSHINT
+    SWAP
+    2 STU
+  }>
+  is_address_none PROCINLINE:<{
+    2 PLDU
+    0 EQINT
+  }>
+  store_msg_flags_and_address_none PROCINLINE:<{
+    SWAP
+    6 STU
+  }>
+  ~load_msg_flags PROCINLINE:<{
+    4 LDU
+    SWAP
+  }>
+  is_bounced PROCINLINE:<{
+    1 PUSHINT
+    AND
+  }>
+  ~skip_bounced_prefix PROCINLINE:<{
+    32 PUSHINT
+    SDSKIPFIRST
+  }>
+  store_statinit_ref_and_body_ref PROCINLINE:<{
+    7 PUSHINT
+    s0 s3 XCHG2
+    108 STU
+    STREF
+    STREF
+  }>
+  store_only_body_ref PROCINLINE:<{
+    1 PUSHINT
+    ROT
+    107 STU
+    STREF
+  }>
+  store_prefix_only_body PROCINLINE:<{
+    0 PUSHINT
+    SWAP
+    107 STU
+  }>
+  ~retrieve_fwd_fee PROCINLINE:<{
+    LDMSGADDR
+    NIP
+    LDVARUINT16
+    NIP
+    SKIPDICT
+    LDVARUINT16
+    NIP
+    LDVARUINT16
+    SWAP
+  }>
+  ~load_op PROCINLINE:<{
+    32 LDU
+    SWAP
+  }>
+  ~skip_op PROCINLINE:<{
+    32 PUSHINT
+    SDSKIPFIRST
+  }>
+  store_op PROCINLINE:<{
+    SWAP
+    32 STU
+  }>
+  ~load_query_id PROCINLINE:<{
+    64 LDU
+    SWAP
+  }>
+  ~skip_query_id PROCINLINE:<{
+    64 PUSHINT
+    SDSKIPFIRST
+  }>
+  store_query_id PROCINLINE:<{
+    SWAP
+    64 STU
+  }>
+  ~load_op_and_query_id PROCINLINE:<{
+    ~load_op INLINECALLDICT
+    SWAP
+    ~load_query_id INLINECALLDICT
+    s1 s2 XCHG
+  }>
+  ~set_token_snake_metadata_entry PROC:<{
+    0 PUSHINT
+    NEWC
+    8 STU
+    SWAP
+    STSLICER
+    ENDC
+    s0 s2 XCHG
+    8 PUSHPOW2
+    DICTUSETREF
+  }>
+  create_token_onchain_metadata PROCINLINE:<{
+    0 PUSHINT
+    NEWC
+    8 STU
+    STDICT
+    ENDC
+  }>
+  is_same_workchain PROCINLINE:<{
+    REWRITESTDADDR
+    DROP
+    0 EQINT
+  }>
+  check_same_workchain PROCINLINE:<{
+    is_same_workchain INLINECALLDICT
+    333 THROWIFNOT
+  }>
+  pack_jetton_wallet_data_builder PROCINLINE:<{
+    s0 s3 XCHG
+    NEWC
+    4 STU
+    ROT
+    STVARUINT16
+    SWAP
+    STSLICER
+    SWAP
+    STSLICER
+  }>
+  pack_jetton_wallet_data PROCINLINE:<{
+    pack_jetton_wallet_data_builder INLINECALLDICT
+    ENDC
+  }>
+  calculate_jetton_wallet_state_init PROCINLINE:<{
+    0 PUSHINT
+    s0 s(-1) s2 PU2XC
+    s1 s3 XCHG
+    s1 s5 XCHG
+    pack_jetton_wallet_data INLINECALLDICT
+    OVER
+    NEWC
+    2 STU
+    s1 s3 XCHG
+    STOPTREF
+    s1 s2 XCHG
+    STOPTREF
+    1 STU
+    ENDC
+  }>
+  calculate_jetton_wallet_address PROCINLINE:<{
+    HASHCU
+    0 PUSHINT
+    4 PUSHINT
+    NEWC
+    3 STU
+    8 STI
+    256 STU
+    ENDC
+    CTOS
+  }>
+  calculate_user_jetton_wallet_address PROCINLINE:<{
+    calculate_jetton_wallet_state_init INLINECALLDICT
+    calculate_jetton_wallet_address INLINECALLDICT
+  }>
+  check_either_forward_payload PROCINLINE:<{
+    DUP
+    1 PLDU
+    IF:<{
+      SBITREFS
+      1 EQINT
+      SWAP
+      1 EQINT
+      AND
+      49 THROWIFNOT
+    }>ELSE<{
+      DROP
+    }>
+  }>
+  calculate_jetton_wallet_min_storage_fee PROCINLINE:<{
+    3 PUSHINT
+    1033 PUSHINT
+    157680000 PUSHINT
+    0 PUSHINT
+    GETSTORAGEFEE
+  }>
+  forward_init_state_overhead PROCINLINE:<{
+    3 PUSHINT
+    931 PUSHINT
+    0 PUSHINT
+    GETFORWARDFEESIMPLE
+  }>
+  check_amount_is_enough_to_transfer PROCINLINE:<{
+    OVER
+    IF:<{
+      2 PUSHINT
+    }>ELSE<{
+      1 PUSHINT
+    }>
+    GETPRECOMPILEDGAS
+    DUP
+    ISNULL
+    IF:<{
+      10065 PUSHINT
+    }>ELSE<{
+      DUP
+    }>
+    OVER
+    ISNULL
+    IF:<{
+      NIP
+      10435 PUSHINT
+    }>ELSE<{
+      SWAP
+    }>
+    s2 s3 XCHG2
+    MUL
+    s1 s3 XCHG
+    ADD
+    forward_init_state_overhead INLINECALLDICT
+    ADD
+    s0 s2 XCHG
+    0 PUSHINT
+    GETGASFEE
+    s1 s2 XCHG
+    ADD
+    SWAP
+    0 PUSHINT
+    GETGASFEE
+    ADD
+    calculate_jetton_wallet_min_storage_fee INLINECALLDICT
+    ADD
+    GREATER
+    48 THROWIFNOT
+  }>
+  check_amount_is_enough_to_burn PROCINLINE:<{
+    GETPRECOMPILEDGAS
+    DUP
+    ISNULL
+    IF:<{
+      DROP
+      5891 PUSHINT
+    }>ELSE<{
+    }>
+    1 PUSHINT
+    754 PUSHINT
+    0 PUSHINT
+    GETFORWARDFEE
+    SWAP
+    0 PUSHINT
+    GETGASFEE
+    ADD
+    6757 PUSHINT
+    0 PUSHINT
+    GETGASFEE
+    ADD
+    GREATER
+    48 THROWIFNOT
+  }>
+  load_data PROCINLINE:<{
+    c4 PUSH
+    CTOS
+    LDVARUINT16
+    LDMSGADDR
+    LDMSGADDR
+    LDREF
+    LDREF
+    ENDS
+  }>
+  save_data PROCINLINE:<{
+    NEWC
+    s0 s5 XCHG2
+    STVARUINT16
+    s0 s3 XCHG2
+    STSLICER
+    SWAP
+    STSLICER
+    STREF
+    STREF
+    ENDC
+    c4 POP
+  }>
+  send_to_jetton_wallet PROCINLINE:<{
+    10000000 PUSHINT
+    0 PUSHINT
+    RAWRESERVE
+    MYADDR
+    s5 s0 s4 XCHG3
+    calculate_jetton_wallet_state_init INLINECALLDICT
+    DUP
+    calculate_jetton_wallet_address INLINECALLDICT
+    NEWC
+    24 PUSHINT
+    store_msg_flags_and_address_none INLINECALLDICT
+    SWAP
+    STSLICER
+    ROT
+    STVARUINT16
+    s0 s2 XCHG
+    IF:<{
+      ROT
+      store_statinit_ref_and_body_ref INLINECALLDICT
+    }>ELSE<{
+      DROP
+      SWAP
+      store_only_body_ref INLINECALLDICT
+    }>
+    ENDC
+    17 PUSHINT
+    SENDRAWMSG
+  }>
+  recv_internal PROC:<{
+    s2 POP
+    CTOS
+    ~load_msg_flags INLINECALLDICT
+    is_bounced INLINECALLDICT
+    IFJMP:<{
+      DROP
+      ~skip_bounced_prefix INLINECALLDICT
+      ~load_op INLINECALLDICT
+      395134233 PUSHINT
+      EQUAL
+      IFNOTJMP:<{
+        DROP
+      }>
+      ~skip_query_id INLINECALLDICT
+      LDVARUINT16
+      DROP
+      load_data INLINECALLDICT
+      s4 s5 XCHG2
+      SUB
+      s1 s3 s4 XCHG3
+      save_data INLINECALLDICT
+    }>
+    LDMSGADDR
+    ~retrieve_fwd_fee INLINECALLDICT
+    NIP
+    0 PUSHINT
+    GETORIGINALFWDFEE
+    s0 s2 XCHG
+    ~load_op_and_query_id INLINECALLDICT
+    load_data INLINECALLDICT
+    s6 PUSH
+    21 EQINT
+    IFJMP:<{
+      s5 POP
+      s5 POP
+      s6 s1 XCPU
+      SDEQ
+      73 THROWIFNOT
+      s0 s4 XCHG
+      LDMSGADDR
+      OVER
+      check_same_workchain INLINECALLDICT
+      LDVARUINT16
+      LDREF
+      ENDS
+      DUP
+      CTOS
+      ~load_op INLINECALLDICT
+      395134233 PUSHINT
+      EQUAL
+      72 THROWIFNOT
+      ~skip_query_id INLINECALLDICT
+      LDVARUINT16
+      LDMSGADDR
+      NIP
+      LDMSGADDR
+      NIP
+      LDVARUINT16
+      check_either_forward_payload INLINECALLDICT
+      s3 s0 s10 PUXC2
+      check_amount_is_enough_to_transfer INLINECALLDICT
+      s5 PUSH
+      -ROT
+      -1 PUSHINT
+      send_to_jetton_wallet INLINECALLDICT
+      s0 s5 XCHG2
+      ADD
+      s3 s1 s4 XCHG3
+      save_data INLINECALLDICT
+    }>
+    s9 POP
+    s5 PUSH
+    2078119902 PUSHINT
+    EQUAL
+    IFJMP:<{
+      s5 POP
+      s0 s5 XCHG
+      LDVARUINT16
+      LDMSGADDR
+      MYADDR
+      s2 s0 s7 XC2PU
+      calculate_user_jetton_wallet_address INLINECALLDICT
+      s0 s8 XCHG2
+      SDEQ
+      74 THROWIFNOT
+      s1 s2 XCHG
+      SUB
+      s4 s1 s4 XCHG3
+      s3 s6 XCHG2
+      save_data INLINECALLDICT
+      LDMSGADDR
+      ENDS
+      DUP
+      is_address_none INLINECALLDICT
+      NOT
+      IF:<{
+        NEWC
+        16 PUSHINT
+        store_msg_flags_and_address_none INLINECALLDICT
+        SWAP
+        STSLICER
+        0 PUSHINT
+        STVARUINT16
+        store_prefix_only_body INLINECALLDICT
+        3576854235 PUSHINT
+        store_op INLINECALLDICT
+        SWAP
+        store_query_id INLINECALLDICT
+        ENDC
+        66 PUSHINT
+        SENDRAWMSG
+      }>ELSE<{
+        2DROP
+      }>
+    }>
+    s5 PUSH
+    745978227 PUSHINT
+    EQUAL
+    IFJMP:<{
+      s5 POP
+      3 BLKDROP
+      s4 POP
+      SWAP
+      LDMSGADDR
+      ~load_bool INLINECALLDICT
+      SWAP
+      ENDS
+      IF:<{
+        NEWC
+        OVER
+        STSLICER
+        ENDC
+      }>ELSE<{
+        PUSHNULL
+      }>
+      NEWC
+      16 PUSHINT
+      store_msg_flags_and_address_none INLINECALLDICT
+      s0 s4 XCHG2
+      STSLICER
+      0 PUSHINT
+      STVARUINT16
+      store_prefix_only_body INLINECALLDICT
+      3513996288 PUSHINT
+      store_op INLINECALLDICT
+      s0 s4 XCHG2
+      store_query_id INLINECALLDICT
+      s3 PUSH
+      is_same_workchain INLINECALLDICT
+      IF:<{
+        MYADDR
+        s4 s0 s4 XCHG3
+        calculate_user_jetton_wallet_address INLINECALLDICT
+        s1 s2 XCHG
+        STSLICER
+      }>ELSE<{
+        NIP
+        1 2 BLKDROP2
+        store_address_none INLINECALLDICT
+      }>
+      STOPTREF
+      ENDC
+      80 PUSHINT
+      SENDRAWMSG
+    }>
+    s4 POP
+    s4 PUSH
+    1694626644 PUSHINT
+    EQUAL
+    IFJMP:<{
+      DROP
+      s3 POP
+      s4 s2 XCPU
+      SDEQ
+      73 THROWIFNOT
+      s0 s2 XCHG
+      LDMSGADDR
+      ENDS
+      s0 s0 s3 XCHG3
+      s0 s4 XCHG
+      save_data INLINECALLDICT
+    }>
+    s4 PUSH
+    4220051737 PUSHINT
+    EQUAL
+    IFJMP:<{
+      NIP
+      s3 POP
+      s0 s3 XCHG
+      ENDS
+      s3 s1 XCPU
+      SDEQ
+      73 THROWIFNOT
+      <b 0 2 u, b> <s PUSHSLICE
+      s0 s3 s4 XCHG3
+      save_data INLINECALLDICT
+    }>
+    s4 PUSH
+    1949430305 PUSHINT
+    EQUAL
+    IFJMP:<{
+      DROP
+      s3 POP
+      s4 s2 XCHG2
+      SDEQ
+      73 THROWIFNOT
+      SWAP
+      ENDS
+      <b 0 2 u, b> <s PUSHSLICE
+      <b 0 2 u, b> <s PUSHSLICE
+      s0 s3 s4 XCHG3
+      save_data INLINECALLDICT
+    }>
+    s7 POP
+    s3 PUSH
+    3414567170 PUSHINT
+    EQUAL
+    IFJMP:<{
+      s3 POP
+      s4 s2 XCPU
+      SDEQ
+      73 THROWIFNOT
+      NEWC
+      s0 s3 XCHG2
+      STSLICER
+      ENDC
+      s1 s3 XCHG
+      s4 s4 s0 XCHG3
+      save_data INLINECALLDICT
+    }>
+    s6 POP
+    2DROP
+    DUP
+    621336170 PUSHINT
+    EQUAL
+    IFJMP:<{
+      DROP
+      s0 s2 XCHG
+      SDEQ
+      73 THROWIFNOT
+      LDREF
+      LDREF
+      ENDS
+      SWAP
+      c4 POP
+      SETCODE
+    }>
+    3 1 BLKDROP2
+    3547469196 PUSHINT
+    EQUAL
+    IFJMP:<{
+    }>
+    16 PUSHPOW2DEC
+    THROWANY
+  }>
+  build_content_cell PROCINLINE:<{
+    NEWDICT
+    51065135818459385347574250312853146822620586594996463797054414300406918686668 PUSHINT
+    ROT
+    ~set_token_snake_metadata_entry CALLDICT
+    107878361799212983662495570378745491379550006934010968359181619763835345146430 PUSHINT
+    x{39} PUSHSLICE
+    ~set_token_snake_metadata_entry CALLDICT
+    create_token_onchain_metadata INLINECALLDICT
+  }>
+  get_jetton_data PROC:<{
+    load_data INLINECALLDICT
+    -1 PUSHINT
+    s3 POP
+    CTOS
+    build_content_cell INLINECALLDICT
+    s3 s0 s0 XCHG3
+  }>
+  get_wallet_address PROC:<{
+    load_data INLINECALLDICT
+    s1 s4 XCHG
+    4 BLKDROP
+    MYADDR
+    SWAP
+    calculate_user_jetton_wallet_address INLINECALLDICT
+  }>
+  get_next_admin_address PROC:<{
+    load_data INLINECALLDICT
+    s2 s4 XCHG
+    4 BLKDROP
+  }>
+}END>c

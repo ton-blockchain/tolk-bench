@@ -1,0 +1,19 @@
+[
+  {
+    "commitDesc": "original FunC",
+    "gas": {
+      "MINT jettons by admin": 17053,
+      "TRANSFER with forward_amount": 19638,
+      "TRANSFER no forward_amount": 16984,
+      "BURN jettons": 12732,
+      "DISCOVER with include_address": 7107,
+      "DISCOVER no include_address": 6545
+    },
+    "codeSize": {
+      "minter bits": 8782,
+      "minter cells": 21,
+      "wallet bits": 6794,
+      "wallet cells": 15
+    }
+  }
+]

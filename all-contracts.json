@@ -10,5 +10,12 @@
     "shortTitle": "basic nft",
     "description": "nft v1.03, the same as Tact uses for benchmarks",
     "originalUrl": "https://github.com/ton-blockchain/token-contract"
+  },
+  {
+    "numericFolder": "03_notcoin",
+    "shortTitle": "notcoin",
+    "$comment": "'notcoin' and 'basecoin' are almost identical",
+    "description": "jetton v1.2, admin actions and precompiled, Tact also uses it for benchmarks",
+    "originalUrl": "https://github.com/OpenBuilders/notcoin-contract"
   }
 ]
