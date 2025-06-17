@@ -17,5 +17,11 @@
     "$comment": "'notcoin' and 'basecoin' are almost identical",
     "description": "jetton v1.2, admin actions and precompiled, Tact also uses it for benchmarks",
     "originalUrl": "https://github.com/OpenBuilders/notcoin-contract"
+  },
+  {
+    "numericFolder": "04_sharded_tgbtc",
+    "shortTitle": "sharded jetton (tgBTC)",
+    "description": "jetton v2.0, with shard optimization, tgBTC is using a FunC version",
+    "originalUrl": "https://github.com/ton-blockchain/jetton-contract/tree/jetton-2.0"
   }
 ]

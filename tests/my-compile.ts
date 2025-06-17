@@ -67,7 +67,8 @@ export async function myCompile(numericFolder: string, contractName: string): Pr
         saveFiftOutput(numericFolder, contractName, fiftOutput);
         return codeCell;
     } catch (ex) {
-        console.error(`❌ Compilation failed for ${numericFolder}/${contractName}\n\n`, ex);
+        process.stdout.write(`❌ Compilation failed for ${numericFolder}/${contractName}\n\n`);
+        process.stdout.write((ex as any).toString());
         process.exit(1);
     }
 }

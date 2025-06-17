@@ -1,0 +1,73 @@
+#include "workchain.fc";
+
+const int SHARD_DEPTH = 8;
+
+cell pack_jetton_wallet_data(int balance, slice owner_address, slice jetton_master_address) inline {
+    return begin_cell()
+    .store_coins(balance)
+    .store_slice(owner_address)
+    .store_slice(jetton_master_address)
+    .end_cell();
+}
+
+int get_address_shard_prefix(slice address) inline {
+    {-
+    https://github.com/ton-blockchain/ton/blob/8a9ff339927b22b72819c5125428b70c406da631/crypto/block/block.tlb#L105
+    addr_std$10 anycast:(Maybe Anycast) workchain_id:int8 address:bits256  = MsgAddressInt;
+    -}
+    address~skip_bits(3 + 8); ;; skip $10 anycast:(Maybe Anycast) workchain_id:int8
+    return address.preload_uint(SHARD_DEPTH);
+}
+
+cell calculate_jetton_wallet_state_init(slice owner_address, slice jetton_master_address, cell jetton_wallet_code) inline {
+    {-
+    https://github.com/ton-blockchain/ton/blob/26761a1d139402ef343081810677d2582c3eff51/crypto/block/block.tlb#L144
+    _ fixed_prefix_length:(Maybe (## 5)) special:(Maybe TickTock)
+    code:(Maybe ^Cell) data:(Maybe ^Cell)
+    library:(Maybe ^Cell) = StateInit;
+  -}
+    return begin_cell()
+    .store_uint(1, 1) ;; ;; Use fixed_prefix_length;
+    .store_uint(SHARD_DEPTH, 5)
+    .store_uint(0, 1) ;;  No special
+    .store_maybe_ref(jetton_wallet_code)
+    .store_maybe_ref(
+        pack_jetton_wallet_data(
+            0, ;; balance
+            owner_address,
+            jetton_master_address)
+    )
+    .store_uint(0, 1) ;; Empty libraries
+    .end_cell();
+}
+
+slice calculate_jetton_wallet_address(int shard_prefix, cell state_init) inline {
+    {-
+    https://github.com/ton-blockchain/ton/blob/8a9ff339927b22b72819c5125428b70c406da631/crypto/block/block.tlb#L105
+    addr_std$10 anycast:(Maybe Anycast) workchain_id:int8 address:bits256  = MsgAddressInt;
+    -}
+    int mask = (1 << (256 - SHARD_DEPTH)) - 1;
+    int prefix_less = state_init.cell_hash() & mask;
+
+    return begin_cell()
+    .store_uint(4, 3) ;; 0b100 = addr_std$10 tag; No anycast
+    .store_int(MY_WORKCHAIN, 8)
+    .store_uint(shard_prefix, SHARD_DEPTH)
+    .store_uint(prefix_less, 256 - SHARD_DEPTH)
+    .end_cell()
+    .begin_parse();
+}
+
+slice calculate_user_jetton_wallet_address(slice owner_address, slice jetton_master_address, cell jetton_wallet_code) inline {
+    int shard_prefix = get_address_shard_prefix(owner_address);
+    return calculate_jetton_wallet_address(shard_prefix, calculate_jetton_wallet_state_init(owner_address, jetton_master_address, jetton_wallet_code));
+}
+
+() check_either_forward_payload(slice s) impure inline {
+    if (s.preload_uint(1)) {
+        ;; forward_payload in ref
+        (int remain_bits, int remain_refs) = slice_bits_refs(s);
+        throw_unless(error::invalid_message, (remain_refs == 1) & (remain_bits == 1)); ;; we check that there is no excess in the slice
+    }
+    ;; else forward_payload in slice - arbitrary bits and refs
+}
