@@ -1,0 +1,596 @@
+"Asm.fif" include
+// automatically generated from `vesting_wallet.fc` incl:`stdlib.fc` 
+PROGRAM{
+  DECLPROC load_vesting_parameters
+  DECLPROC pack_vesting_parameters
+  DECLPROC load_data
+  DECLPROC save_data
+  DECLPROC return_excess
+  DECLPROC match_address_from_config
+  DECLPROC pack_address
+  DECLPROC unpack_address
+  DECLPROC _is_whitelisted
+  DECLPROC _get_locked_amount
+  DECLPROC send_message
+  DECLPROC recv_internal
+  DECLPROC recv_external
+  85143 DECLMETHOD seqno
+  81467 DECLMETHOD get_subwallet_id
+  78748 DECLMETHOD get_public_key
+  107618 DECLMETHOD get_vesting_data
+  85425 DECLMETHOD is_whitelisted
+  82536 DECLMETHOD get_whitelist
+  120902 DECLMETHOD get_locked_amount
+  DECLGLOBVAR stored_seqno
+  DECLGLOBVAR stored_subwallet
+  DECLGLOBVAR public_key
+  DECLGLOBVAR whitelist
+  DECLGLOBVAR vesting_start_time
+  DECLGLOBVAR vesting_total_duration
+  DECLGLOBVAR unlock_period
+  DECLGLOBVAR cliff_duration
+  DECLGLOBVAR vesting_total_amount
+  DECLGLOBVAR vesting_sender_address
+  DECLGLOBVAR owner_address
+  load_vesting_parameters PROCINLINE:<{
+    CTOS
+    64 LDU
+    SWAP
+    vesting_start_time SETGLOB
+    32 LDU
+    SWAP
+    vesting_total_duration SETGLOB
+    32 LDU
+    SWAP
+    unlock_period SETGLOB
+    32 LDU
+    SWAP
+    cliff_duration SETGLOB
+    LDGRAMS
+    SWAP
+    vesting_total_amount SETGLOB
+    LDMSGADDR
+    SWAP
+    vesting_sender_address SETGLOB
+    LDMSGADDR
+    SWAP
+    owner_address SETGLOB
+    ENDS
+  }>
+  pack_vesting_parameters PROCINLINE:<{
+    cliff_duration GETGLOB
+    unlock_period GETGLOB
+    vesting_total_duration GETGLOB
+    vesting_start_time GETGLOB
+    NEWC
+    64 STU
+    32 STU
+    32 STU
+    32 STU
+    vesting_total_amount GETGLOB
+    STGRAMS
+    vesting_sender_address GETGLOB
+    STSLICER
+    owner_address GETGLOB
+    STSLICER
+    ENDC
+  }>
+  load_data PROCREF:<{
+    c4 PUSH
+    CTOS
+    32 LDU
+    SWAP
+    stored_seqno SETGLOB
+    32 LDU
+    SWAP
+    stored_subwallet SETGLOB
+    256 LDU
+    SWAP
+    public_key SETGLOB
+    LDDICT
+    SWAP
+    whitelist SETGLOB
+    LDREF
+    SWAP
+    load_vesting_parameters INLINECALLDICT
+    ENDS
+  }>
+  save_data PROCREF:<{
+    pack_vesting_parameters INLINECALLDICT
+    whitelist GETGLOB
+    public_key GETGLOB
+    stored_subwallet GETGLOB
+    stored_seqno GETGLOB
+    NEWC
+    32 STU
+    32 STU
+    256 STU
+    STDICT
+    STREF
+    ENDC
+    c4 POP
+  }>
+  return_excess PROCINLINE:<{
+    0 PUSHINT
+    24 PUSHINT
+    NEWC
+    6 STU
+    s0 s4 XCHG2
+    STSLICER
+    s3 PUSH
+    STGRAMS
+    s1 s3 XCHG
+    107 STU
+    32 STU
+    64 STU
+    ENDC
+    64 PUSHINT
+    SENDRAWMSG
+  }>
+  match_address_from_config PROCREF:<{
+    SWAP
+    REWRITESTDADDR
+    SWAP
+    -1 NEQINT
+    IFJMP:<{
+      2DROP
+      0 PUSHINT
+    }>
+    SWAP
+    CONFIGOPTPARAM
+    DUP
+    ISNULL
+    IFJMP:<{
+      2DROP
+      0 PUSHINT
+    }>
+    CTOS
+    DUP
+    SBITS
+    8 PUSHPOW2
+    LESS
+    IFJMP:<{
+      2DROP
+      0 PUSHINT
+    }>
+    256 PLDU
+    EQUAL
+  }>
+  pack_address PROCINLINE:<{
+    REWRITESTDADDR
+    SWAP
+    NEWC
+    8 STI
+    256 STU
+    ENDC
+    CTOS
+  }>
+  unpack_address PROCINLINE:<{
+    8 LDI
+    256 LDU
+    DROP
+  }>
+  _is_whitelisted PROCINLINE:<{
+    pack_address INLINECALLDICT
+    whitelist GETGLOB
+    264 PUSHINT
+    DICTGET
+    NULLSWAPIFNOT
+    NIP
+  }>
+  _get_locked_amount PROCREF:<{
+    vesting_start_time GETGLOB
+    vesting_total_duration GETGLOB
+    ADD
+    s1 s(-1) PUXC
+    GREATER
+    IFJMP:<{
+      DROP
+      0 PUSHINT
+    }>
+    vesting_start_time GETGLOB
+    cliff_duration GETGLOB
+    ADD
+    s1 s(-1) PUXC
+    LESS
+    IFJMP:<{
+      DROP
+      vesting_total_amount GETGLOB
+    }>
+    vesting_total_amount GETGLOB
+    vesting_total_amount GETGLOB
+    vesting_start_time GETGLOB
+    s1 s3 XCHG
+    SUB
+    unlock_period GETGLOB
+    DIV
+    vesting_total_duration GETGLOB
+    unlock_period GETGLOB
+    DIV
+    s2 s3 XCHG
+    MULDIV
+    SUB
+  }>
+  send_message PROCREF:<{
+    8 LDU
+    LDREF
+    ENDS
+    NOW
+    _get_locked_amount INLINECALLDICT
+    DUP
+    0 GTINT
+    IF:<{
+      s2 PUSH
+      3 EQINT
+      100 THROWIFNOT
+      OVER
+      CTOS
+      4 LDU
+      LDMSGADDR
+      NIP
+      LDMSGADDR
+      vesting_sender_address GETGLOB
+      s2 s(-1) PUXC
+      SDEQ
+      NOT
+      IF:<{
+        OVER
+        _is_whitelisted INLINECALLDICT
+        IF:<{
+          s3 POP
+          SWAP
+          2 PUSHINT
+          AND
+          2 EQINT
+          101 THROWIFNOT
+          SWAP
+          LDGRAMS
+          NIP
+          1 PUSHINT
+          SDSKIPFIRST
+          LDGRAMS
+          NIP
+          LDGRAMS
+          NIP
+          64 LDU
+          NIP
+          32 LDU
+          NIP
+          1 LDU
+          SWAP
+          0 EQINT
+          102 THROWIFNOT
+          1 LDU
+          SWAP
+          IF:<{
+            LDREF
+            DROP
+            CTOS
+          }>ELSE<{
+          }>
+          OVER
+          1 PUSHINT
+          match_address_from_config INLINECALLDICT
+          IF:<{
+            NIP
+            32 LDU
+            DROP
+            DUP
+            1316189259 PUSHINT
+            EQUAL
+            OVER
+            1197831204 PUSHINT
+            EQUAL
+            OR
+            OVER
+            1450460016 PUSHINT
+            EQUAL
+            OR
+            SWAP
+            1450144869 PUSHINT
+            EQUAL
+            OR
+            103 THROWIFNOT
+          }>ELSE<{
+            SWAP
+            0 PUSHINT
+            match_address_from_config INLINECALLDICT
+            IF:<{
+              32 LDU
+              DROP
+              1450144869 PUSHINT
+              EQUAL
+              103 THROWIFNOT
+            }>ELSE<{
+              DUP
+              SBITS
+              0 GTINT
+              IF:<{
+                32 LDU
+                OVER
+                0 EQINT
+                s2 PUSH
+                12 PUSHPOW2
+                EQUAL
+                OR
+                s2 PUSH
+                4097 PUSHINT
+                EQUAL
+                OR
+                s2 PUSH
+                1205158801 PUSHINT
+                EQUAL
+                OR
+                s2 PUSH
+                1499400124 PUSHINT
+                EQUAL
+                OR
+                s2 PUSH
+                1778069612 PUSHINT
+                EQUAL
+                OR
+                s2 PUSH
+                1450144869 PUSHINT
+                EQUAL
+                OR
+                s2 PUSH
+                1450460016 PUSHINT
+                EQUAL
+                OR
+                103 THROWIFNOT
+                SWAP
+                0 EQINT
+                OVER
+                SBITS
+                0 GTINT
+                AND
+                IF:<{
+                  8 LDU
+                  DROP
+                  DUP
+                  100 EQINT
+                  OVER
+                  119 EQINT
+                  OR
+                  OVER
+                  68 EQINT
+                  OR
+                  SWAP
+                  87 EQINT
+                  OR
+                  104 THROWIFNOT
+                }>ELSE<{
+                  DROP
+                }>
+              }>ELSE<{
+                DROP
+              }>
+            }>
+          }>
+          0 PUSHINT
+        }>ELSE<{
+          3 BLKDROP
+        }>
+        DUP
+        0 GTINT
+        IF:<{
+          2 PUSHINT
+          RAWRESERVE
+        }>ELSE<{
+          DROP
+        }>
+      }>ELSE<{
+        4 BLKDROP
+      }>
+    }>ELSE<{
+      DROP
+    }>
+    SWAP
+    SENDRAWMSG
+  }>
+  recv_internal PROC:<{
+    2 2 BLKDROP2
+    DUP
+    SBITS
+    96 LESSINT
+    IFJMP:<{
+      2DROP
+    }>
+    SWAP
+    CTOS
+    4 LDU
+    SWAP
+    1 PUSHINT
+    AND
+    IFJMP:<{
+      2DROP
+    }>
+    LDMSGADDR
+    DROP
+    load_data INLINECALLDICT
+    SWAP
+    32 LDU
+    64 LDU
+    owner_address GETGLOB
+    s4 s(-1) PUXC
+    SDEQ
+    s3 PUSH
+    2809346765 PUSHINT
+    EQUAL
+    AND
+    IF:<{
+      1 2 BLKDROP2
+      send_message INLINECALLDICT
+      4151524045 PUSHINT
+      SWAP
+      return_excess INLINECALLDICT
+    }>ELSE<{
+      vesting_sender_address GETGLOB
+      s4 s(-1) PUXC
+      SDEQ
+      s0 s3 XCHG
+      1918412443 PUSHINT
+      EQUAL
+      s1 s3 XCHG
+      AND
+      IF:<{
+        UNTIL:<{
+          SWAP
+          LDMSGADDR
+          -1 PUSHINT
+          NEWC
+          1 STI
+          s0 s2 XCHG
+          pack_address INLINECALLDICT
+          whitelist GETGLOB
+          s2 s3 XCHG
+          264 PUSHINT
+          DICTSETB
+          whitelist SETGLOB
+          DUP
+          SREFS
+          0 GTINT
+          DUP
+          IF:<{
+            SWAP
+            LDREF
+            DROP
+            CTOS
+            SWAP
+          }>
+          NOT
+          s1 s2 XCHG
+        }>
+        4065896091 PUSHINT
+        s2 POP
+        return_excess INLINECALLDICT
+        save_data INLINECALLDICT
+      }>ELSE<{
+        3 BLKDROP
+      }>
+    }>
+  }>
+  recv_external PROC:<{
+    9 PUSHPOW2
+    LDSLICEX
+    DUP
+    32 LDU
+    32 LDU
+    32 LDU
+    s0 s2 XCHG
+    NOW
+    LEQ
+    36 THROWIF
+    c4 PUSH
+    CTOS
+    32 LDU
+    32 LDU
+    256 LDU
+    DROP
+    2SWAP
+    EQUAL
+    33 THROWIFNOT
+    s3 s3 XCHG2
+    EQUAL
+    34 THROWIFNOT
+    s0 s2 XCHG
+    HASHSU
+    s0 s3 s3 XCHG3
+    CHKSIGNU
+    35 THROWIFNOT
+    ACCEPT
+    load_data INLINECALLDICT
+    DUP
+    SREFS
+    1 EQINT
+    IF:<{
+      c1 PUSH
+      c3 PUSH
+      c4 PUSH
+      c5 PUSH
+      c7 PUSH
+      <{
+        2DROP
+      }>CONT
+      c7 SETCONT
+      c5 SETCONT
+      c4 SETCONT
+      c3 SETCONT
+      c1 SETCONT
+      <{
+        send_message INLINECALLDICT
+      }>CONT
+      c1 PUSH
+      COMPOSALT
+      SWAP
+      TRY
+    }>ELSE<{
+      DROP
+    }>
+    stored_seqno GETGLOB
+    INC
+    stored_seqno SETGLOB
+    save_data INLINECALLDICT
+  }>
+  seqno PROC:<{
+    c4 PUSH
+    CTOS
+    32 PLDU
+  }>
+  get_subwallet_id PROC:<{
+    c4 PUSH
+    CTOS
+    32 PUSHINT
+    SDSKIPFIRST
+    32 PLDU
+  }>
+  get_public_key PROC:<{
+    c4 PUSH
+    CTOS
+    64 PUSHINT
+    SDSKIPFIRST
+    256 PLDU
+  }>
+  get_vesting_data PROC:<{
+    load_data INLINECALLDICT
+    vesting_start_time GETGLOB
+    vesting_total_duration GETGLOB
+    unlock_period GETGLOB
+    cliff_duration GETGLOB
+    vesting_total_amount GETGLOB
+    vesting_sender_address GETGLOB
+    owner_address GETGLOB
+    whitelist GETGLOB
+  }>
+  is_whitelisted PROC:<{
+    load_data INLINECALLDICT
+    _is_whitelisted INLINECALLDICT
+  }>
+  get_whitelist PROC:<{
+    load_data INLINECALLDICT
+    PUSHNULL
+    whitelist GETGLOB
+    UNTIL:<{
+      264 PUSHINT
+      DICTREMMIN
+      NULLSWAPIFNOT2
+      s2 POP
+      OVER
+      IF:<{
+        unpack_address INLINECALLDICT
+        PAIR
+        s0 s3 XCHG2
+        CONS
+        s0 s2 XCHG
+      }>ELSE<{
+        DROP
+      }>
+      NOT
+    }>
+    DROP
+  }>
+  get_locked_amount PROC:<{
+    load_data INLINECALLDICT
+    _get_locked_amount INLINECALLDICT
+  }>
+}END>c

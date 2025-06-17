@@ -1,0 +1,18 @@
+[
+  {
+    "commitDesc": "original FunC",
+    "gas": {
+      "ADD whitelist": 8000,
+      "UNLOCK internal partial": 8365,
+      "INTERNAL to vesting sender": 6543,
+      "INTERNAL to elector": 11062,
+      "INTERNAL to single nominator": 10338,
+      "INTERNAL with comment": 10628,
+      "EXTERNAL transfer after unlock": 6740
+    },
+    "codeSize": {
+      "vesting wallet bits": 7413,
+      "vesting wallet cells": 28
+    }
+  }
+]

@@ -1,0 +1,398 @@
+#include "stdlib.fc";
+
+const int op::add_whitelist = 0x7258a69b;
+const int op::add_whitelist_response = 0xf258a69b;
+const int op::send = 0xa7733acd;
+const int op::send_response = 0xf7733acd;
+
+;; https://github.com/ton-blockchain/ton/blob/master/crypto/smartcont/elector-code.fc
+;; https://github.com/ton-blockchain/ton/blob/master/crypto/smartcont/config-code.fc
+const int op::elector_new_stake = 0x4e73744b;
+const int op::elector_recover_stake = 0x47657424;
+const int op::vote_for_complaint = 0x56744370;
+const int op::vote_for_proposal = 0x566f7465;
+
+;; single-nominator-pool: empty message to deposit; 0x1000 to withdraw https://github.com/orbs-network/single-nominator/blob/main/contracts/single-nominator.fc
+const int op::single_nominator_pool_withdraw = 0x1000;
+const int op::single_nominator_pool_change_validator = 0x1001;
+
+;; tonstakers.com: deposit to pool; burn, vote to jetton-wallet - https://ton-ls-protocol.gitbook.io/ton-liquid-staking-protocol/protocol-concept/message-processing
+const int op::ton_stakers_deposit = 0x47d54391;
+const int op::jetton_burn = 0x595f07bc;
+const int op::ton_stakers_vote = 0x69fb306c;
+
+const int error::expired = 36;
+const int error::invalid_seqno = 33;
+const int error::invalid_subwallet_id = 34;
+const int error::invalid_signature = 35;
+
+const int error::send_mode_not_allowed = 100;
+const int error::non_bounceable_not_allowed = 101;
+const int error::state_init_not_allowed = 102;
+const int error::comment_not_allowed = 103;
+const int error::symbols_not_allowed = 104;
+
+;; https://github.com/ton-blockchain/ton/blob/d2b418bb703ed6ccd89b7d40f9f1e44686012014/crypto/block/block.tlb#L605
+const int config_id = 0;
+const int elector_id = 1;
+
+;; data
+
+global int stored_seqno;
+global int stored_subwallet;
+global int public_key;
+
+global cell whitelist;
+
+global int vesting_start_time;
+global int vesting_total_duration;
+global int unlock_period;
+global int cliff_duration;
+global int vesting_total_amount;
+global slice vesting_sender_address;
+global slice owner_address;
+
+;; CONDITIONS:
+;; vesting_total_duration > 0
+;; vesting_total_duration <= 135 years (2^32 seconds)
+;; unlock_period > 0
+;; unlock_period <= vesting_total_duration
+;; cliff_duration >= 0
+;; cliff_duration < vesting_total_duration
+;; vesting_total_duration mod unlock_period == 0
+;; cliff_duration mod unlock_period == 0
+
+() load_vesting_parameters(cell data) impure inline {
+    slice ds = data.begin_parse();
+    vesting_start_time = ds~load_uint(64);
+    vesting_total_duration = ds~load_uint(32);
+    unlock_period = ds~load_uint(32);
+    cliff_duration = ds~load_uint(32);
+    vesting_total_amount = ds~load_coins();
+    vesting_sender_address = ds~load_msg_addr();
+    owner_address = ds~load_msg_addr();
+    ds.end_parse();
+}
+
+cell pack_vesting_parameters() inline {
+    return begin_cell()
+            .store_uint(vesting_start_time, 64)
+            .store_uint(vesting_total_duration, 32)
+            .store_uint(unlock_period, 32)
+            .store_uint(cliff_duration, 32)
+            .store_coins(vesting_total_amount) ;; max 124 bits
+            .store_slice(vesting_sender_address) ;; 267 bit
+            .store_slice(owner_address) ;; 267 bit
+            .end_cell();
+}
+
+() load_data() impure inline_ref {
+    slice ds = get_data().begin_parse();
+    stored_seqno = ds~load_uint(32);
+    stored_subwallet = ds~load_uint(32);
+    public_key = ds~load_uint(256);
+    whitelist = ds~load_dict();
+    load_vesting_parameters(ds~load_ref());
+    ds.end_parse();
+}
+
+() save_data() impure inline_ref {
+    set_data(
+            begin_cell()
+                    .store_uint(stored_seqno, 32)
+                    .store_uint(stored_subwallet, 32)
+                    .store_uint(public_key, 256)
+                    .store_dict(whitelist)
+                    .store_ref(pack_vesting_parameters())
+                    .end_cell()
+    );
+}
+
+;; messages utils
+
+const int BOUNCEABLE = 0x18;
+const int NON_BOUNCEABLE = 0x10;
+
+const int SEND_MODE_REGULAR = 0;
+const int SEND_MODE_PAY_FEES_SEPARETELY = 1;
+const int SEND_MODE_IGNORE_ERRORS = 2;
+const int SEND_MODE_DESTROY = 32;
+const int SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE = 64;
+const int SEND_MODE_CARRY_ALL_BALANCE = 128;
+
+() return_excess(slice to_address, int op, int query_id) impure inline {
+    builder msg = begin_cell()
+            .store_uint(BOUNCEABLE, 6)
+            .store_slice(to_address)
+            .store_coins(0)
+            .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+            .store_uint(op, 32)
+            .store_uint(query_id, 64);
+
+    send_raw_message(msg.end_cell(), SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
+
+int match_address_from_config(slice address, int config_id) inline_ref {
+    (int address_wc, int address_hash) = parse_std_addr(address);
+    if (address_wc != -1) {
+        return 0;
+    }
+    cell config_cell = config_param(config_id);
+    if (cell_null?(config_cell)) {
+        return 0;
+    }
+    slice config_slice = config_cell.begin_parse();
+    if (config_slice.slice_bits() < 256) {
+        return 0;
+    }
+    return address_hash == config_slice.preload_uint(256);
+}
+
+
+;; address utils
+
+const int ADDRESS_SIZE = 264; ;; 256 + 8
+
+slice pack_address(slice address) inline {
+    (int wc, int address_hash) = parse_std_addr(address);
+    return begin_cell().store_int(wc, 8).store_uint(address_hash, 256).end_cell().begin_parse();
+}
+
+(int, int) unpack_address(slice address) inline {
+    int wc = address~load_int(8);
+    int address_hash = address~load_uint(256);
+    return (wc, address_hash);
+}
+
+(slice, int) dict_get?(cell dict, int key_len, slice index) asm(index dict key_len) "DICTGET" "NULLSWAPIFNOT";
+
+int _is_whitelisted(slice address) inline {
+    (_, int found) = whitelist.dict_get?(ADDRESS_SIZE, pack_address(address));
+    return found;
+}
+
+;; locked
+
+int _get_locked_amount(int now_time) inline_ref {
+    if (now_time > vesting_start_time + vesting_total_duration) {
+        return 0;
+    }
+
+    if (now_time < vesting_start_time + cliff_duration) {
+        return vesting_total_amount;
+    }
+
+    return vesting_total_amount - muldiv(vesting_total_amount,
+            (now_time - vesting_start_time) / unlock_period,
+            vesting_total_duration / unlock_period);
+}
+
+() send_message(slice in_msg_body) impure inline_ref {
+    int send_mode = in_msg_body~load_uint(8);
+    cell msg = in_msg_body~load_ref();
+    in_msg_body.end_parse(); ;; only 1 ref allowed
+
+    int locked_amount = _get_locked_amount(now());
+
+    if (locked_amount > 0) { ;; if the vesting has expired, you can send any messages
+
+        throw_unless(error::send_mode_not_allowed, send_mode == SEND_MODE_IGNORE_ERRORS + SEND_MODE_PAY_FEES_SEPARETELY);
+
+        slice msg_cs = msg.begin_parse();
+        int flags = msg_cs~load_uint(4);
+        slice sender_address = msg_cs~load_msg_addr(); ;; skip
+        slice destination_address = msg_cs~load_msg_addr();
+
+        if (~ equal_slices(destination_address, vesting_sender_address)) { ;; can send to vesting_sender_address any message
+
+            if (_is_whitelisted(destination_address)) {
+                int is_bounceable = (flags & 2) == 2;
+                throw_unless(error::non_bounceable_not_allowed, is_bounceable);
+
+                msg_cs~load_coins(); ;; skip value
+                msg_cs~skip_bits(1); ;; skip extracurrency collection
+                msg_cs~load_coins(); ;; skip ihr_fee
+                msg_cs~load_coins(); ;; skip fwd_fee
+                msg_cs~load_uint(64); ;; skip createdLt
+                msg_cs~load_uint(32); ;; skip createdAt
+                int maybe_state_init = msg_cs~load_uint(1);
+                throw_unless(error::state_init_not_allowed, maybe_state_init == 0);
+
+                int maybe_body = msg_cs~load_uint(1);
+                slice body = maybe_body ? msg_cs~load_ref().begin_parse() : msg_cs;
+
+                if (match_address_from_config(destination_address, elector_id)) { ;; elector - direct validation
+
+                    int op = body~load_uint(32);
+                    throw_unless(error::comment_not_allowed,
+                            (op == op::elector_new_stake) | (op == op::elector_recover_stake) | (op == op::vote_for_complaint) | (op == op::vote_for_proposal));
+
+                } elseif (match_address_from_config(destination_address, config_id)) { ;; conifg - direct validation
+
+                    int op = body~load_uint(32);
+                    throw_unless(error::comment_not_allowed,
+                            (op == op::vote_for_proposal));
+
+                } elseif (body.slice_bits() > 0) { ;; empty message allowed for other destination (not elector)
+
+                    int op = body~load_uint(32);
+                    throw_unless(error::comment_not_allowed,
+                            (op == 0) | ;; text comment
+                                    (op == op::single_nominator_pool_withdraw) | (op == op::single_nominator_pool_change_validator) | ;; single-nominator
+                                    (op == op::ton_stakers_deposit) | (op == op::jetton_burn) | (op == op::ton_stakers_vote) | ;; tonstakers.com
+                                    (op == op::vote_for_proposal) | (op == op::vote_for_complaint) ;; for future
+                            ;; https://app.bemo.finance/ - empty message to deposit; op::jetton_burn to withdraw with cooldown
+                    );
+
+                    if ((op == 0) & (body.slice_bits() > 0)) { ;; empty text comment allowed
+                        int action = body~load_uint(8);
+                        throw_unless(error::symbols_not_allowed,
+                                (action == "d"u) | (action == "w"u) | ;; nominator-pool - https://github.com/ton-blockchain/nominator-pool
+                                        (action == "D"u) | (action == "W"u) ;; whales pool - https://github.com/tonwhales/ton-nominators/tree/main/sources
+
+                        );
+                    }
+                }
+
+                locked_amount = 0;
+            }
+
+            if (locked_amount > 0) {
+                raw_reserve(locked_amount, 2); ;; mode 2 - at most `amount` nanotons. Bit +2 in y means that the external action does not fail if the specified amount cannot be reserved; instead, all remaining balance is reserved
+            }
+        }
+    }
+
+    send_raw_message(msg, send_mode);
+}
+
+;; receive
+
+() recv_internal(int my_balance, int msg_value, cell in_msg_full, slice in_msg_body) impure {
+    if (in_msg_body.slice_bits() < 32 + 64) { ;; ignore simple transfers
+        return ();
+    }
+
+    slice cs = in_msg_full.begin_parse();
+    int flags = cs~load_uint(4);
+    if (flags & 1) { ;; ignore all bounced messages
+        return ();
+    }
+    slice sender_address = cs~load_msg_addr();
+
+    load_data();
+
+    int op = in_msg_body~load_uint(32);
+    int query_id = in_msg_body~load_uint(64);
+
+    if (equal_slices(sender_address, owner_address) & (op == op::send)) {
+
+        send_message(in_msg_body);
+
+        return_excess(sender_address, op::send_response, query_id);
+
+    } elseif (equal_slices(sender_address, vesting_sender_address) & (op == op::add_whitelist)) {
+
+        slice ref_cs = in_msg_body;
+        int has_refs = 0;
+        do {
+            slice whitelist_address = ref_cs~load_msg_addr();
+            whitelist~dict_set_builder(ADDRESS_SIZE, pack_address(whitelist_address), begin_cell().store_int(-1, 1));
+
+            has_refs = ref_cs.slice_refs() > 0;
+            if (has_refs) {
+                cell ref = ref_cs~load_ref();
+                ref_cs = ref.begin_parse();
+            }
+        } until (~ has_refs);
+
+        return_excess(sender_address, op::add_whitelist_response, query_id);
+
+        save_data();
+
+    }
+
+    ;; else just accept coins from anyone
+}
+
+;; same with wallet-v3 https://github.com/ton-blockchain/ton/blob/master/crypto/smartcont/wallet3-code.fc#L15
+() recv_external(slice in_msg) impure {
+    slice signature = in_msg~load_bits(512);
+    slice cs = in_msg;
+    (int msg_subwallet_id, int valid_until, int msg_seqno) = (cs~load_uint(32), cs~load_uint(32), cs~load_uint(32));
+    throw_if(error::expired, valid_until <= now());
+    slice ds = get_data().begin_parse();
+    (int my_seqno, int my_subwallet_id, int my_public_key) = (ds~load_uint(32), ds~load_uint(32), ds~load_uint(256));
+    throw_unless(error::invalid_seqno, msg_seqno == my_seqno);
+    throw_unless(error::invalid_subwallet_id, msg_subwallet_id == my_subwallet_id);
+    throw_unless(error::invalid_signature, check_signature(slice_hash(in_msg), signature, my_public_key));
+
+    accept_message();
+
+    load_data();
+
+    if (slice_refs(cs) == 1) {
+        try {
+            send_message(cs);
+        } catch (x, y) {
+        }
+    }
+
+    stored_seqno += 1;
+    save_data();
+}
+
+;; get-methods
+
+;; same with wallet-v3 and wallet-v4
+int seqno() method_id {
+    return get_data().begin_parse().preload_uint(32);
+}
+
+;; same with wallet-v4 https://github.com/ton-blockchain/wallet-contract/blob/main/func/wallet-v4-code.fc
+int get_subwallet_id() method_id {
+    return get_data().begin_parse().skip_bits(32).preload_uint(32);
+}
+
+;; same with wallet-v3 and wallet-v4
+int get_public_key() method_id {
+    return get_data().begin_parse().skip_bits(64).preload_uint(256);
+}
+
+(int, int, int, int, int, slice, slice, cell) get_vesting_data() method_id {
+    load_data();
+
+    return (vesting_start_time, vesting_total_duration, unlock_period, cliff_duration, vesting_total_amount,
+            vesting_sender_address, owner_address, whitelist);
+}
+
+;; same with wallet-v4
+int is_whitelisted(slice address) method_id {
+    load_data();
+
+    return _is_whitelisted(address);
+}
+
+;; same with wallet-v4
+tuple get_whitelist() method_id {
+    load_data();
+
+    var list = null();
+
+    cell d = whitelist;
+    do {
+        (d, slice key, slice value, int found) = d.dict_delete_get_min(ADDRESS_SIZE);
+        if (found) {
+            (int wc, int address_hash) = unpack_address(key);
+            list = cons(pair(wc, address_hash), list);
+        }
+    } until (~ found);
+
+    return list;
+}
+
+int get_locked_amount(int at_time) method_id {
+    load_data();
+
+    return _get_locked_amount(at_time);
+}

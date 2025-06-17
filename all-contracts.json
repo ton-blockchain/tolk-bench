@@ -29,5 +29,11 @@
     "shortTitle": "wallet V5",
     "description": "original wallet V5, highly optimized, but almost unreadable",
     "originalUrl": "https://github.com/ton-blockchain/wallet-contract-v5"
+  },
+  {
+    "numericFolder": "06_vesting",
+    "shortTitle": "vesting wallet",
+    "description": "original vesting with lots of globals and unreadable code",
+    "originalUrl": "https://github.com/ton-blockchain/vesting-contract"
   }
 ]
