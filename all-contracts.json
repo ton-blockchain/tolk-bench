@@ -23,5 +23,11 @@
     "shortTitle": "sharded jetton (tgBTC)",
     "description": "jetton v2.0, with shard optimization, tgBTC is using a FunC version",
     "originalUrl": "https://github.com/ton-blockchain/jetton-contract/tree/jetton-2.0"
+  },
+  {
+    "numericFolder": "05_wallet-v5",
+    "shortTitle": "wallet V5",
+    "description": "original wallet V5, highly optimized, but almost unreadable",
+    "originalUrl": "https://github.com/ton-blockchain/wallet-contract-v5"
   }
 ]

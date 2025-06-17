@@ -1,0 +1,15 @@
+[
+  {
+    "commitDesc": "original FunC",
+    "gas": {
+      "EXTERNAL transfer": 4939,
+      "INTERNAL transfer": 5645,
+      "ADD extension": 6110,
+      "EXTENSION transfer": 3854
+    },
+    "codeSize": {
+      "wallet_v5 bits": 4583,
+      "wallet_v5 cells": 20
+    }
+  }
+]

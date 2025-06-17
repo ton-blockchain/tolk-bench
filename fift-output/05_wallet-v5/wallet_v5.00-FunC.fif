@@ -1,0 +1,359 @@
+"Asm.fif" include
+// automatically generated from `wallet_v5.fc` incl:`stdlib.fc` 
+PROGRAM{
+  DECLPROC verify_c5_actions
+  DECLPROC process_actions
+  DECLPROC process_signed_request
+  DECLPROC recv_external
+  DECLPROC recv_internal
+  88459 DECLMETHOD is_signature_allowed
+  85143 DECLMETHOD seqno
+  81467 DECLMETHOD get_subwallet_id
+  78748 DECLMETHOD get_public_key
+  117729 DECLMETHOD get_extensions
+  verify_c5_actions PROCINLINE:<{
+    OVER
+    XCTOS
+    DROP
+    0 PUSHINT
+    WHILE:<{
+      OVER
+      SEMPTY
+      NOT
+    }>DO<{
+      SWAP
+      x{0ec3c86d} SDBEGINS
+      DUP
+      SBITS
+      8 EQINT
+      147 THROWIFNOT
+      DUP
+      SREFS
+      2 EQINT
+      147 THROWIFNOT
+      DUP
+      7 PLDSLICE
+      SDCNTTRAIL0
+      0 GTINT
+      s3 s(-1) PUXC
+      AND
+      137 THROWIF
+      PLDREF
+      XCTOS
+      DROP
+      SWAP
+      INC
+    }>
+    1 2 BLKDROP2
+    8 PUSHPOW2DEC
+    LEQ
+    147 THROWIFNOT
+    SREFS
+    0 EQINT
+    147 THROWIFNOT
+  }>
+  process_actions PROCREF:<{
+    c2 SAVE
+    SAMEALTSAVE
+    s0 s2 XCHG
+    LDOPTREF
+    OVER
+    ISNULL
+    IFNOT:<{
+      s0 s2 XCHG
+      verify_c5_actions INLINECALLDICT
+      c5 POP
+    }>ELSE<{
+      2 1 BLKDROP2
+    }>
+    1 LDI
+    SWAP
+    0 EQINT
+    IFJMP:<{
+      2DROP
+    }>
+    AGAINEND
+    x{02} SDBEGINSQ
+    DUP
+    IF:<{
+      0 PUSHINT
+    }>ELSE<{
+      SWAP
+      x{03} SDBEGINSQ
+      s1 s2 XCHG
+    }>
+    s1 s(-1) PUXC
+    OR
+    IF:<{
+      SWAP
+      LDMSGADDR
+      SWAP
+      REWRITESTDADDR
+      MYADDR
+      REWRITESTDADDR
+      DROP
+      ROT
+      EQUAL
+      145 THROWIFNOT
+      c4 PUSH
+      CTOS
+      321 PUSHINT
+      LDSLICEX
+      PLDDICT
+      s0 s4 XCHG
+      IF:<{
+        -1 PUSHINT
+        NEWC
+        1 STI
+        s0 s0 s4 XCHG3
+        8 PUSHPOW2
+        DICTUADDB
+        139 THROWIFNOT
+      }>ELSE<{
+        s0 s3 XCHG
+        8 PUSHPOW2
+        DICTUDEL
+        140 THROWIFNOT
+        s2 PUSH
+        1 PLDI
+        OVER
+        ISNULL
+        SWAP
+        NOT
+        AND
+        144 THROWIF
+      }>
+      NEWC
+      s0 s3 XCHG2
+      STSLICER
+      s1 s2 XCHG
+      STDICT
+      ENDC
+      c4 POP
+    }>ELSE<{
+      DROP
+      x{04} SDBEGINSQ
+      IF:<{
+        OVER
+        146 THROWIFNOT
+        1 LDI
+        c4 PUSH
+        CTOS
+        1 LDI
+        s1 s3 XCPU
+        EQUAL
+        143 THROWIF
+        s0 s2 s(-1) PUXCPU
+        IFNOT:<{
+          SWAP
+          320 PUSHINT
+          SDSKIPFIRST
+          1 PLDI
+          142 THROWIFNOT
+        }>ELSE<{
+          NIP
+        }>
+        NEWC
+        1 STI
+        ROT
+        STSLICER
+        ENDC
+        c4 POP
+      }>ELSE<{
+        141 THROW
+      }>
+    }>
+    DUP
+    SREFS
+    IFNOTJMP:<{
+      2DROP
+      RETALT
+    }>
+    PLDREF
+    CTOS
+  }>
+  process_signed_request PROCINLINE:<{
+    CONT:<{
+      c2 SAVE
+      SAMEALTSAVE
+      OVER
+      9 PUSHPOW2
+      SDCUTLAST
+      s0 s2 XCHG
+      9 PUSHPOW2
+      SDSKIPLAST
+      DUP
+      32 PUSHINT
+      SDSKIPFIRST
+      32 LDU
+      32 LDU
+      32 LDU
+      c4 PUSH
+      CTOS
+      1 LDI
+      32 LDU
+      DUP
+      32 LDU
+      256 LDU
+      1 PLDI
+      s0 s10 XCHG
+      HASHSU
+      s0 s12 s12 XCHG3
+      CHKSIGNU
+      IFNOT:<{
+        s8 PUSH
+        IFNOTJMP:<{
+          10 BLKDROP
+          RETALT
+        }>
+        135 THROW
+      }>
+      s0 s2 XCHG
+      NOT
+      s0 s7 XCHG2
+      AND
+      132 THROWIF
+      s2 s5 XCPU
+      EQUAL
+      133 THROWIFNOT
+      s3 s6 XCHG2
+      EQUAL
+      134 THROWIFNOT
+      NOW
+      LEQ
+      136 THROWIF
+      s2 PUSH
+      IF:<{
+        ACCEPT
+      }>
+      SWAP
+      INC
+      TRUE
+      NEWC
+      1 STI
+      32 STU
+      SWAP
+      STSLICER
+      ENDC
+      c4 POP
+      DUP
+      IF:<{
+        COMMIT
+      }>
+      FALSE
+      process_actions INLINECALLDICT
+    }>
+    EXECUTE
+  }>
+  recv_external PROCINLINE:<{
+    DUP
+    32 PLDU
+    1936287598 PUSHINT
+    EQUAL
+    138 THROWIFNOT
+    TRUE
+    process_signed_request INLINECALLDICT
+  }>
+  recv_internal PROCINLINE:<{
+    DUP
+    SBITS
+    32 LESSINT
+    IF:<{
+      2DROP
+    }>ELSE<{
+      DUP
+      32 PLDU
+      DUP
+      1702392942 PUSHINT
+      NEQ
+      OVER
+      1936289396 PUSHINT
+      NEQ
+      AND
+      IFJMP:<{
+        3 BLKDROP
+      }>
+      1702392942 PUSHINT
+      EQUAL
+      IFJMP:<{
+        32 PUSHINT
+        SDSKIPFIRST
+        SWAP
+        CTOS
+        4 PUSHINT
+        SDSKIPFIRST
+        LDMSGADDR
+        DROP
+        REWRITESTDADDR
+        MYADDR
+        REWRITESTDADDR
+        DROP
+        ROT
+        NEQ
+        IFJMP:<{
+          2DROP
+        }>
+        c4 PUSH
+        CTOS
+        321 PUSHINT
+        SDSKIPFIRST
+        PLDDICT
+        8 PUSHPOW2
+        DICTUGET
+        NULLSWAPIFNOT
+        NIP
+        IFNOTJMP:<{
+          DROP
+        }>
+        64 PUSHINT
+        SDSKIPFIRST
+        FALSE
+        TRUE
+        process_actions INLINECALLDICT
+      }>
+      NIP
+      DUP
+      SBITS
+      640 PUSHINT
+      LESS
+      IFJMP:<{
+        DROP
+      }>
+      FALSE
+      process_signed_request INLINECALLDICT
+    }>
+  }>
+  is_signature_allowed PROC:<{
+    c4 PUSH
+    CTOS
+    1 PLDI
+  }>
+  seqno PROC:<{
+    c4 PUSH
+    CTOS
+    1 PUSHINT
+    SDSKIPFIRST
+    32 PLDU
+  }>
+  get_subwallet_id PROC:<{
+    c4 PUSH
+    CTOS
+    33 PUSHINT
+    SDSKIPFIRST
+    32 PLDU
+  }>
+  get_public_key PROC:<{
+    c4 PUSH
+    CTOS
+    65 PUSHINT
+    SDSKIPFIRST
+    256 PLDU
+  }>
+  get_extensions PROC:<{
+    c4 PUSH
+    CTOS
+    321 PUSHINT
+    SDSKIPFIRST
+    PLDDICT
+  }>
+}END>c
