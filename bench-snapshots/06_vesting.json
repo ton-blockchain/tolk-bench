@@ -14,5 +14,21 @@
       "vesting wallet bits": 7413,
       "vesting wallet cells": 28
     }
+  },
+  {
+    "commitDesc": "convert to Tolk v0.13",
+    "gas": {
+      "ADD whitelist": 8144,
+      "UNLOCK internal partial": 8383,
+      "INTERNAL to vesting sender": 6525,
+      "INTERNAL to elector": 11080,
+      "INTERNAL to single nominator": 10356,
+      "INTERNAL with comment": 10646,
+      "EXTERNAL transfer after unlock": 6866
+    },
+    "codeSize": {
+      "vesting wallet bits": 7501,
+      "vesting wallet cells": 28
+    }
   }
 ]
