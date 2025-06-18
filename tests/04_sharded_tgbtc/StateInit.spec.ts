@@ -21,6 +21,26 @@ const storageDuration= 5 * 365 * 24 * 3600;
 
 const numericFolder = '04_sharded_tgbtc';
 
+let actualConstantsInGasTolk = {
+    STORAGE_SIZE_MaxWallet_bits:        0n,
+    STORAGE_SIZE_MaxWallet_cells:       0n,
+    STORAGE_SIZE_InitStateWallet_bits:  0n,
+    STORAGE_SIZE_InitStateWallet_cells: 0n,
+}
+
+function printActualStorageConstants() {
+    let s = `
+// these storage constants should be in \`gas.tolk\` ${numericFolder}:
+
+const STORAGE_SIZE_MaxWallet_bits         = ${actualConstantsInGasTolk.STORAGE_SIZE_MaxWallet_bits};
+const STORAGE_SIZE_MaxWallet_cells        = ${actualConstantsInGasTolk.STORAGE_SIZE_MaxWallet_cells};
+const STORAGE_SIZE_InitStateWallet_bits   = ${actualConstantsInGasTolk.STORAGE_SIZE_InitStateWallet_bits};
+const STORAGE_SIZE_InitStateWallet_cells  = ${actualConstantsInGasTolk.STORAGE_SIZE_InitStateWallet_cells};
+`;
+    // console.log(s)          // commented out: they never change, actually
+}
+
+
 describe(numericFolder + ' StateInit', () => {
     beforeAll(async () => {
         blockchain = await Blockchain.create();
@@ -55,6 +75,10 @@ describe(numericFolder + ' StateInit', () => {
                      );
 
     });
+    afterAll(() => {
+        printActualStorageConstants();
+    });
+
     it('should deploy', async () => {
 
         //await blockchain.setVerbosityForAddress(jettonMinter.address, {blockchainLogs:true, vmLogs: 'vm_logs'});
@@ -107,9 +131,15 @@ describe(numericFolder + ' StateInit', () => {
             throw new Error("Wallet account is not active");
         if(smc.account.account === undefined || smc.account.account === null)
             throw new Error("Can't access wallet account!");
+        const storageStats = smc.account.account.storageStats.used;
+        actualConstantsInGasTolk.STORAGE_SIZE_MaxWallet_bits = storageStats.bits;
+        actualConstantsInGasTolk.STORAGE_SIZE_MaxWallet_cells = storageStats.cells;
         // console.log("Jetton wallet max storage stats:", smc.account.account.storageStats.used);
         const state = inMsg.init!;
         const stateCell = beginCell().store(storeStateInit(state)).endCell();
+        const initStateStats = collectCellStats(stateCell, []);
+        actualConstantsInGasTolk.STORAGE_SIZE_InitStateWallet_bits = initStateStats.bits;
+        actualConstantsInGasTolk.STORAGE_SIZE_InitStateWallet_cells = initStateStats.cells;
         // console.log("State init stats:", collectCellStats(stateCell, []));
 
         blockchain.now = transferTx.now + storageDuration + 1;

@@ -33,6 +33,25 @@ let min_tons_for_storage: bigint;
 
 const numericFolder = '04_sharded_tgbtc';
 
+let actualConstantsInGasTolk = {
+    GAS_CONSUMPTION_JettonTransfer:   0n,       // are assigned on tests run
+    GAS_CONSUMPTION_JettonReceive:    0n,       // and also exist in gas.tolk (embedded into a contract)
+    GAS_CONSUMPTION_BurnRequest:      0n,       // they are expected be equal
+    GAS_CONSUMPTION_BurnNotification: 0n,       // (otherwise, tests fail)
+}
+
+function printActualGasConstants() {
+    let s = `
+// these gas constants should be in \`gas.tolk\` ${numericFolder}:
+
+const GAS_CONSUMPTION_JettonTransfer    = ${actualConstantsInGasTolk.GAS_CONSUMPTION_JettonTransfer};
+const GAS_CONSUMPTION_JettonReceive     = ${actualConstantsInGasTolk.GAS_CONSUMPTION_JettonReceive};
+const GAS_CONSUMPTION_BurnRequest       = ${actualConstantsInGasTolk.GAS_CONSUMPTION_BurnRequest};
+const GAS_CONSUMPTION_BurnNotification  = ${actualConstantsInGasTolk.GAS_CONSUMPTION_BurnNotification};
+`;
+    console.log(s)      // when tests fail, probably gas.tolk should be updated
+}
+
 describe(numericFolder, () => {
     let GAS_LOG = new GasLogAndSave(numericFolder);
     let jwallet_code_raw = new Cell(); // true code
@@ -288,6 +307,7 @@ describe(numericFolder, () => {
     });
     afterAll(() => {
         GAS_LOG.saveCurrentRunAfterAll();
+        printActualGasConstants();
     });
 
     // implementation detail
@@ -775,6 +795,7 @@ describe(numericFolder, () => {
             success: true
         });
         send_gas_fee = printTxGasStats("Jetton transfer", transferTx);
+        actualConstantsInGasTolk.GAS_CONSUMPTION_JettonTransfer = computedGeneric(transferTx).gasUsed;
         // send_gas_fee = computeGasFee(gasPrices, 9255n);
 
         const receiveTx = findTransactionRequired(sendResult.transactions, {
@@ -784,6 +805,7 @@ describe(numericFolder, () => {
             success: true
         });
         receive_gas_fee = printTxGasStats("Receive jetton", receiveTx);
+        actualConstantsInGasTolk.GAS_CONSUMPTION_JettonReceive = computedGeneric(receiveTx).gasUsed;
         // receive_gas_fee = computeGasFee(gasPrices, 10355n);
 
         expect(await deployerJettonWallet.getJettonBalance()).toEqual(initialJettonBalance - sentAmount);
@@ -1063,7 +1085,9 @@ describe(numericFolder, () => {
             expect(await jettonMinter.getTotalSupply()).toEqual(initialTotalSupply-burnAmount);
 
             const actualSent   = printTxGasStats("Burn transaction", sendResult.transactions[1]);
+            actualConstantsInGasTolk.GAS_CONSUMPTION_BurnRequest = computedGeneric(sendResult.transactions[1]).gasUsed;
             const actualRecv   = printTxGasStats("Burn notification transaction", sendResult.transactions[2]);
+            actualConstantsInGasTolk.GAS_CONSUMPTION_BurnNotification = computedGeneric(sendResult.transactions[2]).gasUsed;
             burn_gas_fee          = actualSent;
             burn_notification_fee = actualRecv;
             /*
