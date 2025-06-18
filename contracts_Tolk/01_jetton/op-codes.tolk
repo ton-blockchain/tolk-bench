@@ -1,23 +1,12 @@
-@pure
-fun OP_TRANSFER(): int
-    asm "0xf8a7ea5 PUSHINT";
-@pure
-fun OP_TRANSFER_NOTIFICATION(): int
-    asm "0x7362d09c PUSHINT";
-@pure
-fun OP_INTERNAL_TRANSFER(): int
-    asm "0x178d4519 PUSHINT";
-@pure
-fun OP_EXCESSES(): int
-    asm "0xd53276db PUSHINT";
-@pure
-fun OP_BURN(): int
-    asm "0x595f07bc PUSHINT";
-@pure
-fun OP_BURN_NOTIFICATION(): int
-    asm "0x7bdd97de PUSHINT";
+const OP_TRANSFER = 0x0f8a7ea5;
+const OP_TRANSFER_NOTIFICATION = 0x7362d09c;
+const OP_INTERNAL_TRANSFER = 0x178d4519;
+const OP_EXCESSES = 0xd53276db;
+const OP_BURN = 0x595f07bc;
+const OP_BURN_NOTIFICATION = 0x7bdd97de;
+const OP_PROVIDE_WALLET_ADDRESS = 0x2c76b973;
+const OP_TAKE_WALLET_ADDRESS = 0xd1735400;
 
-// Minter
-@pure
-fun OP_MINT(): int
-    asm "21 PUSHINT";
+const OP_MINT = 0x00000015;
+const OP_CHANGE_ADMIN = 0x00000003;
+const OP_CHANGE_CONTENT = 0x00000004;
