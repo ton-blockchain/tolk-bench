@@ -24,19 +24,6 @@ fun WalletStorage.save(self) {
     contract.setData(self.toCell())
 }
 
-/*
-  transfer query_id:uint64 amount:(VarUInteger 16) destination:MsgAddress
-           response_destination:MsgAddress custom_payload:(Maybe ^Cell)
-           forward_ton_amount:(VarUInteger 16) forward_payload:(Either Cell ^Cell)
-           = InternalMsgBody;
-  internal_transfer  query_id:uint64 amount:(VarUInteger 16) from:MsgAddress
-                     response_address:MsgAddress
-                     forward_ton_amount:(VarUInteger 16)
-                     forward_payload:(Either Cell ^Cell) 
-                     = InternalMsgBody;
-*/
-
-
 // todo inline or inline_ref?
 @inline
 fun onBounce(inMsgBody: slice) {
@@ -49,6 +36,12 @@ fun onBounce(inMsgBody: slice) {
     storage.balance += jettonAmount;
     storage.save();
 }
+
+type AllowedWalletMessage =
+    AskToTransfer |
+    AskToBurn |
+    InternalTransfer |
+;
 
 fun onInternalMessage(myBalance: int, msgValue: int, inMsgFull: cell, inMsgBody: slice) {
     if (inMsgBody.isEnd()) {
@@ -72,155 +65,129 @@ fun onInternalMessage(myBalance: int, msgValue: int, inMsgFull: cell, inMsgBody:
 
     // todo load storage once or in every branch?
 
-    var op: int = inMsgBody.loadUint(32);
+    val msg = lazy AllowedWalletMessage.fromSlice(inMsgBody);
 
-    if (op == OP_TRANSFER) {
-        var queryId = inMsgBody.loadUint(64);
-        var jettonAmount = inMsgBody.loadCoins();
-        var toOwnerAddress = inMsgBody.loadAddress();
-        var responseAddress = inMsgBody.loadAddress();
-        var customPayload = inMsgBody.loadDict();
-        var forwardTonAmount = inMsgBody.loadCoins();
-        var eitherForwardPayload = inMsgBody;
+    match (msg) {
+        AskToTransfer => {
+            assert(msg.forwardPayload.remainingBitsCount()) throw 708;
+            assert(msg.toOwnerAddress.getWorkchain() == BASECHAIN) throw 333;
 
-        assert(eitherForwardPayload.remainingBitsCount()) throw 708;
-        assert(toOwnerAddress.getWorkchain() == BASECHAIN) throw 333;
+            var storage = lazy WalletStorage.load();
+            assert(senderAddress == storage.ownerAddress) throw 705;
+            assert(storage.balance >= msg.jettonAmount) throw 706;
+            storage.balance -= msg.jettonAmount;
+            storage.save();
 
-        var storage = lazy WalletStorage.load();
-        assert(senderAddress == storage.ownerAddress) throw 705;
-        assert(storage.balance >= jettonAmount) throw 706;
-        storage.balance -= jettonAmount;
-        storage.save();
-
-        var forwardedMessagesCount = forwardTonAmount ? 2 : 1;
-        assert(msgValue >
-            forwardTonAmount +
-            // 3 messages: wal1->wal2,  wal2->owner, wal2->response
-            // but last one is optional (it is ok if it fails)
-            forwardedMessagesCount * fwdFee +
-            (2 * EXPECTED_GAS_UPPER_BOUND + MIN_TONS_FOR_STORAGE)
-        ) throw 709;
-
-        var msgBody = beginCell()
-            .storeUint(OP_INTERNAL_TRANSFER, 32)
-            .storeUint(queryId, 64)
-            .storeCoins(jettonAmount)
-            .storeAddress(storage.ownerAddress)
-            .storeAddress(responseAddress)
-            .storeCoins(forwardTonAmount)
-            .storeSlice(eitherForwardPayload)
-            .endCell();
-
-        var stateInit: cell = calculateJettonWalletStateInit(toOwnerAddress, storage.minterAddress, contract.getCode());
-        var toWalletAddress = calculateJettonWalletAddress(stateInit);
-        var msg = beginCell()
-            .storeUint(0x18, 6)
-            .storeAddress(toWalletAddress)
-            .storeCoins(0)
-            .storeUint(4 + 2 + 1, 1 + 4 + 4 + 64 + 32 + 1 + 1 + 1)
-            .storeRef(stateInit)
-            .storeRef(msgBody)
-            .endCell();
-
-        sendRawMessage(msg, 64); // revert on errors
-        return;
-    }
-
-    if (op == OP_INTERNAL_TRANSFER) {
-        // NOTE we can not allow fails in action phase since in that case there will be
-        // no bounce. Thus check and throw in computation phase.
-        var queryId = inMsgBody.loadUint(64);
-        var jettonAmount = inMsgBody.loadCoins();
-        var fromAddress = inMsgBody.loadAddress();
-        var responseAddress = inMsgBody.loadAddress();
-        var forwardTonAmount = inMsgBody.loadCoins();
-        var eitherForwardPayload = inMsgBody;
-
-        var storage = lazy WalletStorage.load();
-        if (senderAddress != storage.minterAddress) {
-            assert(senderAddress == calculateUserJettonWalletAddress(fromAddress, storage.minterAddress, contract.getCode())) throw 707;
-        }
-        storage.balance += jettonAmount;
-        storage.save();
-
-        var tonBalanceBeforeMsg: int = myBalance - msgValue;
-        var storageFee: int = MIN_TONS_FOR_STORAGE - min(tonBalanceBeforeMsg, MIN_TONS_FOR_STORAGE);
-        msgValue -= (storageFee + EXPECTED_GAS_UPPER_BOUND);
-
-        if (forwardTonAmount) {
-            msgValue -= (forwardTonAmount + fwdFee);
+            var forwardedMessagesCount = msg.forwardTonAmount ? 2 : 1;
+            assert(msgValue >
+                msg.forwardTonAmount +
+                // 3 messages: wal1->wal2,  wal2->owner, wal2->response
+                // but last one is optional (it is ok if it fails)
+                forwardedMessagesCount * fwdFee +
+                (2 * EXPECTED_GAS_UPPER_BOUND + MIN_TONS_FOR_STORAGE)
+            ) throw 709;
 
             var msgBody = beginCell()
-                .storeUint(OP_TRANSFER_NOTIFICATION, 32)
-                .storeUint(queryId, 64)
-                .storeCoins(jettonAmount)
-                .storeAddress(fromAddress)
-                .storeSlice(eitherForwardPayload)
+                .storeUint(OP_INTERNAL_TRANSFER, 32)
+                .storeUint(msg.queryId, 64)
+                .storeCoins(msg.jettonAmount)
+                .storeAddress(storage.ownerAddress)
+                .storeAddress(msg.sendExcessesTo)
+                .storeCoins(msg.forwardTonAmount)
+                .storeSlice(msg.forwardPayload)
                 .endCell();
 
-            var msg = beginCell()
-                .storeUint(0x10, 6) // we should not bounce here cause receiver can have uninitialized contract
+            var stateInit: cell = calculateJettonWalletStateInit(msg.toOwnerAddress, storage.minterAddress, contract.getCode());
+            var toWalletAddress = calculateJettonWalletAddress(stateInit);
+            var deployMsg = beginCell()
+                .storeUint(0x18, 6)
+                .storeAddress(toWalletAddress)
+                .storeCoins(0)
+                .storeUint(4 + 2 + 1, 1 + 4 + 4 + 64 + 32 + 1 + 1 + 1)
+                .storeRef(stateInit)
+                .storeRef(msgBody)
+                .endCell();
+
+            sendRawMessage(deployMsg, 64); // revert on errors
+        }
+
+        InternalTransfer => {
+            var storage = lazy WalletStorage.load();
+            if (senderAddress != storage.minterAddress) {
+                assert(senderAddress == calculateUserJettonWalletAddress(msg.ownerAddress, storage.minterAddress, contract.getCode())) throw 707;
+            }
+            storage.balance += msg.jettonAmount;
+            storage.save();
+
+            var tonBalanceBeforeMsg: int = myBalance - msgValue;
+            var storageFee: int = MIN_TONS_FOR_STORAGE - min(tonBalanceBeforeMsg, MIN_TONS_FOR_STORAGE);
+            msgValue -= (storageFee + EXPECTED_GAS_UPPER_BOUND);
+
+            if (msg.forwardTonAmount) {
+                msgValue -= (msg.forwardTonAmount + fwdFee);
+
+                var msgBody = beginCell()
+                    .storeUint(OP_TRANSFER_NOTIFICATION, 32)
+                    .storeUint(msg.queryId, 64)
+                    .storeCoins(msg.jettonAmount)
+                    .storeAddress(msg.ownerAddress)
+                    .storeSlice(msg.forwardPayload)
+                    .endCell();
+
+                var notifyMinterMsg = beginCell()
+                    .storeUint(0x10, 6) // we should not bounce here cause receiver can have uninitialized contract
+                    .storeAddress(storage.ownerAddress)
+                    .storeCoins(msg.forwardTonAmount)
+                    .storeUint(1, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+                    .storeRef(msgBody)
+                    .endCell();
+
+                sendRawMessage(notifyMinterMsg, 1);
+            }
+
+            if (msg.sendExcessesTo.isInternal() & (msgValue > 0)) {
+                var excessesMsg = beginCell()
+                    .storeUint(0x10, 6) // nobounce - int_msg_info$0 ihr_disabled:Bool bounce:Bool bounced:Bool src:MsgAddress -> 010000
+                    .storeAddress(msg.sendExcessesTo)
+                    .storeCoins(msgValue)
+                    .storeUint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+                    .storeUint(OP_EXCESSES, 32)
+                    .storeUint(msg.queryId, 64)
+                    .endCell();
+                sendRawMessage(excessesMsg, 2);
+            }
+        }
+
+        AskToBurn => {
+            assert(msgValue > fwdFee + 2 * EXPECTED_GAS_UPPER_BOUND) throw 707;
+
+            var storage = lazy WalletStorage.load();
+            assert(senderAddress == storage.ownerAddress) throw 705;
+            assert(storage.balance >= msg.jettonAmount) throw 706;
+            storage.balance -= msg.jettonAmount;
+            storage.save();
+
+            var msgBody = beginCell()
+                .storeUint(OP_BURN_NOTIFICATION, 32)
+                .storeUint(msg.queryId, 64)
+                .storeCoins(msg.jettonAmount)
                 .storeAddress(storage.ownerAddress)
-                .storeCoins(forwardTonAmount)
+                .storeAddress(msg.sendExcessesTo)
+                .endCell();
+
+            var notifyMinterMsg = beginCell()
+                .storeUint(0x18, 6)
+                .storeAddress(storage.minterAddress)
+                .storeCoins(0)
                 .storeUint(1, 1 + 4 + 4 + 64 + 32 + 1 + 1)
                 .storeRef(msgBody)
                 .endCell();
 
-            sendRawMessage(msg, 1);
+            sendRawMessage(notifyMinterMsg, 64);
         }
 
-        if (responseAddress.isInternal() & (msgValue > 0)) {
-            var msg = beginCell()
-                .storeUint(0x10, 6) // nobounce - int_msg_info$0 ihr_disabled:Bool bounce:Bool bounced:Bool src:MsgAddress -> 010000
-                .storeAddress(responseAddress)
-                .storeCoins(msgValue)
-                .storeUint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
-                .storeUint(OP_EXCESSES, 32)
-                .storeUint(queryId, 64)
-                .endCell();
-            sendRawMessage(msg, 2);
-        }
-
-        return;
+        else => throw 0xFFFF
     }
-
-    if (op == OP_BURN) {
-        assert(msgValue > fwdFee + 2 * EXPECTED_GAS_UPPER_BOUND) throw 707;
-
-        // NOTE we can not allow fails in action phase since in that case there will be
-        // no bounce. Thus check and throw in computation phase.
-        var queryId = inMsgBody.loadUint(64);
-        var jettonAmount = inMsgBody.loadCoins();
-        var responseAddress = inMsgBody.loadAddress();
-        var customPayload = inMsgBody.loadDict();
-
-        var storage = lazy WalletStorage.load();
-        assert(senderAddress == storage.ownerAddress) throw 705;
-        assert(storage.balance >= jettonAmount) throw 706;
-        storage.balance -= jettonAmount;
-        storage.save();
-
-        var msgBody = beginCell()
-            .storeUint(OP_BURN_NOTIFICATION, 32)
-            .storeUint(queryId, 64)
-            .storeCoins(jettonAmount)
-            .storeAddress(storage.ownerAddress)
-            .storeAddress(responseAddress)
-            .endCell();
-
-        var msg = beginCell()
-            .storeUint(0x18, 6)
-            .storeAddress(storage.minterAddress)
-            .storeCoins(0)
-            .storeUint(1, 1 + 4 + 4 + 64 + 32 + 1 + 1)
-            .storeRef(msgBody)
-            .endCell();
-
-        sendRawMessage(msg, 64);
-        return;
-    }
-
-    throw 0xffff;
 }
 
 get get_wallet_data(): (coins, address, address, cell) {

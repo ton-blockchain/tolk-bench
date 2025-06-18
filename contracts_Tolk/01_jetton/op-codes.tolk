@@ -1,3 +1,5 @@
+// todo del
+
 const OP_TRANSFER = 0x0f8a7ea5;
 const OP_TRANSFER_NOTIFICATION = 0x7362d09c;
 const OP_INTERNAL_TRANSFER = 0x178d4519;
