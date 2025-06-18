@@ -68,6 +68,48 @@ fun onInternalMessage(myBalance: int, msgValue: int, inMsgFull: cell, inMsgBody:
     val msg = lazy AllowedWalletMessage.fromSlice(inMsgBody);
 
     match (msg) {
+        InternalTransfer => {
+            var storage = lazy WalletStorage.load();
+            if (senderAddress != storage.minterAddress) {
+                assert(senderAddress.isAddressOfJettonWallet(msg.ownerAddress, storage.minterAddress, contract.getCode())) throw 707;
+            }
+            storage.balance += msg.jettonAmount;
+            storage.save();
+
+            var tonBalanceBeforeMsg: int = myBalance - msgValue;
+            var storageFee: int = MIN_TONS_FOR_STORAGE - min(tonBalanceBeforeMsg, MIN_TONS_FOR_STORAGE);
+            msgValue -= (storageFee + EXPECTED_GAS_UPPER_BOUND);
+
+            if (msg.forwardTonAmount) {
+                msgValue -= (msg.forwardTonAmount + fwdFee);
+
+                val notifyOwnerMsg = createMessage({
+                    bounce: false,      // we should not bounce here cause receiver can have uninitialized contract
+                    dest: storage.ownerAddress,
+                    value: msg.forwardTonAmount,
+                    body: TransferNotificationForOwner {
+                        queryId: msg.queryId,
+                        jettonAmount: msg.jettonAmount,
+                        fromAddress: msg.ownerAddress,
+                        forwardPayload: msg.forwardPayload
+                    }
+                });
+                notifyOwnerMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
+            }
+
+            if (msg.sendExcessesTo.isInternal() & (msgValue > 0)) {
+                val excessesMsg = createMessage({
+                    bounce: false,
+                    dest: msg.sendExcessesTo,
+                    value: msgValue,
+                    body: ReturnExcessesBack {
+                        queryId: msg.queryId
+                    }
+                });
+                excessesMsg.send(SEND_MODE_IGNORE_ERRORS);
+            }
+        }
+
         AskToTransfer => {
             assert(msg.forwardPayload.remainingBitsCount()) throw 708;
             assert(msg.toOwnerAddress.getWorkchain() == BASECHAIN) throw 333;
@@ -87,75 +129,25 @@ fun onInternalMessage(myBalance: int, msgValue: int, inMsgFull: cell, inMsgBody:
                 (2 * EXPECTED_GAS_UPPER_BOUND + MIN_TONS_FOR_STORAGE)
             ) throw 709;
 
-            var msgBody = beginCell()
-                .storeUint(OP_INTERNAL_TRANSFER, 32)
-                .storeUint(msg.queryId, 64)
-                .storeCoins(msg.jettonAmount)
-                .storeAddress(storage.ownerAddress)
-                .storeAddress(msg.sendExcessesTo)
-                .storeCoins(msg.forwardTonAmount)
-                .storeSlice(msg.forwardPayload)
-                .endCell();
-
-            var stateInit: cell = calculateJettonWalletStateInit(msg.toOwnerAddress, storage.minterAddress, contract.getCode());
-            var toWalletAddress = calculateJettonWalletAddress(stateInit);
-            var deployMsg = beginCell()
-                .storeUint(0x18, 6)
-                .storeAddress(toWalletAddress)
-                .storeCoins(0)
-                .storeUint(4 + 2 + 1, 1 + 4 + 4 + 64 + 32 + 1 + 1 + 1)
-                .storeRef(stateInit)
-                .storeRef(msgBody)
-                .endCell();
-
-            sendRawMessage(deployMsg, 64); // revert on errors
-        }
-
-        InternalTransfer => {
-            var storage = lazy WalletStorage.load();
-            if (senderAddress != storage.minterAddress) {
-                assert(senderAddress == calculateUserJettonWalletAddress(msg.ownerAddress, storage.minterAddress, contract.getCode())) throw 707;
-            }
-            storage.balance += msg.jettonAmount;
-            storage.save();
-
-            var tonBalanceBeforeMsg: int = myBalance - msgValue;
-            var storageFee: int = MIN_TONS_FOR_STORAGE - min(tonBalanceBeforeMsg, MIN_TONS_FOR_STORAGE);
-            msgValue -= (storageFee + EXPECTED_GAS_UPPER_BOUND);
-
-            if (msg.forwardTonAmount) {
-                msgValue -= (msg.forwardTonAmount + fwdFee);
-
-                var msgBody = beginCell()
-                    .storeUint(OP_TRANSFER_NOTIFICATION, 32)
-                    .storeUint(msg.queryId, 64)
-                    .storeCoins(msg.jettonAmount)
-                    .storeAddress(msg.ownerAddress)
-                    .storeSlice(msg.forwardPayload)
-                    .endCell();
-
-                var notifyMinterMsg = beginCell()
-                    .storeUint(0x10, 6) // we should not bounce here cause receiver can have uninitialized contract
-                    .storeAddress(storage.ownerAddress)
-                    .storeCoins(msg.forwardTonAmount)
-                    .storeUint(1, 1 + 4 + 4 + 64 + 32 + 1 + 1)
-                    .storeRef(msgBody)
-                    .endCell();
-
-                sendRawMessage(notifyMinterMsg, 1);
-            }
-
-            if (msg.sendExcessesTo.isInternal() & (msgValue > 0)) {
-                var excessesMsg = beginCell()
-                    .storeUint(0x10, 6) // nobounce - int_msg_info$0 ihr_disabled:Bool bounce:Bool bounced:Bool src:MsgAddress -> 010000
-                    .storeAddress(msg.sendExcessesTo)
-                    .storeCoins(msgValue)
-                    .storeUint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
-                    .storeUint(OP_EXCESSES, 32)
-                    .storeUint(msg.queryId, 64)
-                    .endCell();
-                sendRawMessage(excessesMsg, 2);
-            }
+            val deployMsg = createMessage({
+                bounce: true,
+                dest: {
+                    stateInit: {
+                        code: contract.getCode(),   // we're deploying the same wallet as current
+                        data: WalletStorage.generateEmptyData(msg.toOwnerAddress, storage.minterAddress),
+                    }
+                },
+                value: 0,
+                body: InternalTransfer {
+                    queryId: msg.queryId,
+                    jettonAmount: msg.jettonAmount,
+                    ownerAddress: storage.ownerAddress,
+                    sendExcessesTo: msg.sendExcessesTo,
+                    forwardTonAmount: msg.forwardTonAmount,
+                    forwardPayload: msg.forwardPayload,
+                }
+            });
+            deployMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
         }
 
         AskToBurn => {
@@ -167,23 +159,18 @@ fun onInternalMessage(myBalance: int, msgValue: int, inMsgFull: cell, inMsgBody:
             storage.balance -= msg.jettonAmount;
             storage.save();
 
-            var msgBody = beginCell()
-                .storeUint(OP_BURN_NOTIFICATION, 32)
-                .storeUint(msg.queryId, 64)
-                .storeCoins(msg.jettonAmount)
-                .storeAddress(storage.ownerAddress)
-                .storeAddress(msg.sendExcessesTo)
-                .endCell();
-
-            var notifyMinterMsg = beginCell()
-                .storeUint(0x18, 6)
-                .storeAddress(storage.minterAddress)
-                .storeCoins(0)
-                .storeUint(1, 1 + 4 + 4 + 64 + 32 + 1 + 1)
-                .storeRef(msgBody)
-                .endCell();
-
-            sendRawMessage(notifyMinterMsg, 64);
+            val nofityMinterMsg = createMessage({
+                bounce: true,
+                dest: storage.minterAddress,
+                value: 0,
+                body: BurnNotificationForMinter {
+                    queryId: msg.queryId,
+                    jettonAmount: msg.jettonAmount,
+                    fromOwnerAddress: storage.ownerAddress,
+                    sendExcessesTo: msg.sendExcessesTo,
+                }
+            });
+            nofityMinterMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
         }
 
         else => throw 0xFFFF

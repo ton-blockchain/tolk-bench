@@ -72,8 +72,8 @@ struct (0xd1735400) ResponseWalletAddress {
 
 struct (0x00000015) MintNewJettons {
     queryId: uint64;
-    toAddress: address;
-    amount: coins;          // todo amount of what? rename?
+    toOwnerAddress: address;
+    tonAmount: coins;
     jettonAmount: coins;    // todo unused, what does it mean?
     internalTransferMsg: Cell<InternalTransfer>;
 }

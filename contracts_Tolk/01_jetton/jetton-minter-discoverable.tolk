@@ -28,7 +28,7 @@ type AllowedMinterMessage =
 ;
 
 fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
-    if (inMsgBody.isEnd()) { // ignore empty messages
+    if (inMsgBody.isEnd()) { // ignore empty messages todo if to delete, no tests fail
         return;
     }
     var cs: slice = inMsgFull.beginParse();
@@ -51,6 +51,56 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
     var storage = MinterStorage.load();
 
     match (msg) {
+        BurnNotificationForMinter => {
+            assert(senderAddress.isAddressOfJettonWallet(msg.fromOwnerAddress, contract.getAddress(), storage.jettonWalletCode)) throw 74;
+
+            storage.totalSupply -= msg.jettonAmount;
+            storage.save();
+
+            if (!msg.sendExcessesTo.isInternal()) {
+                return;
+            }
+
+            val excessesMsg = createMessage({
+                bounce: false,
+                dest: msg.sendExcessesTo,
+                value: 0,
+                body: ReturnExcessesBack {
+                    queryId: msg.queryId
+                }
+            });
+            excessesMsg.send(SEND_MODE_IGNORE_ERRORS + SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+        }
+
+        RequestWalletAddress => {
+            assert(msgValue > fwdFee + MINIMAL_MESSAGE_VALUE_BOUND) throw 75;
+
+            var includedAddress: Cell<address>? = msg.isIncludeAddress
+                ? msg.ownerAddress.toCell()
+                : null;
+
+            var walletAddress: builder;
+            if (msg.ownerAddress.getWorkchain() == BASECHAIN) {
+                walletAddress = buildAddressOfJettonWallet(msg.ownerAddress, contract.getAddress(), storage.jettonWalletCode);
+            } else {
+                walletAddress = beginCell().storeAddressNone();
+            }
+
+            val respondMsg = createMessage({
+                bounce: true,
+                dest: senderAddress,
+                value: 0,
+                body: UnsafeBodyNoRef {     // tell the compiler that `builder` (walletAddress) is small and safe to inline
+                    forceInline: ResponseWalletAddress {
+                        queryId: msg.queryId,
+                        walletAddress,
+                        includedAddress,
+                    }
+                }
+            });
+            respondMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+        }
+
         MintNewJettons => {
             assert(senderAddress == storage.adminAddress) throw 73;
 
@@ -60,59 +110,18 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
             storage.save();
             // assert(internalTransferMsg.jettonAmount == msg.jettonAmount, 888);   // it's okay
 
-            var stateInit: cell = calculateJettonWalletStateInit(msg.toAddress, contract.getAddress(), storage.jettonWalletCode);
-            var toWalletAddress = calculateJettonWalletAddress(stateInit);
-            var deployMsg = beginCell()
-                .storeUint(0x18, 6)
-                .storeAddress(toWalletAddress)
-                .storeCoins(msg.amount)
-                .storeUint(4 + 2 + 1, 1 + 4 + 4 + 64 + 32 + 1 + 1 + 1)
-                .storeRef(stateInit)
-                .storeRef(msg.internalTransferMsg)
-                .endCell();
-            sendRawMessage(deployMsg, 1); // pay transfer fees separately, revert on errors
-        }
-
-        BurnNotificationForMinter => {
-            assert(senderAddress == calculateUserJettonWalletAddress(msg.fromOwnerAddress, contract.getAddress(), storage.jettonWalletCode)) throw 74;
-
-            storage.totalSupply -= msg.jettonAmount;
-            storage.save();
-
-            if (msg.sendExcessesTo.isInternal()) {
-                var excessesMsg = beginCell()
-                    .storeUint(0x10, 6) // nobounce - int_msg_info$0 ihr_disabled:Bool bounce:Bool bounced:Bool src:MsgAddress -> 011000
-                    .storeAddress(msg.sendExcessesTo)
-                    .storeCoins(0)
-                    .storeUint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
-                    .storeUint(OP_EXCESSES, 32)
-                    .storeUint(msg.queryId, 64)
-                    .endCell();
-                sendRawMessage(excessesMsg, 2 + 64);
-            }
-        }
-
-        RequestWalletAddress => {
-            assert(msgValue > fwdFee + MINIMAL_MESSAGE_VALUE_BOUND) throw 75;
-
-            var includedAddress: cell? = msg.isIncludeAddress
-                ? beginCell().storeAddress(msg.ownerAddress).endCell()
-                : null;
-
-            var responseMsg = beginCell()
-                .storeUint(0x18, 6)
-                .storeAddress(senderAddress)
-                .storeCoins(0)
-                .storeUint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
-                .storeUint(OP_TAKE_WALLET_ADDRESS, 32)
-                .storeUint(msg.queryId, 64);
-
-            if (msg.ownerAddress.getWorkchain() == BASECHAIN) {
-                responseMsg = responseMsg.storeAddress(calculateUserJettonWalletAddress(msg.ownerAddress, contract.getAddress(), storage.jettonWalletCode));
-            } else {
-                responseMsg = responseMsg.storeUint(0, 2); // addr_none
-            }
-            sendRawMessage(responseMsg.storeMaybeRef(includedAddress).endCell(), 64);
+            val deployMsg = createMessage({
+                bounce: true,
+                dest: {
+                    stateInit: {
+                        code: storage.jettonWalletCode,
+                        data: WalletStorage.generateEmptyData(msg.toOwnerAddress, contract.getAddress())
+                    }
+                },
+                value: msg.tonAmount,
+                body: msg.internalTransferMsg,  // a newly-deployed wallet contract will immediately handle it
+            });
+            deployMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
         }
 
         ChangeMinterAdmin => {
@@ -138,5 +147,6 @@ get get_jetton_data(): (int, bool, address, cell, cell) {
 
 get get_wallet_address(ownerAddress: address): address {
     val storage = lazy MinterStorage.load();
-    return calculateUserJettonWalletAddress(ownerAddress, contract.getAddress(), storage.jettonWalletCode);
+    val addrBuilt = buildAddressOfJettonWallet(ownerAddress, contract.getAddress(), storage.jettonWalletCode);
+    return address.fromValidBuilder(addrBuilt);
 }

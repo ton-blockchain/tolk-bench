@@ -1,34 +1,31 @@
 import "messages.tolk"
 
-@inline
-fun packJettonWalletData(balance: int, ownerAddress: address, minterAddress: address): cell {
-    return WalletStorage {
-        balance: balance,
-        ownerAddress: ownerAddress,
-        minterAddress: minterAddress,
-    }.toCell()
+fun WalletStorage.generateEmptyData(ownerAddress: address, minterAddress: address) {
+    val emptyWalletStorage: WalletStorage = {
+        balance: 0,
+        ownerAddress,
+        minterAddress,
+    };
+    return emptyWalletStorage.toCell();
 }
 
-@inline
-fun calculateJettonWalletStateInit(ownerAddress: address, minterAddress: address, jettonWalletCode: cell): cell {
+fun buildAddressOfJettonWallet(ownerAddress: address, minterAddress: address, jettonWalletCode: cell): builder {
+    val stateInitHash = StateInit.calcHashCodeData(
+        jettonWalletCode,
+        WalletStorage.generateEmptyData(ownerAddress, minterAddress)
+    );
+    // todo manual work, how to better avoid it? (it's important to leave builder here)
     return beginCell()
-        .storeUint(0, 2)
-        .storeDict(jettonWalletCode)
-        .storeDict(packJettonWalletData(0, ownerAddress, minterAddress))
-        .storeUint(0, 1)
-        .endCell();
+        .storeUint(0b100, 3)
+        .storeUint(BASECHAIN, 8)
+        .storeUint(stateInitHash, 256)
 }
 
-@inline
-fun calculateJettonWalletAddress(stateInit: cell): address {
-    return beginCell().storeUint(4, 3)        // 0b100  (std no anycast)
-        .storeInt(BASECHAIN, 8)
-        .storeUint(stateInit.hash(), 256)
-        .endCell()
-        .beginParse() as address;
-}
-
-@inline
-fun calculateUserJettonWalletAddress(ownerAddress: address, minterAddress: address, jettonWalletCode: cell): address {
-    return calculateJettonWalletAddress(calculateJettonWalletStateInit(ownerAddress, minterAddress, jettonWalletCode));
+fun address.isAddressOfJettonWallet(self, ownerAddress: address, minterAddress: address, jettonWalletCode: cell) {
+    val (wc, hash) = self.getWorkchainAndHash();
+    val stateInitHash = StateInit.calcHashCodeData(
+        jettonWalletCode,
+        WalletStorage.generateEmptyData(ownerAddress, minterAddress)
+    );
+    return (wc == BASECHAIN) & (hash == stateInitHash);
 }
