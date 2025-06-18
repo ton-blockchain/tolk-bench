@@ -36,8 +36,8 @@ describe(numericFolder + ' StateInit', () => {
         let lib_prep = beginCell().storeUint(2,8).storeBuffer(jwallet_code_raw.hash()).endCell();
         jwallet_code = new Cell({ exotic:true, bits: lib_prep.bits, refs:lib_prep.refs});
 
-        console.log('jetton minter code hash = ', minter_code.hash().toString('hex'));
-        console.log('jetton wallet code hash = ', jwallet_code.hash().toString('hex'));
+        // console.log('jetton minter code hash = ', minter_code.hash().toString('hex'));
+        // console.log('jetton wallet code hash = ', jwallet_code.hash().toString('hex'));
 
         jettonMinter   = blockchain.openContract(
                    JettonMinter.createFromConfig(
@@ -107,10 +107,10 @@ describe(numericFolder + ' StateInit', () => {
             throw new Error("Wallet account is not active");
         if(smc.account.account === undefined || smc.account.account === null)
             throw new Error("Can't access wallet account!");
-        console.log("Jetton wallet max storage stats:", smc.account.account.storageStats.used);
+        // console.log("Jetton wallet max storage stats:", smc.account.account.storageStats.used);
         const state = inMsg.init!;
         const stateCell = beginCell().store(storeStateInit(state)).endCell();
-        console.log("State init stats:", collectCellStats(stateCell, []));
+        // console.log("State init stats:", collectCellStats(stateCell, []));
 
         blockchain.now = transferTx.now + storageDuration + 1;
 
