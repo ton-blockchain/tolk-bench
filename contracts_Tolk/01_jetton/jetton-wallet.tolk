@@ -2,6 +2,7 @@
 
 tolk 0.99
 
+import "@stdlib/gas-payments.tolk"
 import "op-codes.tolk"
 import "jetton-utils.tolk"
 
@@ -73,34 +74,40 @@ fun onInternalMessage(myBalance: int, msgValue: int, inMsgFull: cell, inMsgBody:
     cs.loadCoins(); // skip value
     cs.skipBits(1); // skip extracurrency collection
     cs.loadCoins(); // skip ihr_fee
-    var fwdFee: int = mulDivFloor(cs.loadCoins(), 3, 2); // we use message fwd_fee for estimation of forward_payload costs
+    val incomingFwdFee = cs.loadCoins();
+    var fwdFee = calculateOriginalMessageFee(BASECHAIN, incomingFwdFee);
+
+    // todo load storage once or in every branch?
 
     var op: int = inMsgBody.loadUint(32);
 
     if (op == OP_TRANSFER) {
-        var queryId: int = inMsgBody.loadUint(64);
-        var jettonAmount: int = inMsgBody.loadCoins();
+        var queryId = inMsgBody.loadUint(64);
+        var jettonAmount = inMsgBody.loadCoins();
         var toOwnerAddress = inMsgBody.loadAddress();
-        assert(toOwnerAddress.getWorkchain() == BASECHAIN) throw 333;
-        var (balance: int, ownerAddress: address, jettonMasterAddress: address, jettonWalletCode: cell) = loadData();
-        balance -= jettonAmount;
-
-        assert(ownerAddress == senderAddress) throw 705;
-        assert(balance >= 0) throw 706;
-
-        var stateInit: cell = calculateJettonWalletStateInit(toOwnerAddress, jettonMasterAddress, jettonWalletCode);
-        var toWalletAddress = calculateJettonWalletAddress(stateInit);
         var responseAddress = inMsgBody.loadAddress();
-        var customPayload: dict = inMsgBody.loadDict();
-        var forwardTonAmount: int = inMsgBody.loadCoins();
-        assert(inMsgBody.remainingBitsCount() >= 1) throw 708;
-        var eitherForwardPayload: slice = inMsgBody;
-        var msg = beginCell()
-            .storeUint(0x18, 6)
-            .storeAddress(toWalletAddress)
-            .storeCoins(0)
-            .storeUint(4 + 2 + 1, 1 + 4 + 4 + 64 + 32 + 1 + 1 + 1)
-            .storeRef(stateInit);
+        var customPayload = inMsgBody.loadDict();
+        var forwardTonAmount = inMsgBody.loadCoins();
+        var eitherForwardPayload = inMsgBody;
+
+        assert(eitherForwardPayload.remainingBitsCount()) throw 708;
+        assert(toOwnerAddress.getWorkchain() == BASECHAIN) throw 333;
+
+        var (balance: int, ownerAddress: address, jettonMasterAddress: address, jettonWalletCode: cell) = loadData();
+        assert(senderAddress == ownerAddress) throw 705;
+        assert(balance >= jettonAmount) throw 706;
+        balance -= jettonAmount;
+        saveData(balance, ownerAddress, jettonMasterAddress, jettonWalletCode);
+
+        var forwardedMessagesCount = forwardTonAmount ? 2 : 1;
+        assert(msgValue >
+            forwardTonAmount +
+            // 3 messages: wal1->wal2,  wal2->owner, wal2->response
+            // but last one is optional (it is ok if it fails)
+            forwardedMessagesCount * fwdFee +
+            (2 * EXPECTED_GAS_UPPER_BOUND + MIN_TONS_FOR_STORAGE)
+        ) throw 709;
+
         var msgBody = beginCell()
             .storeUint(OP_INTERNAL_TRANSFER, 32)
             .storeUint(queryId, 64)
@@ -111,41 +118,44 @@ fun onInternalMessage(myBalance: int, msgValue: int, inMsgFull: cell, inMsgBody:
             .storeSlice(eitherForwardPayload)
             .endCell();
 
-        msg = msg.storeRef(msgBody);
-        var fwdCount: int = forwardTonAmount ? 2 : 1;
-        assert(msgValue >
-            forwardTonAmount +
-            // 3 messages: wal1->wal2,  wal2->owner, wal2->response
-            // but last one is optional (it is ok if it fails)
-            fwdCount * fwdFee +
-            (2 * EXPECTED_GAS_UPPER_BOUND + MIN_TONS_FOR_STORAGE)
-        ) throw 709;
+        var stateInit: cell = calculateJettonWalletStateInit(toOwnerAddress, jettonMasterAddress, jettonWalletCode);
+        var toWalletAddress = calculateJettonWalletAddress(stateInit);
+        var msg = beginCell()
+            .storeUint(0x18, 6)
+            .storeAddress(toWalletAddress)
+            .storeCoins(0)
+            .storeUint(4 + 2 + 1, 1 + 4 + 4 + 64 + 32 + 1 + 1 + 1)
+            .storeRef(stateInit)
+            .storeRef(msgBody)
+            .endCell();
 
-        sendRawMessage(msg.endCell(), 64); // revert on errors
-        saveData(balance, ownerAddress, jettonMasterAddress, jettonWalletCode);
+        sendRawMessage(msg, 64); // revert on errors
         return;
     }
 
     if (op == OP_INTERNAL_TRANSFER) {
         // NOTE we can not allow fails in action phase since in that case there will be
         // no bounce. Thus check and throw in computation phase.
-        var (balance: int, ownerAddress: address, jettonMasterAddress: address, jettonWalletCode: cell) = loadData();
-        var queryId: int = inMsgBody.loadUint(64);
-        var jettonAmount: int = inMsgBody.loadCoins();
-        balance += jettonAmount;
+        var queryId = inMsgBody.loadUint(64);
+        var jettonAmount = inMsgBody.loadCoins();
         var fromAddress = inMsgBody.loadAddress();
         var responseAddress = inMsgBody.loadAddress();
-        assert((jettonMasterAddress == senderAddress)
-            |
-            (calculateUserJettonWalletAddress(fromAddress, jettonMasterAddress, jettonWalletCode) == senderAddress)) throw 707;
-        var forwardTonAmount: int = inMsgBody.loadCoins();
+        var forwardTonAmount = inMsgBody.loadCoins();
+        var eitherForwardPayload = inMsgBody;
+
+        var (balance: int, ownerAddress: address, jettonMasterAddress: address, jettonWalletCode: cell) = loadData();
+        if (senderAddress != jettonMasterAddress) {
+            assert(senderAddress == calculateUserJettonWalletAddress(fromAddress, jettonMasterAddress, jettonWalletCode)) throw 707;
+        }
+        balance += jettonAmount;
+        saveData(balance, ownerAddress, jettonMasterAddress, jettonWalletCode);
 
         var tonBalanceBeforeMsg: int = myBalance - msgValue;
         var storageFee: int = MIN_TONS_FOR_STORAGE - min(tonBalanceBeforeMsg, MIN_TONS_FOR_STORAGE);
         msgValue -= (storageFee + EXPECTED_GAS_UPPER_BOUND);
+
         if (forwardTonAmount) {
             msgValue -= (forwardTonAmount + fwdFee);
-            var eitherForwardPayload: slice = inMsgBody;
 
             var msgBody = beginCell()
                 .storeUint(OP_TRANSFER_NOTIFICATION, 32)
@@ -160,9 +170,10 @@ fun onInternalMessage(myBalance: int, msgValue: int, inMsgFull: cell, inMsgBody:
                 .storeAddress(ownerAddress)
                 .storeCoins(forwardTonAmount)
                 .storeUint(1, 1 + 4 + 4 + 64 + 32 + 1 + 1)
-                .storeRef(msgBody);
+                .storeRef(msgBody)
+                .endCell();
 
-            sendRawMessage(msg.endCell(), 1);
+            sendRawMessage(msg, 1);
         }
 
         if (responseAddress.isInternal() & (msgValue > 0)) {
@@ -172,27 +183,29 @@ fun onInternalMessage(myBalance: int, msgValue: int, inMsgFull: cell, inMsgBody:
                 .storeCoins(msgValue)
                 .storeUint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
                 .storeUint(OP_EXCESSES, 32)
-                .storeUint(queryId, 64);
-            sendRawMessage(msg.endCell(), 2);
+                .storeUint(queryId, 64)
+                .endCell();
+            sendRawMessage(msg, 2);
         }
 
-        saveData(balance, ownerAddress, jettonMasterAddress, jettonWalletCode);
         return;
     }
 
     if (op == OP_BURN) {
+        assert(msgValue > fwdFee + 2 * EXPECTED_GAS_UPPER_BOUND) throw 707;
+
         // NOTE we can not allow fails in action phase since in that case there will be
         // no bounce. Thus check and throw in computation phase.
-        var (balance: int, ownerAddress: address, jettonMasterAddress: address, jettonWalletCode: cell) = loadData();
-        var queryId: int = inMsgBody.loadUint(64);
-        var jettonAmount: int = inMsgBody.loadCoins();
+        var queryId = inMsgBody.loadUint(64);
+        var jettonAmount = inMsgBody.loadCoins();
         var responseAddress = inMsgBody.loadAddress();
-        // ignore custom payload
-        // slice custom_payload = in_msg_body~load_dict();
+        var customPayload = inMsgBody.loadDict();
+
+        var (balance: int, ownerAddress: address, jettonMasterAddress: address, jettonWalletCode: cell) = loadData();
+        assert(senderAddress == ownerAddress) throw 705;
+        assert(balance >= jettonAmount) throw 706;
         balance -= jettonAmount;
-        assert(ownerAddress == senderAddress) throw 705;
-        assert(balance >= 0) throw 706;
-        assert(msgValue > fwdFee + 2 * EXPECTED_GAS_UPPER_BOUND) throw 707;
+        saveData(balance, ownerAddress, jettonMasterAddress, jettonWalletCode);
 
         var msgBody = beginCell()
             .storeUint(OP_BURN_NOTIFICATION, 32)
@@ -207,11 +220,10 @@ fun onInternalMessage(myBalance: int, msgValue: int, inMsgFull: cell, inMsgBody:
             .storeAddress(jettonMasterAddress)
             .storeCoins(0)
             .storeUint(1, 1 + 4 + 4 + 64 + 32 + 1 + 1)
-            .storeRef(msgBody);
+            .storeRef(msgBody)
+            .endCell();
 
-        sendRawMessage(msg.endCell(), 64);
-
-        saveData(balance, ownerAddress, jettonMasterAddress, jettonWalletCode);
+        sendRawMessage(msg, 64);
         return;
     }
 
