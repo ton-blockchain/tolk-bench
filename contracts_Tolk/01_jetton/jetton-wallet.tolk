@@ -3,7 +3,7 @@
 tolk 0.99
 
 import "@stdlib/gas-payments"
-import "op-codes.tolk"
+import "errors.tolk"
 import "jetton-utils.tolk"
 import "messages.tolk"
 
@@ -29,7 +29,8 @@ fun WalletStorage.save(self) {
 fun onBounce(inMsgBody: slice) {
     inMsgBody.skipBouncedPrefix();
     var op: int = inMsgBody.loadUint(32);
-    assert((op == OP_INTERNAL_TRANSFER) | (op == OP_BURN_NOTIFICATION)) throw 709;
+    // todo why BurnNotificationForMinter is here?
+    assert((op == InternalTransfer.getDeclaredPackPrefix()) | (op == BurnNotificationForMinter.getDeclaredPackPrefix())) throw ERR_INVALID_OP;
     var queryId: int = inMsgBody.loadUint(64);
     var jettonAmount: int = inMsgBody.loadCoins();
     var storage = lazy WalletStorage.load();
@@ -71,7 +72,7 @@ fun onInternalMessage(myBalance: int, msgValue: int, inMsgFull: cell, inMsgBody:
         InternalTransfer => {
             var storage = lazy WalletStorage.load();
             if (senderAddress != storage.minterAddress) {
-                assert(senderAddress.isAddressOfJettonWallet(msg.ownerAddress, storage.minterAddress, contract.getCode())) throw 707;
+                assert(senderAddress.isAddressOfJettonWallet(msg.ownerAddress, storage.minterAddress, contract.getCode())) throw ERR_INVALID_WALLET;
             }
             storage.balance += msg.jettonAmount;
             storage.save();
@@ -111,12 +112,12 @@ fun onInternalMessage(myBalance: int, msgValue: int, inMsgFull: cell, inMsgBody:
         }
 
         AskToTransfer => {
-            assert(msg.forwardPayload.remainingBitsCount()) throw 708;
-            assert(msg.toOwnerAddress.getWorkchain() == BASECHAIN) throw 333;
+            assert(msg.forwardPayload.remainingBitsCount()) throw ERR_INVALID_PAYLOAD;
+            assert(msg.toOwnerAddress.getWorkchain() == BASECHAIN) throw ERR_WRONG_WORKCHAIN;
 
             var storage = lazy WalletStorage.load();
-            assert(senderAddress == storage.ownerAddress) throw 705;
-            assert(storage.balance >= msg.jettonAmount) throw 706;
+            assert(senderAddress == storage.ownerAddress) throw ERR_NOT_FROM_OWNER;
+            assert(storage.balance >= msg.jettonAmount) throw ERR_NOT_ENOUGH_BALANCE;
             storage.balance -= msg.jettonAmount;
             storage.save();
 
@@ -127,7 +128,7 @@ fun onInternalMessage(myBalance: int, msgValue: int, inMsgFull: cell, inMsgBody:
                 // but last one is optional (it is ok if it fails)
                 forwardedMessagesCount * fwdFee +
                 (2 * EXPECTED_GAS_UPPER_BOUND + MIN_TONS_FOR_STORAGE)
-            ) throw 709;
+            ) throw ERR_NOT_ENOUGH_TON;
 
             val deployMsg = createMessage({
                 bounce: true,
@@ -151,11 +152,11 @@ fun onInternalMessage(myBalance: int, msgValue: int, inMsgFull: cell, inMsgBody:
         }
 
         AskToBurn => {
-            assert(msgValue > fwdFee + 2 * EXPECTED_GAS_UPPER_BOUND) throw 707;
+            assert(msgValue > fwdFee + 2 * EXPECTED_GAS_UPPER_BOUND) throw ERR_NOT_ENOUGH_GAS;
 
             var storage = lazy WalletStorage.load();
-            assert(senderAddress == storage.ownerAddress) throw 705;
-            assert(storage.balance >= msg.jettonAmount) throw 706;
+            assert(senderAddress == storage.ownerAddress) throw ERR_NOT_FROM_OWNER;
+            assert(storage.balance >= msg.jettonAmount) throw ERR_NOT_ENOUGH_BALANCE;
             storage.balance -= msg.jettonAmount;
             storage.save();
 

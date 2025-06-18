@@ -3,7 +3,7 @@
 tolk 0.99
 
 import "@stdlib/gas-payments"
-import "op-codes.tolk"
+import "errors.tolk"
 import "jetton-utils.tolk"
 import "messages.tolk"
 
@@ -29,13 +29,13 @@ type AllowedMinterMessage =
 
 fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
     if (inMsgBody.isEnd()) { // ignore empty messages todo if to delete, no tests fail
-        return;
+        return;    // todo what if we throw 0xFFFF here?
     }
     var cs: slice = inMsgFull.beginParse();
     var flags: int = cs.loadUint(4);
 
     if (flags & 1) { // ignore all bounced messages
-        return;
+        return; // todo why do we need this? for example, will throw 0xFFFF on bounce
     }
     var senderAddress = cs.loadAddress();
     cs.loadAddress(); // skip dst
@@ -52,7 +52,7 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
 
     match (msg) {
         BurnNotificationForMinter => {
-            assert(senderAddress.isAddressOfJettonWallet(msg.fromOwnerAddress, contract.getAddress(), storage.jettonWalletCode)) throw 74;
+            assert(senderAddress.isAddressOfJettonWallet(msg.fromOwnerAddress, contract.getAddress(), storage.jettonWalletCode)) throw ERR_UNAUTHORIZED_BURN;
 
             storage.totalSupply -= msg.jettonAmount;
             storage.save();
@@ -73,7 +73,7 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
         }
 
         RequestWalletAddress => {
-            assert(msgValue > fwdFee + MINIMAL_MESSAGE_VALUE_BOUND) throw 75;
+            assert(msgValue > fwdFee + MINIMAL_MESSAGE_VALUE_BOUND) throw ERR_NOT_ENOUGH_AMOUNT_TO_RESPOND;
 
             var includedAddress: Cell<address>? = msg.isIncludeAddress
                 ? msg.ownerAddress.toCell()
@@ -102,7 +102,7 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
         }
 
         MintNewJettons => {
-            assert(senderAddress == storage.adminAddress) throw 73;
+            assert(senderAddress == storage.adminAddress) throw ERR_NOT_FROM_ADMIN;
 
             // todo why do we originally get jettonAmount from masterMsg, not from msg.jettonAmount?
             var internalTransferMsg = lazy msg.internalTransferMsg.load();
@@ -125,13 +125,13 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
         }
 
         ChangeMinterAdmin => {
-            assert(senderAddress == storage.adminAddress) throw 73;
+            assert(senderAddress == storage.adminAddress) throw ERR_NOT_FROM_ADMIN;
             storage.adminAddress = msg.newAdminAddress;
             storage.save();
         }
 
         ChangeMinterContent => {
-            assert(senderAddress == storage.adminAddress) throw 73;
+            assert(senderAddress == storage.adminAddress) throw ERR_NOT_FROM_ADMIN;
             storage.content = msg.newContent;
             storage.save();
         }

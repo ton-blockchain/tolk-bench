@@ -25,6 +25,7 @@ export abstract class Errors {
     static not_valid_wallet = 707;
     static wrong_workchain = 333;
     static balance_error   = 706;
+    static invalid_payload   = 708;
 }
 
 

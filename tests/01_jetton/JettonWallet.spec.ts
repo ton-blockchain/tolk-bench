@@ -268,7 +268,7 @@ describe(numericFolder, () => {
             from: deployer.address,
             to: deployerJettonWallet.address,
             aborted: true,
-            exitCode: 708
+            exitCode: Errors.invalid_payload
         });
     });
 
