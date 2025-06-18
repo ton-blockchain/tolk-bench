@@ -66,5 +66,22 @@
       "wallet bits": 5197,
       "wallet cells": 11
     }
+  },
+  {
+    "commitDesc": "lazy storage structs",
+    "gas": {
+      "MINT jettons by admin": 14832,
+      "TRANSFER with forward_amount": 16675,
+      "TRANSFER no forward_amount": 14223,
+      "BURN jettons": 10961,
+      "DISCOVER with include_address": 6468,
+      "DISCOVER no include_address": 5914
+    },
+    "codeSize": {
+      "minter bits": 4370,
+      "minter cells": 10,
+      "wallet bits": 4909,
+      "wallet cells": 11
+    }
   }
 ]

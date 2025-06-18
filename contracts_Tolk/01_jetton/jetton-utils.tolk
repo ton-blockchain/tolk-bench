@@ -1,19 +1,20 @@
+import "messages.tolk"
+
 @inline
-fun packJettonWalletData(balance: int, ownerAddress: address, jettonMasterAddress: address, jettonWalletCode: cell): cell {
-    return beginCell()
-        .storeCoins(balance)
-        .storeAddress(ownerAddress)
-        .storeAddress(jettonMasterAddress)
-        .storeRef(jettonWalletCode)
-        .endCell();
+fun packJettonWalletData(balance: int, ownerAddress: address, minterAddress: address): cell {
+    return WalletStorage {
+        balance: balance,
+        ownerAddress: ownerAddress,
+        minterAddress: minterAddress,
+    }.toCell()
 }
 
 @inline
-fun calculateJettonWalletStateInit(ownerAddress: address, jettonMasterAddress: address, jettonWalletCode: cell): cell {
+fun calculateJettonWalletStateInit(ownerAddress: address, minterAddress: address, jettonWalletCode: cell): cell {
     return beginCell()
         .storeUint(0, 2)
         .storeDict(jettonWalletCode)
-        .storeDict(packJettonWalletData(0, ownerAddress, jettonMasterAddress, jettonWalletCode))
+        .storeDict(packJettonWalletData(0, ownerAddress, minterAddress))
         .storeUint(0, 1)
         .endCell();
 }
@@ -28,6 +29,6 @@ fun calculateJettonWalletAddress(stateInit: cell): address {
 }
 
 @inline
-fun calculateUserJettonWalletAddress(ownerAddress: address, jettonMasterAddress: address, jettonWalletCode: cell): address {
-    return calculateJettonWalletAddress(calculateJettonWalletStateInit(ownerAddress, jettonMasterAddress, jettonWalletCode));
+fun calculateUserJettonWalletAddress(ownerAddress: address, minterAddress: address, jettonWalletCode: cell): address {
+    return calculateJettonWalletAddress(calculateJettonWalletStateInit(ownerAddress, minterAddress, jettonWalletCode));
 }

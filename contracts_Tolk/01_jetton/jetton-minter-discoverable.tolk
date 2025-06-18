@@ -2,37 +2,21 @@
 
 tolk 0.99
 
-import "@stdlib/gas-payments.tolk"
+import "@stdlib/gas-payments"
 import "op-codes.tolk"
 import "jetton-utils.tolk"
+import "messages.tolk"
 
 // 6905(computational_gas_price) * 1000(cur_gas_price) = 6905000
 // ceil(6905000) = 10000000 ~= 0.01 TON
 const MINIMAL_MESSAGE_VALUE_BOUND = ton("0.01");
 
-// storage scheme
-// storage#_ total_supply:Coins admin_address:MsgAddress content:^Cell jetton_wallet_code:^Cell = Storage;
-
-@inline
-fun loadData(): (int, address, cell, cell) {
-    var ds: slice = contract.getData().beginParse();
-    return (
-        ds.loadCoins(), // total_supply
-        ds.loadAddress(), // admin_address
-        ds.loadRef(), // content
-        ds.loadRef() // jetton_wallet_code
-    );
+fun MinterStorage.load() {
+    return MinterStorage.fromCell(contract.getData())
 }
 
-@inline
-fun saveData(totalSupply: int, adminAddress: address, content: cell, jettonWalletCode: cell) {
-    contract.setData(beginCell()
-        .storeCoins(totalSupply)
-        .storeAddress(adminAddress)
-        .storeRef(content)
-        .storeRef(jettonWalletCode)
-        .endCell()
-    );
+fun MinterStorage.save(self) {
+    contract.setData(self.toCell())
 }
 
 fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
@@ -56,10 +40,10 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
     var op: int = inMsgBody.loadUint(32);
 
     // todo load storage once or in every branch?
-    var (totalSupply: int, adminAddress: address, content: cell, jettonWalletCode: cell) = loadData();
+    var storage = MinterStorage.load();
 
     if (op == OP_MINT) {
-        assert(senderAddress == adminAddress) throw 73;
+        assert(senderAddress == storage.adminAddress) throw 73;
 
         var queryId = inMsgBody.loadUint(64);
         var toAddress = inMsgBody.loadAddress();
@@ -69,10 +53,10 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
         var masterMsgCs: slice = masterMsg.beginParse();
         masterMsgCs.skipBits(32 + 64); // op + query_id
         var jettonAmount = masterMsgCs.loadCoins();
-        totalSupply += jettonAmount;
-        saveData(totalSupply, adminAddress, content, jettonWalletCode);
+        storage.totalSupply += jettonAmount;
+        storage.save();
 
-        var stateInit: cell = calculateJettonWalletStateInit(toAddress, contract.getAddress(), jettonWalletCode);
+        var stateInit: cell = calculateJettonWalletStateInit(toAddress, contract.getAddress(), storage.jettonWalletCode);
         var toWalletAddress = calculateJettonWalletAddress(stateInit);
         var msg = beginCell()
             .storeUint(0x18, 6)
@@ -92,10 +76,10 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
         var fromAddress = inMsgBody.loadAddress();
         var responseAddress = inMsgBody.loadAddress();
 
-        assert(senderAddress == calculateUserJettonWalletAddress(fromAddress, contract.getAddress(), jettonWalletCode)) throw 74;
+        assert(senderAddress == calculateUserJettonWalletAddress(fromAddress, contract.getAddress(), storage.jettonWalletCode)) throw 74;
 
-        totalSupply -= jettonAmount;
-        saveData(totalSupply, adminAddress, content, jettonWalletCode);
+        storage.totalSupply -= jettonAmount;
+        storage.save();
 
         if (responseAddress.isInternal()) {
             var msg = beginCell()
@@ -131,7 +115,7 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
             .storeUint(queryId, 64);
 
         if (ownerAddress.getWorkchain() == BASECHAIN) {
-            msg = msg.storeAddress(calculateUserJettonWalletAddress(ownerAddress, contract.getAddress(), jettonWalletCode));
+            msg = msg.storeAddress(calculateUserJettonWalletAddress(ownerAddress, contract.getAddress(), storage.jettonWalletCode));
         } else {
             msg = msg.storeUint(0, 2); // addr_none
         }
@@ -140,30 +124,32 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
     }
 
     if (op == OP_CHANGE_ADMIN) { // change admin
-        assert(senderAddress == adminAddress) throw 73;
+        assert(senderAddress == storage.adminAddress) throw 73;
         var queryId = inMsgBody.loadUint(64);
         var newAdminAddress = inMsgBody.loadAddress();
-        saveData(totalSupply, newAdminAddress, content, jettonWalletCode);
+        storage.adminAddress = newAdminAddress;
+        storage.save();
         return;
     }
 
     if (op == OP_CHANGE_CONTENT) { // change content, delete this for immutable tokens
-        assert(senderAddress == adminAddress) throw 73;
+        assert(senderAddress == storage.adminAddress) throw 73;
         var queryId = inMsgBody.loadUint(64);
         var newContent = inMsgBody.loadRef();
-        saveData(totalSupply, adminAddress, newContent, jettonWalletCode);
+        storage.content = newContent;
+        storage.save();
         return;
     }
 
     throw 0xffff;
 }
 
-get get_jetton_data(): (int, int, address, cell, cell) {
-    var (totalSupply: int, adminAddress: address, content: cell, jettonWalletCode: cell) = loadData();
-    return (totalSupply, -1, adminAddress, content, jettonWalletCode);
+get get_jetton_data(): (int, bool, address, cell, cell) {
+    val storage = lazy MinterStorage.load();
+    return (storage.totalSupply, true, storage.adminAddress, storage.content, storage.jettonWalletCode);
 }
 
 get get_wallet_address(ownerAddress: address): address {
-    var (totalSupply: int, adminAddress: address, content: cell, jettonWalletCode: cell) = loadData();
-    return calculateUserJettonWalletAddress(ownerAddress, contract.getAddress(), jettonWalletCode);
+    val storage = lazy MinterStorage.load();
+    return calculateUserJettonWalletAddress(ownerAddress, contract.getAddress(), storage.jettonWalletCode);
 }
