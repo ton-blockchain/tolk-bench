@@ -1,6 +1,6 @@
 // Jetton minter smart contract
 
-tolk 0.13
+tolk 0.99
 
 import "@stdlib/gas-payments"
 import "@stdlib/tvm-dicts"
@@ -49,7 +49,7 @@ fun sendToJettonWallet(toAddress: address, jettonWalletCode: cell, tonAmount: in
 
     // build MessageRelaxed, see TL-B layout in stdlib.fc#L733
     var msg = beginCell()
-        .storeMsgFlagsAndAddressNone(BOUNCEABLE)
+        .storeMsgFlagsAndAddressNone(0x18)
         .storeAddress(toWalletAddress) // dest
         .storeCoins(tonAmount);
 
@@ -125,7 +125,7 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
         if (responseAddress.isInternal()) {
             // build MessageRelaxed, see TL-B layout in stdlib.fc#L733
             var msg = beginCell()
-                .storeMsgFlagsAndAddressNone(NON_BOUNCEABLE)
+                .storeMsgFlagsAndAddressNone(0x10)
                 .storeAddress(responseAddress) // dest
                 .storeCoins(0)
                 .storePrefixOnlyBody()
@@ -148,7 +148,7 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
 
         // build MessageRelaxed, see TL-B layout in stdlib.fc#L733
         var msg = beginCell()
-            .storeMsgFlagsAndAddressNone(NON_BOUNCEABLE)
+            .storeMsgFlagsAndAddressNone(0x10)
             .storeAddress(senderAddress)
             .storeCoins(0)
             .storePrefixOnlyBody()

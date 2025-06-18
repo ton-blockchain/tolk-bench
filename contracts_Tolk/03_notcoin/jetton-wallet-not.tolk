@@ -1,6 +1,6 @@
 // Jetton Wallet Smart Contract
 
-tolk 0.13
+tolk 0.99
 
 import "@stdlib/gas-payments"
 
@@ -73,7 +73,7 @@ fun sendJettons(inMsgBody: slice, senderAddress: address, msgValue: int, fwdFee:
 
     // build MessageRelaxed, see TL-B layout in stdlib.fc#L733
     var msg: cell = beginCell()
-    .storeMsgFlagsAndAddressNone(BOUNCEABLE)
+    .storeMsgFlagsAndAddressNone(0x18)
     .storeAddress(toWalletAddress)
     .storeCoins(0)
     .storeStatinitRefAndBodyRef(stateInit, msgBody)
@@ -117,7 +117,7 @@ fun receiveJettons(inMsgBody: slice, senderAddress: address, myTonBalance: int, 
 
         // build MessageRelaxed, see TL-B layout in stdlib.fc#L733
         var msg: cell = beginCell()
-        .storeMsgFlagsAndAddressNone(NON_BOUNCEABLE)
+        .storeMsgFlagsAndAddressNone(0x10)
         .storeAddress(ownerAddress)
         .storeCoins(forwardTonAmount)
         .storeOnlyBodyRef(msgBody)
@@ -132,7 +132,7 @@ fun receiveJettons(inMsgBody: slice, senderAddress: address, myTonBalance: int, 
 
         // build MessageRelaxed, see TL-B layout in stdlib.fc#L733
         var msg: cell = beginCell()
-        .storeMsgFlagsAndAddressNone(NON_BOUNCEABLE)
+        .storeMsgFlagsAndAddressNone(0x10)
         .storeAddress(responseAddress)
         .storeCoins(0)
         .storePrefixOnlyBody()
@@ -169,7 +169,7 @@ fun burnJettons(inMsgBody: slice, senderAddress: address, msgValue: int) {
 
     // build MessageRelaxed, see TL-B layout in stdlib.fc#L733
     var msg: cell = beginCell()
-    .storeMsgFlagsAndAddressNone(BOUNCEABLE)
+    .storeMsgFlagsAndAddressNone(0x18)
     .storeAddress(jettonMasterAddress)
     .storeCoins(0)
     .storeOnlyBodyRef(msgBody)

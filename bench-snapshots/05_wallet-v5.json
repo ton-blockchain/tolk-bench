@@ -24,5 +24,18 @@
       "wallet_v5 bits": 4535,
       "wallet_v5 cells": 20
     }
+  },
+  {
+    "commitDesc": "compiler Tolk v1.0 beta",
+    "gas": {
+      "EXTERNAL transfer": 4633,
+      "INTERNAL transfer": 5559,
+      "ADD extension": 5804,
+      "EXTENSION transfer": 3864
+    },
+    "codeSize": {
+      "wallet_v5 bits": 5351,
+      "wallet_v5 cells": 19
+    }
   }
 ]

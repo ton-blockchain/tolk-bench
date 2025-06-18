@@ -1,4 +1,4 @@
-tolk 0.13
+tolk 0.99
 
 import "@stdlib/tvm-dicts"
 import "@stdlib/gas-payments"
@@ -125,7 +125,7 @@ const SEND_MODE_PAY_FEES_SEPARETELY = 1;
 @inline
 fun returnExcess(toAddress: address, op: int, queryId: int) {
     var msg: builder = beginCell()
-            .storeUint(BOUNCEABLE, 6)
+            .storeUint(0x18, 6)
             .storeAddress(toAddress)
             .storeCoins(0)
             .storeUint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)

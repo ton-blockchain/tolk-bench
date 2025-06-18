@@ -30,7 +30,7 @@
         "ts-jest": "^29.3.1",
         "ts-node": "^10.9.2",
         "typescript": "^5.8.3",
-        "@ton/tolk-js": "^0.13.0",
+        "@ton/tolk-js": "file://./ton-tolk-js-tmp-73.tgz",
         "@ton-community/func-js": "^0.9.1",
         "ansi-colors": "^4.1.3"
     }

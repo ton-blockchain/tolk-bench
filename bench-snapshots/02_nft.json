@@ -28,5 +28,20 @@
       "nft-collection bits": 3572,
       "nft-collection cells": 19
     }
+  },
+  {
+    "commitDesc": "compiler Tolk v1.0 beta",
+    "gas": {
+      "DEPLOY nft": 8588,
+      "BATCH deploy nft": 915548,
+      "TRANSFER nft": 5835,
+      "GET static data": 4179
+    },
+    "codeSize": {
+      "nft-item bits": 3193,
+      "nft-item cells": 10,
+      "nft-collection bits": 3899,
+      "nft-collection cells": 14
+    }
   }
 ]

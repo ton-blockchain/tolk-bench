@@ -1,6 +1,6 @@
 // Jettons discoverable smart contract
 
-tolk 0.13
+tolk 0.99
 
 import "params.tolk"
 import "op-codes.tolk"
