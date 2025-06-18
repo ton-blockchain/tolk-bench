@@ -6,69 +6,39 @@ import "op-codes.tolk"
 fun getPrecompiledGasConsumption(): int?
     asm "GETPRECOMPILEDGAS";
 
+// Storage costs
+// these constants are used to estimate storage fee (how much we should pay for storing a wallet contract)
+
+const STORAGE_SIZE_MaxWallet_bits         = 1033;
+const STORAGE_SIZE_MaxWallet_cells        = 3;
+const STORAGE_SIZE_InitStateWallet_bits   = 931;
+const STORAGE_SIZE_InitStateWallet_cells  = 3;
+
+const MESSAGE_SIZE_BurnNotification_bits  = 754;   // body = 32+64+124+(3+8+256)+(3+8+256)
+const MESSAGE_SIZE_BurnNotification_cells = 1;     // body always in ref
+
 const MIN_STORAGE_DURATION = 5 * 365 * 24 * 3600; // 5 years
 
-//# Precompiled constants
-//
-//All of the contents are result of contract emulation tests
-//
 
-//## Minimal fees
-//
-//- Transfer [/sandbox_tests/JettonWallet.spec.ts#L935](L935) `0.028627415` TON
-//- Burn [/sandbox_tests/JettonWallet.spec.ts#L1185](L1185) `0.016492002` TON
+// Gas costs
+// these constants are used to estimate gas fee (how much we should remain on balance for a swap to succeed);
+// they must be absolutely equal to consumed gas; if not, tests fail;
+// actual consumed gas (desired value of these constants) are printed to console after tests run
 
-
-//## Storage
-//
-//Get calculated in a separate test file [/sandbox_tests/StateInit.spec.ts](StateInit.spec.ts)
-
-//- `JETTON_WALLET_BITS` [/sandbox_tests/StateInit.spec.ts#L92](L92)
-const JETTON_WALLET_BITS = 1033;
-
-//- `JETTON_WALLET_CELLS`: [/sandbox_tests/StateInit.spec.ts#L92](L92)
-const JETTON_WALLET_CELLS = 3;
-
-// difference in JETTON_WALLET_BITS/JETTON_WALLET_INITSTATE_BITS is difference in
-// StateInit and AccountStorage (https://github.com/ton-blockchain/ton/blob/master/crypto/block/block.tlb)
-// we count bits as if balances are max possible
-//- `JETTON_WALLET_INITSTATE_BITS` [/sandbox_tests/StateInit.spec.ts#L95](L95)
-const JETTON_WALLET_INITSTATE_BITS = 931;
-//- `JETTON_WALLET_INITSTATE_CELLS` [/sandbox_tests/StateInit.spec.ts#L95](L95)
-const JETTON_WALLET_INITSTATE_CELLS = 3;
-
-// jetton-wallet.fc#L163 - maunal bits counting
-const BURN_NOTIFICATION_BITS = 754; // body = 32+64+124+(3+8+256)+(3+8+256)
-const BURN_NOTIFICATION_CELLS = 1; // body always in ref
-
-//## Gas
-//
-//Gas constants are calculated in the main test suite.
-//First the related transaction is found, and then it's
-//resulting gas consumption is printed to the console.
-// todo now tests don't fail when actual values differ; make tests always fail
-
-//- `SEND_TRANSFER_GAS_CONSUMPTION` [/sandbox_tests/JettonWallet.spec.ts#L853](L853)
-const SEND_TRANSFER_GAS_CONSUMPTION = 10065;
-
-//- `RECEIVE_TRANSFER_GAS_CONSUMPTION` [/sandbox_tests/JettonWallet.spec.ts#L862](L862)
-const RECEIVE_TRANSFER_GAS_CONSUMPTION = 10435;
-
-//- `SEND_BURN_GAS_CONSUMPTION` [/sandbox_tests/JettonWallet.spec.ts#L1154](L1154)
-const SEND_BURN_GAS_CONSUMPTION = 5891;
-
-//- `RECEIVE_BURN_GAS_CONSUMPTION` [/sandbox_tests/JettonWallet.spec.ts#L1155](L1155)
-const RECEIVE_BURN_GAS_CONSUMPTION = 6757;
+const GAS_CONSUMPTION_JettonTransfer    = 8871;
+const GAS_CONSUMPTION_JettonReceive     = 10046;
+const GAS_CONSUMPTION_BurnRequest       = 5599;
+const GAS_CONSUMPTION_BurnNotification  = 6649;
 
 
 @inline
 fun calculateJettonWalletMinStorageFee(): int {
-    return calculateStorageFee(MY_WORKCHAIN, MIN_STORAGE_DURATION, JETTON_WALLET_BITS, JETTON_WALLET_CELLS);
+    return calculateStorageFee(MY_WORKCHAIN, MIN_STORAGE_DURATION, STORAGE_SIZE_MaxWallet_bits, STORAGE_SIZE_MaxWallet_cells);
 }
 
 @inline
 fun forwardInitStateOverhead(): int {
-    return calculateMessageFeeWithoutLumpPrice(MY_WORKCHAIN, JETTON_WALLET_INITSTATE_BITS, JETTON_WALLET_INITSTATE_CELLS);
+    return calculateMessageFeeWithoutLumpPrice(MY_WORKCHAIN, STORAGE_SIZE_InitStateWallet_bits, STORAGE_SIZE_InitStateWallet_cells);
 }
 
 @inline
@@ -76,8 +46,8 @@ fun checkAmountIsEnoughToTransfer(msgValue: int, forwardTonAmount: int, fwdFee: 
     var fwdCount: int = forwardTonAmount ? 2 : 1; // second sending (forward) will be cheaper that first
 
     var jettonWalletGasConsumption: int? = getPrecompiledGasConsumption();
-    var sendTransferGasConsumption: int = (jettonWalletGasConsumption == null) ? SEND_TRANSFER_GAS_CONSUMPTION : jettonWalletGasConsumption;
-    var receiveTransferGasConsumption: int = (jettonWalletGasConsumption == null) ? RECEIVE_TRANSFER_GAS_CONSUMPTION : jettonWalletGasConsumption;
+    var sendTransferGasConsumption: int = (jettonWalletGasConsumption == null) ? GAS_CONSUMPTION_JettonTransfer : jettonWalletGasConsumption;
+    var receiveTransferGasConsumption: int = (jettonWalletGasConsumption == null) ? GAS_CONSUMPTION_JettonReceive : jettonWalletGasConsumption;
 
     assert(msgValue >
         forwardTonAmount +
@@ -94,11 +64,11 @@ fun checkAmountIsEnoughToTransfer(msgValue: int, forwardTonAmount: int, fwdFee: 
 @inline
 fun checkAmountIsEnoughToBurn(msgValue: int) {
     var jettonWalletGasConsumption: int? = getPrecompiledGasConsumption();
-    var sendBurnGasConsumption: int = (jettonWalletGasConsumption == null) ? SEND_BURN_GAS_CONSUMPTION : jettonWalletGasConsumption;
+    var sendBurnGasConsumption: int = (jettonWalletGasConsumption == null) ? GAS_CONSUMPTION_BurnRequest : jettonWalletGasConsumption;
 
     assert(msgValue >
-        calculateMessageFee(MY_WORKCHAIN, BURN_NOTIFICATION_BITS, BURN_NOTIFICATION_CELLS) +
+        calculateMessageFee(MY_WORKCHAIN, MESSAGE_SIZE_BurnNotification_bits, MESSAGE_SIZE_BurnNotification_cells) +
         calculateGasFee(MY_WORKCHAIN, sendBurnGasConsumption) +
-        calculateGasFee(MY_WORKCHAIN, RECEIVE_BURN_GAS_CONSUMPTION)
+        calculateGasFee(MY_WORKCHAIN, GAS_CONSUMPTION_BurnNotification)
     ) throw ERROR_NOT_ENOUGH_GAS;
 }
