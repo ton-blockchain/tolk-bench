@@ -1,7 +1,6 @@
 import "@stdlib/gas-payments"
-import "op-codes.tolk"
-
-const ONE_TON = 1000000000;
+import "sharding.tolk"
+import "errors.tolk"
 
 // Storage costs
 // these constants are used to estimate storage fee (how much we should pay for storing a wallet contract);
@@ -23,22 +22,19 @@ const MIN_STORAGE_DURATION = 5 * 365 * 24 * 3600; // 5 years
 // they must be absolutely equal to consumed gas; if not, tests fail;
 // actual consumed gas (desired value of these constants) are printed to console after tests run
 
-const GAS_CONSUMPTION_JettonTransfer    = 8288;
-const GAS_CONSUMPTION_JettonReceive     = 9416;
-const GAS_CONSUMPTION_BurnRequest       = 4902;
-const GAS_CONSUMPTION_BurnNotification  = 6206;
+const GAS_CONSUMPTION_JettonTransfer    = 7262;
+const GAS_CONSUMPTION_JettonReceive     = 8342;
+const GAS_CONSUMPTION_BurnRequest       = 4824;
+const GAS_CONSUMPTION_BurnNotification  = 5166;
 
 
-@pure
 fun getPrecompiledGasConsumption(): int?
     asm "GETPRECOMPILEDGAS";
 
-@inline
 fun calculateJettonWalletMinStorageFee(): int {
     return calculateStorageFee(MY_WORKCHAIN, MIN_STORAGE_DURATION, STORAGE_SIZE_MaxWallet_bits, STORAGE_SIZE_MaxWallet_cells);
 }
 
-@inline
 fun forwardInitStateOverhead(): int {
     return calculateMessageFeeWithoutLumpPrice(MY_WORKCHAIN, STORAGE_SIZE_InitStateWallet_bits, STORAGE_SIZE_InitStateWallet_cells);
 }
@@ -62,8 +58,6 @@ fun checkAmountIsEnoughToTransfer(msgValue: int, forwardTonAmount: int, fwdFee: 
         calculateJettonWalletMinStorageFee()
     ) throw ERROR_NOT_ENOUGH_GAS;
 }
-
-
 
 @inline
 fun checkAmountIsEnoughToBurn(msgValue: int) {
