@@ -1,5 +1,4 @@
 import "@stdlib/gas-payments"
-import "workchain.tolk"
 import "op-codes.tolk"
 
 const ONE_TON = 1000000000;
@@ -24,10 +23,10 @@ const MIN_STORAGE_DURATION = 5 * 365 * 24 * 3600; // 5 years
 // they must be absolutely equal to consumed gas; if not, tests fail;
 // actual consumed gas (desired value of these constants) are printed to console after tests run
 
-const GAS_CONSUMPTION_JettonTransfer    = 8455;
-const GAS_CONSUMPTION_JettonReceive     = 9611;
-const GAS_CONSUMPTION_BurnRequest       = 5225;
-const GAS_CONSUMPTION_BurnNotification  = 6273;
+const GAS_CONSUMPTION_JettonTransfer    = 8334;
+const GAS_CONSUMPTION_JettonReceive     = 9395;
+const GAS_CONSUMPTION_BurnRequest       = 4986;
+const GAS_CONSUMPTION_BurnNotification  = 6291;
 
 
 @pure

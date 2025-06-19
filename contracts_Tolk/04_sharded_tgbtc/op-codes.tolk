@@ -1,5 +1,9 @@
 // common
 
+// we're working in basechain, but theoretically, a jetton might even work in masterchain
+const MY_WORKCHAIN = BASECHAIN;
+
+
 const OP_TRANSFER = 0xf8a7ea5;
 const OP_TRANSFER_NOTIFICATION = 0x7362d09c;
 const OP_INTERNAL_TRANSFER = 0x178d4519;

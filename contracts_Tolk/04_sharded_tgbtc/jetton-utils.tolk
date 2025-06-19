@@ -1,4 +1,3 @@
-import "workchain.tolk"
 import "op-codes.tolk"
 
 const SHARD_DEPTH = 8;
