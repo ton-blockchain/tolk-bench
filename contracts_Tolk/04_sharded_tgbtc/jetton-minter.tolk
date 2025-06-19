@@ -8,199 +8,171 @@ import "@stdlib/tvm-dicts"
 import "op-codes.tolk"
 import "jetton-utils.tolk"
 import "gas.tolk"
+import "messages.tolk"
 
-// storage#_ total_supply:Coins admin_address:MsgAddress next_admin_address:MsgAddress jetton_wallet_code:^Cell metadata_uri:^Cell = Storage;
-@inline
-fun loadData(): (int, address, address, cell, cell) {
-    var ds: slice = contract.getData().beginParse();
-    var data = (
-        ds.loadCoins(), // total_supply
-        ds.loadAddress(), // admin_address
-        ds.loadAddress(), // next_admin_address
-        ds.loadRef(),  // jetton_wallet_code
-        ds.loadRef()  // metadata url (contains snake slice without 0x0 prefix)
-    );
-    ds.assertEnd();
-    return data;
+fun MinterStorage.load() {
+    return MinterStorage.fromCell(contract.getData())
 }
 
-@inline
-fun saveData(totalSupply: int, adminAddress: address, nextAdminAddress: address, jettonWalletCode: cell, metadataUri: cell) {
-    contract.setData(
-        beginCell()
-            .storeCoins(totalSupply)
-            .storeAddress(adminAddress)
-            .storeAddress(nextAdminAddress)
-            .storeRef(jettonWalletCode)
-            .storeRef(metadataUri)
-            .endCell()
-    );
+fun MinterStorage.save(self) {
+    contract.setData(self.toCell())
 }
+
+// todo inline or inline_ref?
+fun onBounce(inMsgBody: slice) {
+    inMsgBody.skipBouncedPrefix();
+    // process only mint bounces
+    if (inMsgBody.loadMessageOp() == OP_INTERNAL_TRANSFER) {
+        inMsgBody.skipMessageQueryId();
+        var jettonAmount: int = inMsgBody.loadCoins();
+        var storage = lazy MinterStorage.load();
+        storage.totalSupply -= jettonAmount;
+        storage.save();
+    }
+}
+
+type AllowedMinterMessage =
+    MintNewJettons |
+    BurnNotificationForMinter |
+    RequestWalletAddress |
+    ChangeMinterAdmin |
+    ClaimMinterAdmin |
+    DropMinterAdmin |
+    ChangeMinterMetadataUri |
+    UpgradeMinterCode |
+    TopUpTons |
+;
 
 fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
     var inMsgFullSlice: slice = inMsgFull.beginParse();
     var msgFlags: int = inMsgFullSlice.loadMessageFlags();
 
     if (msgFlags & 1) { // is bounced
-        inMsgBody.skipBouncedPrefix();
-        // process only mint bounces
-        if (!(inMsgBody.loadMessageOp() == OP_INTERNAL_TRANSFER)) {
-            return;
-        }
-        inMsgBody.skipMessageQueryId();
-        var jettonAmount: int = inMsgBody.loadCoins();
-        var (totalSupply: int, adminAddress: address, nextAdminAddress: address, jettonWalletCode: cell, metadataUri: cell) = loadData();
-        saveData(totalSupply - jettonAmount, adminAddress, nextAdminAddress, jettonWalletCode, metadataUri);
+        onBounce(inMsgBody);
         return;
     }
     var senderAddress = inMsgFullSlice.loadAddress();
     var fwdFeeFromInMsg = inMsgFullSlice.retrieveFwdFee();
     var fwdFee: int = calculateOriginalMessageFee(MY_WORKCHAIN, fwdFeeFromInMsg); // we use message fwd_fee for estimation of forward_payload costs
 
-    val op = inMsgBody.loadMessageOp();
+    val msg = lazy AllowedMinterMessage.fromSlice(inMsgBody);
 
-    var (totalSupply: int, adminAddress: address, nextAdminAddress: address, jettonWalletCode: cell, metadataUri: cell) = loadData();
+    // todo load storage once or lazily in each branch?
+    var storage = MinterStorage.load();
 
-    if (op == OP_MINT) {
-        assert(senderAddress.bitsEqual(adminAddress)) throw ERROR_NOT_OWNER;
-        val queryId = inMsgBody.loadMessageQueryId();
-        var toAddress = inMsgBody.loadAddress();
-        var tonAmount = inMsgBody.loadCoins();
-        var masterMsg = inMsgBody.loadRef();
-        inMsgBody.assertEnd();
+    match (msg) {
+        MintNewJettons => {
+            assert(senderAddress == storage.adminAddress) throw ERROR_NOT_OWNER;
+            assert(msg.toOwnerAddress.getWorkchain() == MY_WORKCHAIN) throw ERROR_WRONG_WORKCHAIN;
 
-        assert(toAddress.getWorkchain() == MY_WORKCHAIN) throw ERROR_WRONG_WORKCHAIN;
+            val internalTransferMsg = lazy msg.internalTransferMsg.load({
+                throwIfOpcodeDoesNotMatch: ERROR_INVALID_OP
+            });
+            var forwardTonAmount = internalTransferMsg.forwardTonAmount;
+            checkEitherForwardPayload(internalTransferMsg.forwardPayload);
 
-        // see internal_transfer TL-B layout in jetton.tlb
-        var masterMsgSlice: slice = masterMsg.beginParse();
-        assert(masterMsgSlice.loadMessageOp() == OP_INTERNAL_TRANSFER) throw ERROR_INVALID_OP;
-        masterMsgSlice.skipMessageQueryId();
-        var jettonAmount: int = masterMsgSlice.loadCoins();
-        masterMsgSlice.loadAddress(); // from_address
-        masterMsgSlice.loadAddress(); // response_address
-        var forwardTonAmount: int = masterMsgSlice.loadCoins(); // forward_ton_amount
-        checkEitherForwardPayload(masterMsgSlice); // either_forward_payload
+            // a little more than needed, it’s ok since it’s sent by the admin and excesses will return back
+            checkAmountIsEnoughToTransfer(msg.tonAmount, forwardTonAmount, fwdFee);
 
-        // a little more than needed, it’s ok since it’s sent by the admin and excesses will return back
-        checkAmountIsEnoughToTransfer(tonAmount, forwardTonAmount, fwdFee);
+            storage.totalSupply += internalTransferMsg.jettonAmount;
+            storage.save();
 
-        saveData(totalSupply + jettonAmount, adminAddress, nextAdminAddress, jettonWalletCode, metadataUri);
+            reserveToncoinsOnBalance(ton("0.01"), RESERVE_MODE_EXACT_AMOUNT); // reserve for storage fees
 
-        reserveToncoinsOnBalance(ton("0.01"), RESERVE_MODE_EXACT_AMOUNT); // reserve for storage fees
+            var shardPrefix: int = getAddressShardPrefix(msg.toOwnerAddress);
+            var stateInit: cell = calculateJettonWalletStateInit(msg.toOwnerAddress, contract.getAddress(), storage.jettonWalletCode);
+            var toWalletAddress: address = calculateJettonWalletAddress(shardPrefix, stateInit);
 
-        var shardPrefix: int = getAddressShardPrefix(toAddress);
-        var stateInit: cell = calculateJettonWalletStateInit(toAddress, contract.getAddress(), jettonWalletCode);
-        var toWalletAddress: address = calculateJettonWalletAddress(shardPrefix, stateInit);
+            var deployMsg = beginCell()
+                .storeMsgFlagsAndAddressNone(0x18)
+                .storeAddress(toWalletAddress) // dest
+                .storeCoins(msg.tonAmount)
+                .storeStatinitRefAndBodyRef(stateInit, msg.internalTransferMsg)
+                .endCell();
+            sendRawMessage(deployMsg, SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+        }
 
-        var msg = beginCell()
-            .storeMsgFlagsAndAddressNone(0x18)
-            .storeAddress(toWalletAddress) // dest
-            .storeCoins(tonAmount)
-            .storeStatinitRefAndBodyRef(stateInit, masterMsg);
+        BurnNotificationForMinter => {
+            assert(senderAddress == calculateUserJettonWalletAddress(msg.fromOwnerAddress, contract.getAddress(), storage.jettonWalletCode)) throw ERROR_NOT_VALID_WALLET;
+            storage.totalSupply -= msg.jettonAmount;
+            storage.save();
 
-        sendRawMessage(msg.endCell(), SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
-        return;
-    }
+            if (msg.sendExcessesTo.isInternal()) {
+                // build MessageRelaxed, see TL-B layout in stdlib.fc#L733
+                var msg = beginCell()
+                    .storeMsgFlagsAndAddressNone(0x10)
+                    .storeAddress(msg.sendExcessesTo) // dest
+                    .storeCoins(0)
+                    .storePrefixOnlyBody()
+                    .storeMessageOp(OP_EXCESSES)
+                    .storeMessageQueryId(msg.queryId);
+                sendRawMessage(msg.endCell(), SEND_MODE_IGNORE_ERRORS | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+            }
+        }
 
-    if (op == OP_BURN_NOTIFICATION) {
-        // see burn_notification TL-B layout in jetton.tlb
-        val queryId = inMsgBody.loadMessageQueryId();
-        var jettonAmount = inMsgBody.loadCoins();
-        var fromAddress = inMsgBody.loadAddress();
-        var responseAddress = inMsgBody.loadAddress();
+        RequestWalletAddress => {
+            var includedAddress: Cell<address>? = msg.isIncludeAddress
+                ? msg.ownerAddress.toCell()
+                : null;
 
-        assert(calculateUserJettonWalletAddress(fromAddress, contract.getAddress(), jettonWalletCode).bitsEqual(senderAddress)) throw ERROR_NOT_VALID_WALLET;
-        saveData(totalSupply - jettonAmount, adminAddress, nextAdminAddress, jettonWalletCode, metadataUri);
-
-        if (responseAddress.isInternal()) {
             // build MessageRelaxed, see TL-B layout in stdlib.fc#L733
-            var msg = beginCell()
+            var respondMsg = beginCell()
                 .storeMsgFlagsAndAddressNone(0x10)
-                .storeAddress(responseAddress) // dest
+                .storeAddress(senderAddress)
                 .storeCoins(0)
                 .storePrefixOnlyBody()
-                .storeMessageOp(OP_EXCESSES)
-                .storeMessageQueryId(queryId);
-            sendRawMessage(msg.endCell(), SEND_MODE_IGNORE_ERRORS | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
-        }
-        return;
-    }
+                .storeMessageOp(OP_TAKE_WALLET_ADDRESS)
+                .storeMessageQueryId(msg.queryId);
 
-    if (op == OP_PROVIDE_WALLET_ADDRESS) {
-        // see provide_wallet_address TL-B layout in jetton.tlb
-        val queryId = inMsgBody.loadMessageQueryId();
-        var ownerAddress = inMsgBody.loadAddress();
-        var isIncludeAddress = inMsgBody.loadBool();
+            if (msg.ownerAddress.getWorkchain() == MY_WORKCHAIN) {
+                respondMsg = respondMsg.storeAddress(calculateUserJettonWalletAddress(msg.ownerAddress, contract.getAddress(), storage.jettonWalletCode));
+            } else {
+                respondMsg = respondMsg.storeAddressNone();
+            }
 
-        var includedAddress: cell? = isIncludeAddress
-            ? beginCell().storeAddress(ownerAddress).endCell()
-            : null;
+            var msgCell: cell = respondMsg.storeMaybeRef(includedAddress).endCell();
 
-        // build MessageRelaxed, see TL-B layout in stdlib.fc#L733
-        var msg = beginCell()
-            .storeMsgFlagsAndAddressNone(0x10)
-            .storeAddress(senderAddress)
-            .storeCoins(0)
-            .storePrefixOnlyBody()
-            .storeMessageOp(OP_TAKE_WALLET_ADDRESS)
-            .storeMessageQueryId(queryId);
-
-        if (ownerAddress.getWorkchain() == MY_WORKCHAIN) {
-            msg = msg.storeAddress(calculateUserJettonWalletAddress(ownerAddress, contract.getAddress(), jettonWalletCode));
-        } else {
-            msg = msg.storeAddressNone();
+            sendRawMessage(msgCell, SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
         }
 
-        var msgCell: cell = msg.storeMaybeRef(includedAddress).endCell();
+        ChangeMinterAdmin => {
+            assert(senderAddress == storage.adminAddress) throw ERROR_NOT_OWNER;
+            storage.nextAdminAddress = msg.newAdminAddress;
+            storage.save();
+        }
 
-        sendRawMessage(msgCell, SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
-        return;
+        ClaimMinterAdmin => {
+            assert(senderAddress == storage.nextAdminAddress) throw ERROR_NOT_OWNER;
+            storage.adminAddress = storage.nextAdminAddress;
+            storage.nextAdminAddress = createAddressNone();
+            storage.save();
+        }
+
+        DropMinterAdmin => {
+            assert(senderAddress == storage.adminAddress) throw ERROR_NOT_OWNER;
+            storage.adminAddress = createAddressNone();
+            storage.nextAdminAddress = createAddressNone();
+            storage.save();
+        }
+
+        ChangeMinterMetadataUri => {
+            assert(senderAddress == storage.adminAddress) throw ERROR_NOT_OWNER;
+            storage.metadataUrl = msg.newMetadataUri.toCell();
+            storage.save();
+        }
+
+        UpgradeMinterCode => {
+            assert(senderAddress == storage.adminAddress) throw ERROR_NOT_OWNER;
+            contract.setCodePostponed(msg.newCode);
+            contract.setData(msg.newData);
+        }
+
+        TopUpTons => {
+            // just accept tons
+        }
+
+        else => throw 0xFFFF
     }
-
-    if (op == OP_CHANGE_ADMIN) {
-        assert(senderAddress.bitsEqual(adminAddress)) throw ERROR_NOT_OWNER;
-        val queryId = inMsgBody.loadMessageQueryId();
-        nextAdminAddress = inMsgBody.loadAddress();
-        saveData(totalSupply, adminAddress, nextAdminAddress, jettonWalletCode, metadataUri);
-        return;
-    }
-
-    if (op == OP_CLAIM_ADMIN) {
-        val queryId = inMsgBody.loadMessageQueryId();
-        assert(senderAddress.bitsEqual(nextAdminAddress)) throw ERROR_NOT_OWNER;
-        saveData(totalSupply, nextAdminAddress, createAddressNone(), jettonWalletCode, metadataUri);
-        return;
-    }
-
-    if (op == OP_DROP_ADMIN) {
-        val queryId = inMsgBody.loadMessageQueryId();
-        assert(senderAddress.bitsEqual(adminAddress)) throw ERROR_NOT_OWNER;
-        saveData(totalSupply, createAddressNone(), createAddressNone(), jettonWalletCode, metadataUri);
-        return;
-    }
-
-    if (op == OP_CHANGE_METADATA_URI) {
-        val queryId = inMsgBody.loadMessageQueryId();
-        assert(senderAddress.bitsEqual(adminAddress)) throw ERROR_NOT_OWNER;
-        saveData(totalSupply, adminAddress, nextAdminAddress, jettonWalletCode, beginCell().storeSlice(inMsgBody).endCell());
-        return;
-    }
-
-    if (op == OP_UPGRADE) {
-        assert(senderAddress.bitsEqual(adminAddress)) throw ERROR_NOT_OWNER;
-        val queryId = inMsgBody.loadMessageQueryId();
-        var newData = inMsgBody.loadRef();
-        var newCode = inMsgBody.loadRef();
-        contract.setData(newData);
-        contract.setCodePostponed(newCode);
-        return;
-    }
-
-    if (op == OP_TOP_UP) {
-        return; // just accept tons
-    }
-
-    throw ERROR_WRONG_OP;
 }
 
 // Key is sha256 hash of string. Value is data encoded as described in "Data serialization" paragraph.
@@ -224,16 +196,16 @@ fun buildContentCell(metadataUri: slice): cell {
 }
 
 get get_jetton_data(): (int, bool, address, cell, cell) {
-    var (totalSupply: int, adminAddress: address, nextAdminAddress: address, jettonWalletCode: cell, metadataUri: cell) = loadData();
-    return (totalSupply, true, adminAddress, buildContentCell(metadataUri.beginParse()), jettonWalletCode);
+    val storage = lazy MinterStorage.load();
+    return (storage.totalSupply, true, storage.adminAddress, buildContentCell(storage.metadataUrl.beginParse()), storage.jettonWalletCode);
 }
 
 get get_wallet_address(ownerAddress: address): address {
-    var (totalSupply: int, adminAddress: address, nextAdminAddress: address, jettonWalletCode: cell, metadataUri: cell) = loadData();
-    return calculateUserJettonWalletAddress(ownerAddress, contract.getAddress(), jettonWalletCode);
+    val storage = lazy MinterStorage.load();
+    return calculateUserJettonWalletAddress(ownerAddress, contract.getAddress(), storage.jettonWalletCode);
 }
 
 get get_next_admin_address(): address {
-    var (totalSupply: int, adminAddress: address, nextAdminAddress: address, jettonWalletCode: cell, metadataUri: cell) = loadData();
-    return nextAdminAddress;
+    val storage = lazy MinterStorage.load();
+    return storage.nextAdminAddress;
 }

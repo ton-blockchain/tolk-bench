@@ -1,4 +1,6 @@
+import "messages.tolk"
 import "op-codes.tolk"
+import "messages.tolk"
 
 const SHARD_DEPTH = 8;
 
@@ -15,12 +17,12 @@ const MSG_INFO_REST_BITS = 1 + 4 + 4 + 64 + 32;
 const MSG_ONLY_BODY_SIZE = MSG_INFO_REST_BITS + 1 + 1;
 
 @inline
-fun packJettonWalletData(balance: int, ownerAddress: address, jettonMasterAddress: address): cell {
-    return beginCell()
-        .storeCoins(balance)
-        .storeAddress(ownerAddress)
-        .storeAddress(jettonMasterAddress)
-        .endCell();
+fun packJettonWalletData(balance: int, ownerAddress: address, minterAddress: address): cell {
+    return WalletStorage {
+        balance: balance,
+        ownerAddress: ownerAddress,
+        minterAddress: minterAddress,
+    }.toCell()
 }
 
 @inline
@@ -34,7 +36,7 @@ fun getAddressShardPrefix(address: address): int {
 }
 
 @inline
-fun calculateJettonWalletStateInit(ownerAddress: address, jettonMasterAddress: address, jettonWalletCode: cell): cell {
+fun calculateJettonWalletStateInit(ownerAddress: address, minterAddress: address, jettonWalletCode: cell): cell {
     /*
     https://github.com/ton-blockchain/ton/blob/26761a1d139402ef343081810677d2582c3eff51/crypto/block/block.tlb#L144
     _ fixed_prefix_length:(Maybe (## 5)) special:(Maybe TickTock)
@@ -50,7 +52,7 @@ fun calculateJettonWalletStateInit(ownerAddress: address, jettonMasterAddress: a
             packJettonWalletData(
                 0, // balance
                 ownerAddress,
-                jettonMasterAddress)
+                minterAddress)
         )
         .storeUint(0, 1) // Empty libraries
         .endCell();
@@ -75,13 +77,13 @@ fun calculateJettonWalletAddress(shardPrefix: int, stateInit: cell): address {
 }
 
 @inline
-fun calculateUserJettonWalletAddress(ownerAddress: address, jettonMasterAddress: address, jettonWalletCode: cell): address {
+fun calculateUserJettonWalletAddress(ownerAddress: address, minterAddress: address, jettonWalletCode: cell): address {
     var shardPrefix: int = getAddressShardPrefix(ownerAddress);
-    return calculateJettonWalletAddress(shardPrefix, calculateJettonWalletStateInit(ownerAddress, jettonMasterAddress, jettonWalletCode));
+    return calculateJettonWalletAddress(shardPrefix, calculateJettonWalletStateInit(ownerAddress, minterAddress, jettonWalletCode));
 }
 
 @inline
-fun checkEitherForwardPayload(s: slice) {
+fun checkEitherForwardPayload(s: ForwardPayloadRemainder) {
     if (s.preloadUint(1)) {
         // forward_payload in ref
         var (remainBits: int, remainRefs: int) = s.remainingBitsAndRefsCount();
