@@ -58,5 +58,20 @@
       "nft-collection bits": 4067,
       "nft-collection cells": 14
     }
+  },
+  {
+    "commitDesc": "use structs for storage",
+    "gas": {
+      "DEPLOY nft": 7707,
+      "BATCH deploy nft": 831048,
+      "TRANSFER nft": 5330,
+      "GET static data": 3556
+    },
+    "codeSize": {
+      "nft-item bits": 3125,
+      "nft-item cells": 9,
+      "nft-collection bits": 3923,
+      "nft-collection cells": 14
+    }
   }
 ]

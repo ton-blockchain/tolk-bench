@@ -1,4 +1,5 @@
 import "op-codes.tolk"
+import "storage.tolk"
 
 //
 //  TON NFT Item Smart Contract
@@ -6,34 +7,38 @@ import "op-codes.tolk"
 
 const MIN_TONS_FOR_STORAGE = ton("0.05");
 
-//
-//  Storage
-//
-//  uint64 index
-//  MsgAddressInt collection_address
-//  MsgAddressInt owner_address
-//  cell content
-//
+// actual storage of NFT item is tricky: it's either inited or not;
+// after NFT has been inited, it's represented as `NftItemStorage`;
+// before initialization, it has only index and collectionAddress: `NftItemStorageUninitialized`;
+// hence, we start parsing it, that then we detect, whether it's inited or not
+struct NftItemStorageEitherInitedOrNot {
+    contractData: slice;
+}
 
-fun loadData(): (bool, int, address, address?, cell?) {
-    var ds: slice = contract.getData().beginParse();
-    var (index, collectionAddress) = (ds.loadUint(64), ds.loadAddress());
-    if (ds.remainingBitsCount() > 0) {
-        return (true, index, collectionAddress, ds.loadAddress(), ds.loadRef());
-    } else {
-        return (false, index, collectionAddress, null, null); // nft not initialized yet
+// how do we detect whether it's inited or not?
+// the answer: when "inited", we store `content` (cell),
+// so, we have a ref, and for uninited, we don't have a ref
+fun NftItemStorageEitherInitedOrNot.isInited(self) {
+    val hasContent = self.contractData.remainingRefsCount();
+    return hasContent
+}
+
+fun NftItemStorageEitherInitedOrNot.parseAsUninited(self) {
+    return NftItemStorageUninitialized.fromSlice(self.contractData)
+}
+
+fun NftItemStorageEitherInitedOrNot.parseAsInited(self) {
+    return NftItemStorage.fromSlice(self.contractData)
+}
+
+fun startLoadingNftItemStorage(): NftItemStorageEitherInitedOrNot {
+    return {
+        contractData: contract.getData().beginParse()
     }
 }
 
-fun storeData(index: int, collectionAddress: address, ownerAddress: address, content: cell) {
-    contract.setData(
-        beginCell()
-            .storeUint(index, 64)
-            .storeAddress(collectionAddress)
-            .storeAddress(ownerAddress)
-            .storeRef(content)
-            .endCell()
-    );
+fun NftItemStorage.save(self) {
+    contract.setData(self.toCell())
 }
 
 @inline
@@ -66,7 +71,28 @@ fun onInternalMessage(myBalance: int, msgValue: int, inMsgFull: cell, inMsgBody:
         // ignore all bounced messages
         return;
     }
+
     var senderAddress = cs.loadAddress();
+
+    var loadingStorage = startLoadingNftItemStorage();
+    if (!loadingStorage.isInited()) {
+        val uninitedSt = loadingStorage.parseAsUninited();
+        assert(uninitedSt.collectionAddress == senderAddress) throw 405;
+
+        // using a message from collection, convert "uninitialized" to "initialized" state
+        val initParams = NftItemInitAtDeployment.fromSlice(inMsgBody);
+        val storage: NftItemStorage = {
+            index: uninitedSt.index,
+            collectionAddress: uninitedSt.collectionAddress,
+            ownerAddress: initParams.ownerAddress,
+            content: initParams.content,
+        };
+        storage.save();
+        return;
+    }
+
+    // todo load once or lazily in every branch?
+    var storage = loadingStorage.parseAsInited();
 
     cs.loadAddress(); // skip dst
     cs.loadCoins(); // skip value
@@ -74,20 +100,10 @@ fun onInternalMessage(myBalance: int, msgValue: int, inMsgFull: cell, inMsgBody:
     cs.loadCoins(); // skip ihr_fee
     var fwdFee: int = mulDivFloor(cs.loadCoins(), 3, 2); // we use message fwd_fee for estimation of forward_payload costs
 
-
-    var (isInit: bool, index: int, collectionAddress: address, ownerAddress: address?, content: cell?) = loadData();
-    if (!isInit) {
-        assert(collectionAddress == senderAddress) throw 405;
-        storeData(index, collectionAddress, inMsgBody.loadAddress(), inMsgBody.loadRef());
-        return;
-    }
-    ownerAddress = ownerAddress!;
-    content = content!;
-
     var op: int = inMsgBody.loadUint(32);
 
     if (op == OP_TRANSFER) {
-        assert(senderAddress == ownerAddress) throw 401;
+        assert(senderAddress == storage.ownerAddress) throw 401;
 
         var queryId = inMsgBody.loadUint(64);
         var newOwnerAddress = inMsgBody.loadAddress();
@@ -110,19 +126,20 @@ fun onInternalMessage(myBalance: int, msgValue: int, inMsgFull: cell, inMsgBody:
         assert(restAmount >= 0) throw 402; // base nft spends fixed amount of gas, will not check for response
 
         if (forwardAmount) {
-            sendMsg(newOwnerAddress, forwardAmount, OP_OWNERSHIP_ASSIGNED, queryId, beginCell().storeAddress(ownerAddress).storeSlice(inMsgBody), 1);  // paying fees, revert on errors
+            sendMsg(newOwnerAddress, forwardAmount, OP_OWNERSHIP_ASSIGNED, queryId, beginCell().storeAddress(storage.ownerAddress).storeSlice(inMsgBody), 1);  // paying fees, revert on errors
         }
         if (needResponse) {
             assert(responseDestination.getWorkchain() == BASECHAIN) throw 333;
             sendMsg(responseDestination, restAmount, OP_EXCESSES, queryId, null, 1); // paying fees, revert on errors
         }
 
-        storeData(index, collectionAddress, newOwnerAddress, content);
+        storage.ownerAddress = newOwnerAddress;
+        storage.save();
         return;
     }
     if (op == OP_GET_STATIC_DATA) {
         var queryId = inMsgBody.loadUint(64);
-        sendMsg(senderAddress, 0, OP_REPORT_STATIC_DATA, queryId, beginCell().storeUint(index, 256).storeAddress(collectionAddress), 64);  // carry all the remaining value of the inbound message
+        sendMsg(senderAddress, 0, OP_REPORT_STATIC_DATA, queryId, beginCell().storeUint(storage.index, 256).storeAddress(storage.collectionAddress), 64);  // carry all the remaining value of the inbound message
         return;
     }
     throw 0xffff;
@@ -133,6 +150,12 @@ fun onInternalMessage(myBalance: int, msgValue: int, inMsgFull: cell, inMsgBody:
 //
 
 get get_nft_data(): (bool, int, address, address?, cell?) {
-    var (isInit: bool, index: int, collectionAddress: address, ownerAddress: address?, content: cell?) = loadData();
-    return (isInit, index, collectionAddress, ownerAddress, content);
+    var loadingStorage = startLoadingNftItemStorage();
+    if (!loadingStorage.isInited()) {
+        val uninitedSt = loadingStorage.parseAsUninited();
+        return (false, uninitedSt.index, uninitedSt.collectionAddress, null, null);
+    } else {
+        val storage = loadingStorage.parseAsInited();
+        return (true, storage.index, storage.collectionAddress, storage.ownerAddress, storage.content);
+    }
 }

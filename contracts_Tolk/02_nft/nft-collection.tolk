@@ -1,42 +1,24 @@
 import "@stdlib/tvm-dicts"
 
 import "op-codes.tolk"
+import "storage.tolk"
 
 // NFT collection smart contract
 
-// storage scheme
-// default#_ royalty_factor:uint16 royalty_base:uint16 royalty_address:MsgAddress = RoyaltyParams;
-// storage#_ owner_address:MsgAddress next_item_index:uint64
-//           ^[collection_content:^Cell common_content:^Cell]
-//           nft_item_code:^Cell
-//           royalty_params:^RoyaltyParams
-//           = Storage;
-
-@inline
-fun loadData(): (address, int, cell, cell, cell) {
-    var ds = contract.getData().beginParse();
-    return (
-        ds.loadAddress(), // owner_address
-        ds.loadUint(64), // next_item_index
-        ds.loadRef(), // content
-        ds.loadRef(), // nft_item_code
-        ds.loadRef()  // royalty_params
-    );
+fun NftCollectionStorage.load() {
+    return NftCollectionStorage.fromCell(contract.getData())
 }
 
-@inline
-fun saveData(ownerAddress: address, nextItemIndex: int, content: cell, nftItemCode: cell, royaltyParams: cell) {
-    contract.setData(beginCell()
-        .storeAddress(ownerAddress)
-        .storeUint(nextItemIndex, 64)
-        .storeRef(content)
-        .storeRef(nftItemCode)
-        .storeRef(royaltyParams)
-        .endCell());
+fun NftCollectionStorage.save(self) {
+    contract.setData(self.toCell())
 }
 
 fun calculateNftItemStateInit(itemIndex: int, nftItemCode: cell): cell {
-    var data: cell = beginCell().storeUint(itemIndex, 64).storeAddress(contract.getAddress()).endCell();
+    var nftItemUninitedState: NftItemStorageUninitialized = {
+        index: itemIndex,
+        collectionAddress: contract.getAddress(),
+    };
+    var data: cell = nftItemUninitedState.toCell();
     return beginCell().storeUint(0, 2).storeDict(nftItemCode).storeDict(data).storeUint(0, 1).endCell();
 }
 
@@ -90,34 +72,36 @@ fun onInternalMessage(inMsgFull: cell, inMsgBody: slice) {
 
     var op: int = inMsgBody.loadUint(32);
 
-    var (ownerAddress, nextItemIndex, content, nftItemCode, royaltyParams) = loadData();
+    // todo load once or lazily in every branch?
+    var storage = NftCollectionStorage.load();
 
     if (op == OP_GET_ROYALTY_PARAMS) {
         var queryId = inMsgBody.loadUint(64);
-        sendRoyaltyParams(senderAddress, queryId, royaltyParams.beginParse());
+        sendRoyaltyParams(senderAddress, queryId, storage.royaltyParams.beginParse());
         return;
     }
 
     if (op == 1) {
         // deploy new nft
-        assert(senderAddress == ownerAddress) throw 401;
+        assert(senderAddress == storage.ownerAddress) throw 401;
         var queryId = inMsgBody.loadUint(64);
         var itemIndex = inMsgBody.loadUint(64);
         var amount = inMsgBody.loadCoins();
         var nftContent = inMsgBody.loadRef();
-        assert(itemIndex <= nextItemIndex) throw 402;
-        var isLast = itemIndex == nextItemIndex;
-        deployNftItem(itemIndex, nftItemCode, amount, nftContent);
+
+        assert(itemIndex <= storage.nextItemIndex) throw 402;
+        var isLast = itemIndex == storage.nextItemIndex;
+        deployNftItem(itemIndex, storage.nftItemCode, amount, nftContent);
         if (isLast) {
-            nextItemIndex += 1;
-            saveData(ownerAddress, nextItemIndex, content, nftItemCode, royaltyParams);
+            storage.nextItemIndex += 1;
+            storage.save();
         }
         return;
     }
 
     if (op == 2) {
         // batch deploy of new nfts
-        assert(senderAddress == ownerAddress) throw 401;
+        assert(senderAddress == storage.ownerAddress) throw 401;
         var counter = 0;
         var queryId = inMsgBody.loadUint(64);
         var deployList = inMsgBody.loadDict();
@@ -130,53 +114,53 @@ fun onInternalMessage(inMsgFull: cell, inMsgBody: slice) {
                     throw 399;
                 }
 
-                assert(itemIndex! <= nextItemIndex) throw 403 + counter;
-                deployNftItem(itemIndex!, nftItemCode, item!.loadCoins(), item!.loadRef());
-                if (itemIndex! == nextItemIndex) {
-                    nextItemIndex += 1;
+                assert(itemIndex! <= storage.nextItemIndex) throw 403 + counter;
+                deployNftItem(itemIndex!, storage.nftItemCode, item!.loadCoins(), item!.loadRef());
+                if (itemIndex! == storage.nextItemIndex) {
+                    storage.nextItemIndex += 1;
                 }
             }
         } while (isF);
-        saveData(ownerAddress, nextItemIndex, content, nftItemCode, royaltyParams);
+        storage.save();
         return;
     }
 
     if (op == 3) {
         // change owner
-        assert(senderAddress == ownerAddress) throw 401;
+        assert(senderAddress == storage.ownerAddress) throw 401;
         var queryId = inMsgBody.loadUint(64);
         var newOwnerAddress = inMsgBody.loadAddress();
-        saveData(newOwnerAddress, nextItemIndex, content, nftItemCode, royaltyParams);
+        storage.ownerAddress = newOwnerAddress;
+        storage.save();
         return;
     }
 
-    assert(senderAddress == ownerAddress) throw 401;
+    assert(senderAddress == storage.ownerAddress) throw 401;
     throw 0xffff;
 }
 
 // Get methods
 
 get get_collection_data(): (int, cell, address) {
-    var (ownerAddress, nextItemIndex, content, _, _) = loadData();
-    var cs: slice = content.beginParse();
-    return (nextItemIndex, cs.loadRef(), ownerAddress);
+    val storage = lazy NftCollectionStorage.load();
+    var cs: slice = storage.content.beginParse();    // todo what is this ref?
+    return (storage.nextItemIndex, cs.loadRef(), storage.ownerAddress);
 }
 
 get get_nft_address_by_index(index: int): address {
-    var (_, _, _, nftItemCode, _) = loadData();
-    var stateInit: cell = calculateNftItemStateInit(index, nftItemCode);
+    val storage = lazy NftCollectionStorage.load();
+    var stateInit: cell = calculateNftItemStateInit(index, storage.nftItemCode);
     return calculateNftItemAddress(BASECHAIN, stateInit);
 }
 
-get royalty_params(): (int, int, address) {
-    var (_, _, _, _, royalty) = loadData();
-    var rs: slice = royalty.beginParse();
-    return (rs.loadUint(16), rs.loadUint(16), rs.loadAddress());
+get royalty_params(): RoyaltyParams {
+    val storage = lazy NftCollectionStorage.load();
+    return storage.royaltyParams.load();
 }
 
 get get_nft_content(index: int, individualNftContent: cell): cell {
-    var (_, _, content, _, _) = loadData();
-    var cs: slice = content.beginParse();
+    val storage = lazy NftCollectionStorage.load();
+    var cs: slice = storage.content.beginParse();       // todo what's the format?
     cs.loadRef();
     var commonContent: slice = cs.loadRef().beginParse();
     return (beginCell()
