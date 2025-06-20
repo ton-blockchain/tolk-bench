@@ -23,3 +23,11 @@ struct NftItemStorageUninitialized {
     index: uint64;
     collectionAddress: address;
 }
+
+fun NftItemStorageUninitialized.generateEmptyData(index: uint64, collectionAddress: address) {
+    val initialNftItemStorage: NftItemStorageUninitialized = {
+        index,
+        collectionAddress,
+    };
+    return initialNftItemStorage.toCell();
+}

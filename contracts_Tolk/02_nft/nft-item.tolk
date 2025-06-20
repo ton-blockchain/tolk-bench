@@ -1,5 +1,4 @@
 import "@stdlib/gas-payments.tolk"
-import "op-codes.tolk"
 import "storage.tolk"
 import "messages.tolk"
 
@@ -41,23 +40,6 @@ fun startLoadingNftItemStorage(): NftItemStorageEitherInitedOrNot {
 
 fun NftItemStorage.save(self) {
     contract.setData(self.toCell())
-}
-
-@inline
-fun sendMsg(toAddress: address, amount: int, op: int, queryId: int, payload: builder?, sendMode: int) {
-    var msg = beginCell()
-        .storeUint(0x10, 6) // nobounce - int_msg_info$0 ihr_disabled:Bool bounce:Bool bounced:Bool src:MsgAddress -> 010000
-        .storeAddress(toAddress)
-        .storeCoins(amount)
-        .storeUint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
-        .storeUint(op, 32)
-        .storeUint(queryId, 64);
-
-    if (payload != null) {
-        msg = msg.storeBuilder(payload);
-    }
-
-    sendRawMessage(msg.endCell(), sendMode);
 }
 
 type AllowedMessageToNftItem =
@@ -130,19 +112,53 @@ fun onInternalMessage(myBalance: int, msgValue: int, inMsgFull: cell, inMsgBody:
             assert(restAmount >= 0) throw 402; // base nft spends fixed amount of gas, will not check for response
 
             if (msg.forwardTonAmount) {
-                sendMsg(msg.newOwnerAddress, msg.forwardTonAmount, OP_OWNERSHIP_ASSIGNED, msg.queryId,
-                    beginCell().storeAddress(storage.ownerAddress).storeSlice(msg.forwardPayload), 1);  // paying fees, revert on errors
+                val ownershipMsg = createMessage({
+                    bounce: false,
+                    dest: msg.newOwnerAddress,
+                    value: msg.forwardTonAmount,
+                    body: NotificationOwnershipAssigned {
+                        queryId: msg.queryId,
+                        ownerAddress: storage.ownerAddress,
+                        payload: msg.forwardPayload,
+                    }
+                });
+                ownershipMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
             }
             if (needResponse) {
-                sendMsg(msg.sendExcessesTo, restAmount, OP_EXCESSES, msg.queryId, null, 1); // paying fees, revert on errors
+                val excessesMsg = createMessage({
+                    bounce: false,
+                    dest: msg.sendExcessesTo,
+                    value: restAmount,
+                    body: ReturnExcessesBack {
+                        queryId: msg.queryId,
+                    }
+                });
+                excessesMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
             }
 
             storage.ownerAddress = msg.newOwnerAddress;
             storage.save();
         }
+
         RequestStaticData => {
-            sendMsg(senderAddress, 0, OP_REPORT_STATIC_DATA, msg.queryId,
-                beginCell().storeUint(storage.index, 256).storeAddress(storage.collectionAddress), 64);  // carry all the remaining value of the inbound message
+            val respondMsg = createMessage({
+                bounce: false,
+                dest: senderAddress,
+                value: 0,
+                // why ever, in FunC implementation, item index was encoded as 256-bit (not 64-bit),
+                // do the same here to pass FunC tests;
+                // but since a response becomes too long (64 + 256 + address), the compiler will create a ref;
+                // force the compiler not to create a ref, because it's guaranteed that with
+                // value (coins) = 0 it will nevertheless fit into a message cell directly
+                body: UnsafeBodyNoRef {
+                    forceInline: ResponseStaticData {
+                        queryId: msg.queryId,
+                        index: storage.index as uint256,
+                        collectionAddress: storage.collectionAddress,
+                    }
+                }
+            });
+            respondMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
         }
 
         else => throw 0xFFFF

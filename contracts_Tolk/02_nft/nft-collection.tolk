@@ -1,6 +1,5 @@
 import "@stdlib/tvm-dicts"
 
-import "op-codes.tolk"
 import "storage.tolk"
 import "messages.tolk"
 
@@ -14,47 +13,32 @@ fun NftCollectionStorage.save(self) {
     contract.setData(self.toCell())
 }
 
-fun calculateNftItemStateInit(itemIndex: int, nftItemCode: cell): cell {
-    var nftItemUninitedState: NftItemStorageUninitialized = {
-        index: itemIndex,
-        collectionAddress: contract.getAddress(),
-    };
-    var data: cell = nftItemUninitedState.toCell();
-    return beginCell().storeUint(0, 2).storeDict(nftItemCode).storeDict(data).storeUint(0, 1).endCell();
-}
-
-fun calculateNftItemAddress(wc: int, stateInit: cell): address {
-    return beginCell().storeUint(4, 3)
-        .storeInt(wc, 8)
-        .storeUint(stateInit.hash(), 256)
-        .endCell()
-        .beginParse() as address;
-}
-
-fun deployNftItem(itemIndex: int, nftItemCode: cell, amount: coins, initParams: Cell<NftItemInitAtDeployment>) {
-    var stateInit = calculateNftItemStateInit(itemIndex, nftItemCode);
-    var nftAddress = calculateNftItemAddress(BASECHAIN, stateInit);
-    var msg = beginCell()
-        .storeUint(0x18, 6)
-        .storeAddress(nftAddress)
-        .storeCoins(amount)
-        .storeUint(4 + 2 + 1, 1 + 4 + 4 + 64 + 32 + 1 + 1 + 1)
-        .storeRef(stateInit)
-        .storeRef(initParams);
-    sendRawMessage(msg.endCell(), 1); // pay transfer fees separately, revert on errors
+fun buildAddressOfNftItem(itemIndex: int, collectionAddress: address, nftItemCode: cell): builder {
+    val stateInitHash = StateInit.calcHashCodeData(
+        nftItemCode,
+        NftItemStorageUninitialized.generateEmptyData(itemIndex, collectionAddress)
+    );
+    // todo manual work, how to better avoid it? (it's important to leave builder here)
+    return beginCell()
+        .storeUint(0b100, 3)
+        .storeUint(BASECHAIN, 8)
+        .storeUint(stateInitHash, 256)
 }
 
 @inline
-fun sendRoyaltyParams(toAddress: address, queryId: int, data: slice) {
-    var msg = beginCell()
-        .storeUint(0x10, 6) // nobounce - int_msg_info$0 ihr_disabled:Bool bounce:Bool bounced:Bool src:MsgAddress -> 011000
-        .storeAddress(toAddress)
-        .storeCoins(0)
-        .storeUint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
-        .storeUint(OP_REPORT_ROYALTY_PARAMS, 32)
-        .storeUint(queryId, 64)
-        .storeSlice(data);
-    sendRawMessage(msg.endCell(), 64); // carry all the remaining value of the inbound message
+fun deployNftItem(itemIndex: int, nftItemCode: cell, tonAmount: coins, initParams: Cell<NftItemInitAtDeployment>) {
+    val deployMsg = createMessage({
+        bounce: true,
+        dest: {
+            stateInit: {
+                code: nftItemCode,
+                data: NftItemStorageUninitialized.generateEmptyData(itemIndex, contract.getAddress())
+            }
+        },
+        value: tonAmount,
+        body: initParams,
+    });
+    deployMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
 }
 
 type AllowedMessageToCollection =
@@ -97,7 +81,16 @@ fun onInternalMessage(inMsgFull: cell, inMsgBody: slice) {
         }
 
         RequestRoyaltyParams => {
-            sendRoyaltyParams(senderAddress, msg.queryId, storage.royaltyParams.beginParse());
+            val respondMsg = createMessage({
+                bounce: false,
+                dest: senderAddress,
+                value: 0,
+                body: ResponseRoyaltyParams {
+                    queryId: msg.queryId,
+                    royaltyParams: storage.royaltyParams.load(),
+                }
+            });
+            respondMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
         }
 
         BatchDeployNfts => {
@@ -143,10 +136,10 @@ get get_collection_data(): (int, cell, address) {
     return (storage.nextItemIndex, cs.loadRef(), storage.ownerAddress);
 }
 
-get get_nft_address_by_index(index: int): address {
+get get_nft_address_by_index(itemIndex: int): address {
     val storage = lazy NftCollectionStorage.load();
-    var stateInit: cell = calculateNftItemStateInit(index, storage.nftItemCode);
-    return calculateNftItemAddress(BASECHAIN, stateInit);
+    val addrBuilt = buildAddressOfNftItem(itemIndex, contract.getAddress(), storage.nftItemCode);
+    return address.fromValidBuilder(addrBuilt);
 }
 
 get royalty_params(): RoyaltyParams {
