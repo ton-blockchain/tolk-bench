@@ -135,7 +135,6 @@ fun onInternalMessage(inMsgFull: cell, inMsgBody: slice) {
         return;
     }
 
-    assert(senderAddress == storage.ownerAddress) throw 401;
     throw 0xffff;
 }
 

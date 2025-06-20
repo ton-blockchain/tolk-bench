@@ -132,7 +132,8 @@ describe(numericFolder, () => {
             to: nftCollection.address,
             op: opcode,
             success: false,
-            exitCode: 401,
+            // exitCode: 401,       // this changed against FunC: on invalid opcode, we always return 0xFFFF
+            exitCode: opcode === 0x042 ? 0xFFFF : 401,
         });
     });
 
