@@ -115,26 +115,11 @@ fun matchAddressFromConfig(address: address, configId: int): bool {
 }
 
 
-// address utils
-
-const ADDRESS_SIZE = 264; // 256 + 8
-
-@inline
-fun packAddress(address: address): slice {
-    var (wc: int, addressHash: int) = address.getWorkchainAndHash();
-    return beginCell().storeInt(wc, 8).storeUint(addressHash, 256).endCell().beginParse();
-}
-
-@inline
-fun unpackAddress(address: slice): (int, int) {
-    var wc: int = address.loadInt(8);
-    var addressHash: int = address.loadUint(256);
-    return (wc, addressHash);
-}
+const ADDRESS_SIZE = 267;
 
 @inline
 fun isWhitelisted(whitelist: dict, address: address): bool {
-    var (_, found: bool) = whitelist.sDictGet(ADDRESS_SIZE, packAddress(address));
+    var (_, found: bool) = whitelist.sDictGet(ADDRESS_SIZE, address as slice);
     return found;
 }
 
@@ -259,7 +244,7 @@ fun onInternalMessage(myBalance: int, msgValue: int, inMsgFull: cell, inMsgBody:
         var hasRefs = false;
         do {
             var whitelistAddress = refCs.loadAddress();
-            storage.whitelist.sDictSetBuilder(ADDRESS_SIZE, packAddress(whitelistAddress), beginCell().storeInt(-1, 1));
+            storage.whitelist.sDictSetBuilder(ADDRESS_SIZE, whitelistAddress as slice, beginCell());
 
             hasRefs = refCs.remainingRefsCount() > 0;
             if (hasRefs) {
@@ -342,7 +327,7 @@ get get_whitelist(): tuple {
     do {
         var (key: slice?, value: slice?, found: bool) = d.sDictDeleteFirstAndGet(ADDRESS_SIZE);
         if (found) {
-            var (wc: int, addressHash: int) = unpackAddress(key!);
+            var (wc: int, addressHash: int) = (key! as address).getWorkchainAndHash();
             list = listPrepend([wc, addressHash], list);
         }
     } while (found);

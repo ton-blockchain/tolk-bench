@@ -62,5 +62,21 @@
       "vesting wallet bits": 7365,
       "vesting wallet cells": 26
     }
+  },
+  {
+    "commitDesc": "don't pack address to store in dict",
+    "gas": {
+      "ADD whitelist": 5213,
+      "UNLOCK internal partial": 6819,
+      "INTERNAL to vesting sender": 5847,
+      "INTERNAL to elector": 9465,
+      "INTERNAL to single nominator": 8741,
+      "INTERNAL with comment": 9031,
+      "EXTERNAL transfer after unlock": 4874
+    },
+    "codeSize": {
+      "vesting wallet bits": 7045,
+      "vesting wallet cells": 25
+    }
   }
 ]
