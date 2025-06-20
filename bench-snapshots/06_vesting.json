@@ -46,5 +46,21 @@
       "vesting wallet bits": 7205,
       "vesting wallet cells": 28
     }
+  },
+  {
+    "commitDesc": "replace globals with struct Storage",
+    "gas": {
+      "ADD whitelist": 6025,
+      "UNLOCK internal partial": 7697,
+      "INTERNAL to vesting sender": 5847,
+      "INTERNAL to elector": 10343,
+      "INTERNAL to single nominator": 9619,
+      "INTERNAL with comment": 9909,
+      "EXTERNAL transfer after unlock": 4874
+    },
+    "codeSize": {
+      "vesting wallet bits": 7365,
+      "vesting wallet cells": 26
+    }
   }
 ]

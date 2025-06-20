@@ -43,19 +43,23 @@ const elector_id = 1;
 
 // data
 
-global stored_seqno: int;
-global stored_subwallet: int;
-global public_key: int;
+struct Storage {
+    stored_seqno: uint32;
+    stored_subwallet: uint32;
+    public_key: uint256;
+    whitelist: dict;
+    vestingParameters: Cell<VestingParameters>;
+}
 
-global whitelist: dict;
-
-global vesting_start_time: int;
-global vesting_total_duration: int;
-global unlock_period: int;
-global cliff_duration: int;
-global vesting_total_amount: int;
-global vesting_sender_address: address;
-global owner_address: address;
+struct VestingParameters {
+    vesting_start_time: uint64;
+    vesting_total_duration: uint32;
+    unlock_period: uint32;
+    cliff_duration: uint32;
+    vesting_total_amount: coins;
+    vesting_sender_address: address;
+    owner_address: address;
+}
 
 // CONDITIONS:
 // vesting_total_duration > 0
@@ -67,54 +71,12 @@ global owner_address: address;
 // vesting_total_duration mod unlock_period == 0
 // cliff_duration mod unlock_period == 0
 
-@inline
-fun loadVestingParameters(data: cell) {
-    var ds: slice = data.beginParse();
-    vesting_start_time = ds.loadUint(64);
-    vesting_total_duration = ds.loadUint(32);
-    unlock_period = ds.loadUint(32);
-    cliff_duration = ds.loadUint(32);
-    vesting_total_amount = ds.loadCoins();
-    vesting_sender_address = ds.loadAddress();
-    owner_address = ds.loadAddress();
-    ds.assertEnd();
+fun Storage.load() {
+    return Storage.fromCell(contract.getData());
 }
 
-@inline
-fun packVestingParameters(): cell {
-    return beginCell()
-            .storeUint(vesting_start_time, 64)
-            .storeUint(vesting_total_duration, 32)
-            .storeUint(unlock_period, 32)
-            .storeUint(cliff_duration, 32)
-            .storeCoins(vesting_total_amount) // max 124 bits
-            .storeAddress(vesting_sender_address) // 267 bit
-            .storeAddress(owner_address) // 267 bit
-            .endCell();
-}
-
-@inline_ref
-fun loadData() {
-    var ds: slice = contract.getData().beginParse();
-    stored_seqno = ds.loadUint(32);
-    stored_subwallet = ds.loadUint(32);
-    public_key = ds.loadUint(256);
-    whitelist = ds.loadDict();
-    loadVestingParameters(ds.loadRef());
-    ds.assertEnd();
-}
-
-@inline_ref
-fun saveData() {
-    contract.setData(
-            beginCell()
-                    .storeUint(stored_seqno, 32)
-                    .storeUint(stored_subwallet, 32)
-                    .storeUint(public_key, 256)
-                    .storeDict(whitelist)
-                    .storeRef(packVestingParameters())
-                    .endCell()
-    );
+fun Storage.save(self) {
+    contract.setData(self.toCell());
 }
 
 // messages utils
@@ -171,7 +133,7 @@ fun unpackAddress(address: slice): (int, int) {
 }
 
 @inline
-fun isWhitelisted(address: address): bool {
+fun isWhitelisted(whitelist: dict, address: address): bool {
     var (_, found: bool) = whitelist.sDictGet(ADDRESS_SIZE, packAddress(address));
     return found;
 }
@@ -179,27 +141,27 @@ fun isWhitelisted(address: address): bool {
 // locked
 
 @inline_ref
-fun getLockedAmount(nowTime: int): int {
-    if (nowTime > vesting_start_time + vesting_total_duration) {
+fun getLockedAmount(vesting: VestingParameters, nowTime: int): int {
+    if (nowTime > vesting.vesting_start_time + vesting.vesting_total_duration) {
         return 0;
     }
 
-    if (nowTime < vesting_start_time + cliff_duration) {
-        return vesting_total_amount;
+    if (nowTime < vesting.vesting_start_time + vesting.cliff_duration) {
+        return vesting.vesting_total_amount;
     }
 
-    return vesting_total_amount - mulDivFloor(vesting_total_amount,
-            (nowTime - vesting_start_time) / unlock_period,
-            vesting_total_duration / unlock_period);
+    return vesting.vesting_total_amount - mulDivFloor(vesting.vesting_total_amount,
+        (nowTime - vesting.vesting_start_time) / vesting.unlock_period,
+        vesting.vesting_total_duration / vesting.unlock_period);
 }
 
 @inline_ref
-fun mySendMessage(inMsgBody: slice) {
+fun mySendMessage(whitelist: dict, vesting: VestingParameters, inMsgBody: slice) {
     var sendMode: int = inMsgBody.loadUint(8);
     var msg: cell = inMsgBody.loadRef();
     inMsgBody.assertEnd(); // only 1 ref allowed
 
-    var lockedAmount: int = getLockedAmount(blockchain.now());
+    var lockedAmount = getLockedAmount(vesting, blockchain.now());
 
     if (lockedAmount > 0) { // if the vesting has expired, you can send any messages
 
@@ -210,9 +172,9 @@ fun mySendMessage(inMsgBody: slice) {
         var senderAddress = msgCs.loadAddress(); // skip
         var destinationAddress = msgCs.loadAddress();
 
-        if (destinationAddress != vesting_sender_address) { // can send to vesting_sender_address any message
+        if (destinationAddress != vesting.vesting_sender_address) { // can send to vesting_sender_address any message
 
-            if (isWhitelisted(destinationAddress)) {
+            if (isWhitelisted(whitelist,destinationAddress)) {
                 var isBounceable = (flags & 2) == 2;
                 assert(isBounceable) throw ERROR_NON_BOUNCEABLE_NOT_ALLOWED;
 
@@ -279,24 +241,25 @@ fun onInternalMessage(myBalance: int, msgValue: int, inMsgFull: cell, inMsgBody:
     }
     var senderAddress = cs.loadAddress();
 
-    loadData();
+    var storage = Storage.load();
+    val vesting = storage.vestingParameters.load();
 
     var op: int = inMsgBody.loadUint(32);
     var queryId: int = inMsgBody.loadUint(64);
 
-    if ((senderAddress == owner_address) & (op == OP_SEND)) {
+    if ((senderAddress == vesting.owner_address) & (op == OP_SEND)) {
 
-        mySendMessage(inMsgBody);
+        mySendMessage(storage.whitelist, vesting, inMsgBody);
 
         returnExcess(senderAddress, OP_SEND_RESPONSE, queryId);
 
-    } else if ((senderAddress == vesting_sender_address) & (op == OP_ADD_WHITELIST)) {
+    } else if ((senderAddress == vesting.vesting_sender_address) & (op == OP_ADD_WHITELIST)) {
 
         var refCs: slice = inMsgBody;
         var hasRefs = false;
         do {
             var whitelistAddress = refCs.loadAddress();
-            whitelist.sDictSetBuilder(ADDRESS_SIZE, packAddress(whitelistAddress), beginCell().storeInt(-1, 1));
+            storage.whitelist.sDictSetBuilder(ADDRESS_SIZE, packAddress(whitelistAddress), beginCell().storeInt(-1, 1));
 
             hasRefs = refCs.remainingRefsCount() > 0;
             if (hasRefs) {
@@ -307,7 +270,7 @@ fun onInternalMessage(myBalance: int, msgValue: int, inMsgFull: cell, inMsgBody:
 
         returnExcess(senderAddress, OP_ADD_WHITELIST_RESPONSE, queryId);
 
-        saveData();
+        storage.save();
 
     }
 
@@ -328,57 +291,54 @@ fun onExternalMessage(inMsg: slice) {
 
     acceptExternalMessage();
 
-    loadData();
+    var storage = lazy Storage.load();
 
     if (cs.remainingRefsCount() == 1) {
         try {
-            mySendMessage(cs);
+            mySendMessage(storage.whitelist, storage.vestingParameters.load(), cs);
         } catch (y, x) {
         }
     }
 
-    stored_seqno += 1;
-    saveData();
+    storage.stored_seqno += 1;
+    storage.save();
 }
 
-// get-methods
+// GET methods
 
-// same with wallet-v3 and wallet-v4
 get seqno(): int {
-    return contract.getData().beginParse().preloadUint(32);
+    val storage = lazy Storage.load();
+    return storage.stored_seqno;
 }
 
-// same with wallet-v4 https://github.com/ton-blockchain/wallet-contract/blob/main/func/wallet-v4-code.fc
 get get_subwallet_id(): int {
-    return contract.getData().beginParse().skipBits(32).preloadUint(32);
+    val storage = lazy Storage.load();
+    return storage.stored_subwallet;
 }
 
-// same with wallet-v3 and wallet-v4
 get get_public_key(): int {
-    return contract.getData().beginParse().skipBits(64).preloadUint(256);
+    val storage = lazy Storage.load();
+    return storage.public_key;
 }
 
-get get_vesting_data(): (int, int, int, int, int, address, address, dict) {
-    loadData();
+get get_vesting_data(): (VestingParameters, dict) {
+    val storage = lazy Storage.load();
+    val v = storage.vestingParameters.load();
 
-    return (vesting_start_time, vesting_total_duration, unlock_period, cliff_duration, vesting_total_amount,
-            vesting_sender_address, owner_address, whitelist);
+    return (v, storage.whitelist);
 }
 
-// same with wallet-v4
 get is_whitelisted(address: address): bool {
-    loadData();
-
-    return isWhitelisted(address);
+    val storage = lazy Storage.load();
+    return isWhitelisted(storage.whitelist, address);
 }
 
-// same with wallet-v4
 get get_whitelist(): tuple {
-    loadData();
+    val storage = lazy Storage.load();
 
     var list: tuple? = null;
 
-    var d: dict = whitelist;
+    var d: dict = storage.whitelist;
     do {
         var (key: slice?, value: slice?, found: bool) = d.sDictDeleteFirstAndGet(ADDRESS_SIZE);
         if (found) {
@@ -391,7 +351,6 @@ get get_whitelist(): tuple {
 }
 
 get get_locked_amount(atTime: int): int {
-    loadData();
-
-    return getLockedAmount(atTime);
+    val storage = lazy Storage.load();
+    return getLockedAmount(storage.vestingParameters.load(), atTime);
 }
