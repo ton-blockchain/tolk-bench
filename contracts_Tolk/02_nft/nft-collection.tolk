@@ -1,6 +1,5 @@
 import "@stdlib/tvm-dicts"
 
-import "params.tolk"
 import "op-codes.tolk"
 
 // NFT collection smart contract
@@ -51,7 +50,7 @@ fun calculateNftItemAddress(wc: int, stateInit: cell): address {
 
 fun deployNftItem(itemIndex: int, nftItemCode: cell, amount: int, nftContent: cell) {
     var stateInit = calculateNftItemStateInit(itemIndex, nftItemCode);
-    var nftAddress = calculateNftItemAddress(workchain(), stateInit);
+    var nftAddress = calculateNftItemAddress(BASECHAIN, stateInit);
     var msg = beginCell()
         .storeUint(0x18, 6)
         .storeAddress(nftAddress)
@@ -69,7 +68,7 @@ fun sendRoyaltyParams(toAddress: address, queryId: int, data: slice) {
         .storeAddress(toAddress)
         .storeCoins(0)
         .storeUint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
-        .storeUint(OP_REPORT_ROYALTY_PARAMS(), 32)
+        .storeUint(OP_REPORT_ROYALTY_PARAMS, 32)
         .storeUint(queryId, 64)
         .storeSlice(data);
     sendRawMessage(msg.endCell(), 64); // carry all the remaining value of the inbound message
@@ -90,34 +89,38 @@ fun onInternalMessage(inMsgFull: cell, inMsgBody: slice) {
     var senderAddress = cs.loadAddress();
 
     var op: int = inMsgBody.loadUint(32);
-    var queryId: int = inMsgBody.loadUint(64);
 
     var (ownerAddress, nextItemIndex, content, nftItemCode, royaltyParams) = loadData();
 
-    if (op == OP_GET_ROYALTY_PARAMS()) {
+    if (op == OP_GET_ROYALTY_PARAMS) {
+        var queryId = inMsgBody.loadUint(64);
         sendRoyaltyParams(senderAddress, queryId, royaltyParams.beginParse());
         return;
     }
 
-    assert(senderAddress == ownerAddress) throw 401;
-
-
     if (op == 1) {
         // deploy new nft
-        var itemIndex: int = inMsgBody.loadUint(64);
+        assert(senderAddress == ownerAddress) throw 401;
+        var queryId = inMsgBody.loadUint(64);
+        var itemIndex = inMsgBody.loadUint(64);
+        var amount = inMsgBody.loadCoins();
+        var nftContent = inMsgBody.loadRef();
         assert(itemIndex <= nextItemIndex) throw 402;
         var isLast = itemIndex == nextItemIndex;
-        deployNftItem(itemIndex, nftItemCode, inMsgBody.loadCoins(), inMsgBody.loadRef());
+        deployNftItem(itemIndex, nftItemCode, amount, nftContent);
         if (isLast) {
             nextItemIndex += 1;
             saveData(ownerAddress, nextItemIndex, content, nftItemCode, royaltyParams);
         }
         return;
     }
+
     if (op == 2) {
         // batch deploy of new nfts
-        var counter: int = 0;
-        var deployList: dict = inMsgBody.loadRef();
+        assert(senderAddress == ownerAddress) throw 401;
+        var counter = 0;
+        var queryId = inMsgBody.loadUint(64);
+        var deployList = inMsgBody.loadDict();
         do {
             var (itemIndex, item, isF) = deployList.uDictDeleteFirstAndGet(64);
             if (isF) {
@@ -137,12 +140,17 @@ fun onInternalMessage(inMsgFull: cell, inMsgBody: slice) {
         saveData(ownerAddress, nextItemIndex, content, nftItemCode, royaltyParams);
         return;
     }
+
     if (op == 3) {
         // change owner
+        assert(senderAddress == ownerAddress) throw 401;
+        var queryId = inMsgBody.loadUint(64);
         var newOwnerAddress = inMsgBody.loadAddress();
         saveData(newOwnerAddress, nextItemIndex, content, nftItemCode, royaltyParams);
         return;
     }
+
+    assert(senderAddress == ownerAddress) throw 401;
     throw 0xffff;
 }
 
@@ -157,7 +165,7 @@ get get_collection_data(): (int, cell, address) {
 get get_nft_address_by_index(index: int): address {
     var (_, _, _, nftItemCode, _) = loadData();
     var stateInit: cell = calculateNftItemStateInit(index, nftItemCode);
-    return calculateNftItemAddress(workchain(), stateInit);
+    return calculateNftItemAddress(BASECHAIN, stateInit);
 }
 
 get royalty_params(): (int, int, address) {

@@ -1,25 +1,10 @@
-import "params.tolk"
 import "op-codes.tolk"
 
 //
 //  TON NFT Item Smart Contract
 //
 
-/*
-
-    NOTE that this tokens can be transferred within the same workchain.
-
-    This is suitable for most tokens, if you need tokens transferable between workchains there are two solutions:
-
-    1) use more expensive but universal function to calculate message forward fee for arbitrary destination (see `misc/forward-fee-calc.cs`)
-
-    2) use token holder proxies in target workchain (that way even 'non-universal' token can be used from any workchain)
-
-*/
-
-@pure
-fun minTonsForStorage(): int
-    asm "50000000 PUSHINT"; // 0.05 TON
+const MIN_TONS_FOR_STORAGE = ton("0.05");
 
 //
 //  Storage
@@ -68,39 +53,6 @@ fun sendMsg(toAddress: address, amount: int, op: int, queryId: int, payload: bui
     sendRawMessage(msg.endCell(), sendMode);
 }
 
-@inline
-fun transferOwnership(myBalance: int, index: int, collectionAddress: address, ownerAddress: address, content: cell, senderAddress: address, queryId: int, inMsgBody: slice, fwdFees: int) {
-    assert(senderAddress == ownerAddress) throw 401;
-
-    var newOwnerAddress = inMsgBody.loadAddress();
-    forceChain(newOwnerAddress);
-    var responseDestination = inMsgBody.loadAddress();
-    inMsgBody.loadInt(1); // this nft don't use custom_payload
-    var forwardAmount: int = inMsgBody.loadCoins();
-    assert(inMsgBody.remainingBitsCount() >= 1) throw 708;
-
-    var restAmount = myBalance - minTonsForStorage();
-    if (forwardAmount) {
-        restAmount -= (forwardAmount + fwdFees);
-    }
-    var needResponse = responseDestination.isInternal();
-    if (needResponse) {
-        restAmount -= fwdFees;
-    }
-
-    assert(restAmount >= 0) throw 402; // base nft spends fixed amount of gas, will not check for response
-
-    if (forwardAmount) {
-        sendMsg(newOwnerAddress, forwardAmount, OP_OWNERSHIP_ASSIGNED(), queryId, beginCell().storeAddress(ownerAddress).storeSlice(inMsgBody), 1);  // paying fees, revert on errors
-    }
-    if (needResponse) {
-        forceChain(responseDestination);
-        sendMsg(responseDestination, restAmount, OP_EXCESSES(), queryId, null, 1); // paying fees, revert on errors
-    }
-
-    storeData(index, collectionAddress, newOwnerAddress, content);
-}
-
 fun onInternalMessage(myBalance: int, msgValue: int, inMsgFull: cell, inMsgBody: slice) {
     if (inMsgBody.isEnd()) {
         // ignore empty messages
@@ -133,14 +85,44 @@ fun onInternalMessage(myBalance: int, msgValue: int, inMsgFull: cell, inMsgBody:
     content = content!;
 
     var op: int = inMsgBody.loadUint(32);
-    var queryId: int = inMsgBody.loadUint(64);
 
-    if (op == OP_TRANSFER()) {
-        transferOwnership(myBalance, index, collectionAddress, ownerAddress, content, senderAddress, queryId, inMsgBody, fwdFee);
+    if (op == OP_TRANSFER) {
+        assert(senderAddress == ownerAddress) throw 401;
+
+        var queryId = inMsgBody.loadUint(64);
+        var newOwnerAddress = inMsgBody.loadAddress();
+        var responseDestination = inMsgBody.loadAddress();
+        var customPayload = inMsgBody.loadDict();
+        var forwardAmount = inMsgBody.loadCoins();
+        var forwardPayload = inMsgBody;
+        assert(forwardPayload.remainingBitsCount()) throw 708;
+        assert(newOwnerAddress.getWorkchain() == BASECHAIN) throw 333;
+
+        var restAmount = myBalance - MIN_TONS_FOR_STORAGE;
+        if (forwardAmount) {
+            restAmount -= (forwardAmount + fwdFee);
+        }
+        var needResponse = responseDestination.isInternal();
+        if (needResponse) {
+            restAmount -= fwdFee;
+        }
+
+        assert(restAmount >= 0) throw 402; // base nft spends fixed amount of gas, will not check for response
+
+        if (forwardAmount) {
+            sendMsg(newOwnerAddress, forwardAmount, OP_OWNERSHIP_ASSIGNED, queryId, beginCell().storeAddress(ownerAddress).storeSlice(inMsgBody), 1);  // paying fees, revert on errors
+        }
+        if (needResponse) {
+            assert(responseDestination.getWorkchain() == BASECHAIN) throw 333;
+            sendMsg(responseDestination, restAmount, OP_EXCESSES, queryId, null, 1); // paying fees, revert on errors
+        }
+
+        storeData(index, collectionAddress, newOwnerAddress, content);
         return;
     }
-    if (op == OP_GET_STATIC_DATA()) {
-        sendMsg(senderAddress, 0, OP_REPORT_STATIC_DATA(), queryId, beginCell().storeUint(index, 256).storeAddress(collectionAddress), 64);  // carry all the remaining value of the inbound message
+    if (op == OP_GET_STATIC_DATA) {
+        var queryId = inMsgBody.loadUint(64);
+        sendMsg(senderAddress, 0, OP_REPORT_STATIC_DATA, queryId, beginCell().storeUint(index, 256).storeAddress(collectionAddress), 64);  // carry all the remaining value of the inbound message
         return;
     }
     throw 0xffff;

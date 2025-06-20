@@ -43,5 +43,20 @@
       "nft-collection bits": 3899,
       "nft-collection cells": 14
     }
+  },
+  {
+    "commitDesc": "group inMsgBody loads",
+    "gas": {
+      "DEPLOY nft": 8506,
+      "BATCH deploy nft": 912748,
+      "TRANSFER nft": 5847,
+      "GET static data": 4109
+    },
+    "codeSize": {
+      "nft-item bits": 3041,
+      "nft-item cells": 11,
+      "nft-collection bits": 4067,
+      "nft-collection cells": 14
+    }
   }
 ]
