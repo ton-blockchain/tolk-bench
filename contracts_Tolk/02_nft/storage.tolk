@@ -23,8 +23,3 @@ struct NftItemStorageUninitialized {
     index: uint64;
     collectionAddress: address;
 }
-
-struct NftItemInitAtDeployment {
-    ownerAddress: address;
-    content: cell;
-}

@@ -2,6 +2,7 @@ import "@stdlib/tvm-dicts"
 
 import "op-codes.tolk"
 import "storage.tolk"
+import "messages.tolk"
 
 // NFT collection smart contract
 
@@ -30,7 +31,7 @@ fun calculateNftItemAddress(wc: int, stateInit: cell): address {
         .beginParse() as address;
 }
 
-fun deployNftItem(itemIndex: int, nftItemCode: cell, amount: int, nftContent: cell) {
+fun deployNftItem(itemIndex: int, nftItemCode: cell, amount: coins, initParams: Cell<NftItemInitAtDeployment>) {
     var stateInit = calculateNftItemStateInit(itemIndex, nftItemCode);
     var nftAddress = calculateNftItemAddress(BASECHAIN, stateInit);
     var msg = beginCell()
@@ -39,7 +40,7 @@ fun deployNftItem(itemIndex: int, nftItemCode: cell, amount: int, nftContent: ce
         .storeCoins(amount)
         .storeUint(4 + 2 + 1, 1 + 4 + 4 + 64 + 32 + 1 + 1 + 1)
         .storeRef(stateInit)
-        .storeRef(nftContent);
+        .storeRef(initParams);
     sendRawMessage(msg.endCell(), 1); // pay transfer fees separately, revert on errors
 }
 
@@ -56,6 +57,13 @@ fun sendRoyaltyParams(toAddress: address, queryId: int, data: slice) {
     sendRawMessage(msg.endCell(), 64); // carry all the remaining value of the inbound message
 }
 
+type AllowedMessageToCollection =
+    RequestRoyaltyParams |
+    DeployNft |
+    BatchDeployNfts |
+    ChangeNftOwner |
+;
+
 fun onInternalMessage(inMsgFull: cell, inMsgBody: slice) {
     if (inMsgBody.isEnd()) {
         // ignore empty messages
@@ -70,72 +78,61 @@ fun onInternalMessage(inMsgFull: cell, inMsgBody: slice) {
     }
     var senderAddress = cs.loadAddress();
 
-    var op: int = inMsgBody.loadUint(32);
-
     // todo load once or lazily in every branch?
     var storage = NftCollectionStorage.load();
 
-    if (op == OP_GET_ROYALTY_PARAMS) {
-        var queryId = inMsgBody.loadUint(64);
-        sendRoyaltyParams(senderAddress, queryId, storage.royaltyParams.beginParse());
-        return;
-    }
+    val msg = lazy AllowedMessageToCollection.fromSlice(inMsgBody);
 
-    if (op == 1) {
-        // deploy new nft
-        assert(senderAddress == storage.ownerAddress) throw 401;
-        var queryId = inMsgBody.loadUint(64);
-        var itemIndex = inMsgBody.loadUint(64);
-        var amount = inMsgBody.loadCoins();
-        var nftContent = inMsgBody.loadRef();
+    match (msg) {
+        DeployNft => {
+            assert(senderAddress == storage.ownerAddress) throw 401;
+            assert(msg.itemIndex <= storage.nextItemIndex) throw 402;
 
-        assert(itemIndex <= storage.nextItemIndex) throw 402;
-        var isLast = itemIndex == storage.nextItemIndex;
-        deployNftItem(itemIndex, storage.nftItemCode, amount, nftContent);
-        if (isLast) {
-            storage.nextItemIndex += 1;
-            storage.save();
+            var isLast = msg.itemIndex == storage.nextItemIndex;
+            deployNftItem(msg.itemIndex, storage.nftItemCode, msg.amount, msg.initParams);
+            if (isLast) {
+                storage.nextItemIndex += 1;
+                storage.save();
+            }
         }
-        return;
-    }
 
-    if (op == 2) {
-        // batch deploy of new nfts
-        assert(senderAddress == storage.ownerAddress) throw 401;
-        var counter = 0;
-        var queryId = inMsgBody.loadUint(64);
-        var deployList = inMsgBody.loadDict();
-        do {
-            var (itemIndex, item, isF) = deployList.uDictDeleteFirstAndGet(64);
-            if (isF) {
-                counter += 1;
-                if (counter >= 250) {
-                    // Limit due to limits of action list size
-                    throw 399;
+        RequestRoyaltyParams => {
+            sendRoyaltyParams(senderAddress, msg.queryId, storage.royaltyParams.beginParse());
+        }
+
+        BatchDeployNfts => {
+            assert(senderAddress == storage.ownerAddress) throw 401;
+
+            var counter = 0;
+            var deployList = msg.deployList;
+            while (true) {
+                var (itemIndex, valueSlice, found) = deployList.uDictDeleteFirstAndGet(64);
+                if (!found) {
+                    storage.save();
+                    return;
                 }
+                itemIndex = itemIndex!;     // tell the compiler that it's not-null (because found)
 
-                assert(itemIndex! <= storage.nextItemIndex) throw 403 + counter;
-                deployNftItem(itemIndex!, storage.nftItemCode, item!.loadCoins(), item!.loadRef());
-                if (itemIndex! == storage.nextItemIndex) {
+                counter += 1;
+                assert (counter < 250) throw 399;   // due to limits of action list size
+
+                assert(itemIndex <= storage.nextItemIndex) throw 403 + counter;
+                val dictItem = BatchDeployDictItem.fromSlice(valueSlice!);
+                deployNftItem(itemIndex, storage.nftItemCode, dictItem.amount, dictItem.initParams);
+                if (itemIndex == storage.nextItemIndex) {
                     storage.nextItemIndex += 1;
                 }
             }
-        } while (isF);
-        storage.save();
-        return;
-    }
+        }
 
-    if (op == 3) {
-        // change owner
-        assert(senderAddress == storage.ownerAddress) throw 401;
-        var queryId = inMsgBody.loadUint(64);
-        var newOwnerAddress = inMsgBody.loadAddress();
-        storage.ownerAddress = newOwnerAddress;
-        storage.save();
-        return;
-    }
+        ChangeNftOwner => {
+            assert(senderAddress == storage.ownerAddress) throw 401;
+            storage.ownerAddress = msg.newOwnerAddress;
+            storage.save();
+        }
 
-    throw 0xffff;
+        else => throw 0xFFFF
+    }
 }
 
 // Get methods

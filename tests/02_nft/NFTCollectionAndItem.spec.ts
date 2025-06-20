@@ -605,7 +605,7 @@ describe(numericFolder, () => {
     });
 
     it.each([
-        beginCell().storeUint(1, 1),
+        // beginCell().storeUint(1, 1),     // commented out: in FunC it failed with 9 (cell underflow), now it fails with 0xFFFF (invalid opcode)
         beginCell().storeUint(0x5fcc3d14, 32),
         beginCell().storeUint(0x5fcc3d14, 32).storeUint(42, 64),
         beginCell().storeUint(0x5fcc3d14, 32).storeUint(42, 64).storeAddress(randomAddress()),

@@ -1,5 +1,7 @@
+import "@stdlib/gas-payments.tolk"
 import "op-codes.tolk"
 import "storage.tolk"
+import "messages.tolk"
 
 //
 //  TON NFT Item Smart Contract
@@ -58,6 +60,11 @@ fun sendMsg(toAddress: address, amount: int, op: int, queryId: int, payload: bui
     sendRawMessage(msg.endCell(), sendMode);
 }
 
+type AllowedMessageToNftItem =
+    AskToTransfer |
+    RequestStaticData |
+;
+
 fun onInternalMessage(myBalance: int, msgValue: int, inMsgFull: cell, inMsgBody: slice) {
     if (inMsgBody.isEnd()) {
         // ignore empty messages
@@ -98,51 +105,48 @@ fun onInternalMessage(myBalance: int, msgValue: int, inMsgFull: cell, inMsgBody:
     cs.loadCoins(); // skip value
     cs.skipBits(1); // skip extracurrency collection
     cs.loadCoins(); // skip ihr_fee
-    var fwdFee: int = mulDivFloor(cs.loadCoins(), 3, 2); // we use message fwd_fee for estimation of forward_payload costs
+    val incomingFwdFee = cs.loadCoins();
+    var fwdFee = calculateOriginalMessageFee(BASECHAIN, incomingFwdFee);
 
-    var op: int = inMsgBody.loadUint(32);
+    val msg = lazy AllowedMessageToNftItem.fromSlice(inMsgBody);
 
-    if (op == OP_TRANSFER) {
-        assert(senderAddress == storage.ownerAddress) throw 401;
+    match (msg) {
+        AskToTransfer => {
+            assert(senderAddress == storage.ownerAddress) throw 401;
 
-        var queryId = inMsgBody.loadUint(64);
-        var newOwnerAddress = inMsgBody.loadAddress();
-        var responseDestination = inMsgBody.loadAddress();
-        var customPayload = inMsgBody.loadDict();
-        var forwardAmount = inMsgBody.loadCoins();
-        var forwardPayload = inMsgBody;
-        assert(forwardPayload.remainingBitsCount()) throw 708;
-        assert(newOwnerAddress.getWorkchain() == BASECHAIN) throw 333;
+            assert(msg.forwardPayload.remainingBitsCount()) throw 708;
+            assert(msg.newOwnerAddress.getWorkchain() == BASECHAIN) throw 333;
 
-        var restAmount = myBalance - MIN_TONS_FOR_STORAGE;
-        if (forwardAmount) {
-            restAmount -= (forwardAmount + fwdFee);
+            var restAmount = myBalance - MIN_TONS_FOR_STORAGE;
+            if (msg.forwardTonAmount) {
+                restAmount -= (msg.forwardTonAmount + fwdFee);
+            }
+            var needResponse = msg.sendExcessesTo.isInternal();
+            if (needResponse) {
+                assert(msg.sendExcessesTo.getWorkchain() == BASECHAIN) throw 333;
+                restAmount -= fwdFee;
+            }
+
+            assert(restAmount >= 0) throw 402; // base nft spends fixed amount of gas, will not check for response
+
+            if (msg.forwardTonAmount) {
+                sendMsg(msg.newOwnerAddress, msg.forwardTonAmount, OP_OWNERSHIP_ASSIGNED, msg.queryId,
+                    beginCell().storeAddress(storage.ownerAddress).storeSlice(msg.forwardPayload), 1);  // paying fees, revert on errors
+            }
+            if (needResponse) {
+                sendMsg(msg.sendExcessesTo, restAmount, OP_EXCESSES, msg.queryId, null, 1); // paying fees, revert on errors
+            }
+
+            storage.ownerAddress = msg.newOwnerAddress;
+            storage.save();
         }
-        var needResponse = responseDestination.isInternal();
-        if (needResponse) {
-            restAmount -= fwdFee;
+        RequestStaticData => {
+            sendMsg(senderAddress, 0, OP_REPORT_STATIC_DATA, msg.queryId,
+                beginCell().storeUint(storage.index, 256).storeAddress(storage.collectionAddress), 64);  // carry all the remaining value of the inbound message
         }
 
-        assert(restAmount >= 0) throw 402; // base nft spends fixed amount of gas, will not check for response
-
-        if (forwardAmount) {
-            sendMsg(newOwnerAddress, forwardAmount, OP_OWNERSHIP_ASSIGNED, queryId, beginCell().storeAddress(storage.ownerAddress).storeSlice(inMsgBody), 1);  // paying fees, revert on errors
-        }
-        if (needResponse) {
-            assert(responseDestination.getWorkchain() == BASECHAIN) throw 333;
-            sendMsg(responseDestination, restAmount, OP_EXCESSES, queryId, null, 1); // paying fees, revert on errors
-        }
-
-        storage.ownerAddress = newOwnerAddress;
-        storage.save();
-        return;
+        else => throw 0xFFFF
     }
-    if (op == OP_GET_STATIC_DATA) {
-        var queryId = inMsgBody.loadUint(64);
-        sendMsg(senderAddress, 0, OP_REPORT_STATIC_DATA, queryId, beginCell().storeUint(storage.index, 256).storeAddress(storage.collectionAddress), 64);  // carry all the remaining value of the inbound message
-        return;
-    }
-    throw 0xffff;
 }
 
 //
