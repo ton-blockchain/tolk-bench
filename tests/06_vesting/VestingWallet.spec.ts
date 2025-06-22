@@ -1248,7 +1248,9 @@ describe(numericFolder, () => {
     // elector
 
     it('if locked && whitelist & elector - empty rejected', async () => {
-        await transferReject(9, owner, ELECTOR_ADDRESS, true, 3, true, false, undefined);
+        // await transferReject(9, owner, ELECTOR_ADDRESS, true, 3, true, false, undefined);
+        // changed against FunC: now fails with proper error code, not "cell underflow"
+        await transferReject(ErrorCodes.comment_not_allowed, owner, ELECTOR_ADDRESS, true, 3, true, false, undefined);
     });
 
     it('if locked && whitelist & elector - "d" rejected', async () => {
@@ -1279,7 +1281,9 @@ describe(numericFolder, () => {
     // config
 
     it('if locked && whitelist & config - empty rejected', async () => {
-        await transferReject(9, owner, CONFIG_ADDRESS, true, 3, true, false, undefined);
+        // await transferReject(9, owner, CONFIG_ADDRESS, true, 3, true, false, undefined);
+        // changed against FunC: now fails with proper error code, not "cell underflow"
+        await transferReject(ErrorCodes.comment_not_allowed, owner, ELECTOR_ADDRESS, true, 3, true, false, undefined);
     });
 
     it('if locked && whitelist & config - "d" rejected', async () => {
