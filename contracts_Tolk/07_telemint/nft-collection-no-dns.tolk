@@ -1,6 +1,15 @@
 import "@stdlib/gas-payments"
 
 import "common.tolk"
+import "storage.tolk"
+
+fun CollectionStorage.load() {
+    return CollectionStorage.fromCell(contract.getData())
+}
+
+fun CollectionStorage.save(self) {
+    contract.setData(self.toCell())
+}
 
 fun unwrapSignedCmd(signedCmd: slice, publicKey: int, subwalletId: int, msgValue: int) {
     var (signature: slice, hash: int, gotSubwalletId: int, validSince: int, validTill: int, cmd: slice)
@@ -50,8 +59,8 @@ fun deployItem(senderAddress: address, bid: int, itemCode: cell, cmd: slice, ful
     var (tokenName, content, auctionConfig, royalty, restrictions) = unpackDeployMsgV2(cmd);
     senderAddress = checkRestrictions(restrictions, senderAddress);
 
-    var (beneficiaryAddress: address, initialMinBid: int, maxBid: int, minBidStep: int, minExtendTime: int, _) = unpackAuctionConfig(auctionConfig);
-    assert(bid >= initialMinBid) throw ERR_NOT_ENOUGH_FUNDS;
+    val auction = lazy AuctionConfig.fromCell(auctionConfig);
+    assert(bid >= auction.minBid) throw ERR_NOT_ENOUGH_FUNDS;
     var itemIndex: int = tokenName.bitsHash();
     var stateInit: cell = packItemStateInit(itemIndex, itemCode);
     var itemAddress: address = calculateAddress(workchain, stateInit);
@@ -84,28 +93,29 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
 
     assert(op == OP_TELEMINT_MSG_DEPLOY_V2) throw ERR_UNKNOWN_OP;
 
-    var (_, subwalletId, publicKey, _, itemCode, fullDomain, defaultRoyaltyParams) = unpackCollectionData();
-    var cmd = unwrapSignedCmd(inMsgBody, publicKey, subwalletId, msgValue);
-    deployItem(senderAddress, msgValue, itemCode, cmd, fullDomain, defaultRoyaltyParams);
+    val storage = lazy CollectionStorage.load();
+    var cmd = unwrapSignedCmd(inMsgBody, storage.publicKey, storage.subwalletId, msgValue);
+    deployItem(senderAddress, msgValue, storage.nftItemCode, cmd, storage.fullDomain.load().data, storage.royaltyParams);
 }
 
 fun onExternalMessage(inMsg: slice) {
-    var (touched, subwalletId, publicKey, content, itemCode, fullDomain, royaltyParams) = unpackCollectionData();
-    assert(!(touched)) throw ERR_FORBIDDEN_TOUCH;
+    var storage = lazy CollectionStorage.load();
+    assert(!storage.isCollectionInitialized) throw ERR_FORBIDDEN_TOUCH;
     acceptExternalMessage();
-    saveCollectionData(true, subwalletId, publicKey, content, itemCode, fullDomain, royaltyParams);
+    storage.isCollectionInitialized = true;
+    storage.save();
 }
 
 // Get methods
 
 get get_collection_data(): (bool, cell, address) {
-    var (_, _, _, content, _, _, _) = unpackCollectionData();
-    return (true, content, createAddressNone());
+    val storage = lazy CollectionStorage.load();
+    return (true, storage.content, createAddressNone());
 }
 
 get get_nft_address_by_index(index: int): address {
-    var (_, _, _, _, itemCode, _, _) = unpackCollectionData();
-    var stateInit: cell = packItemStateInit(index, itemCode);
+    val storage = lazy CollectionStorage.load();
+    var stateInit = packItemStateInit(index, storage.nftItemCode);
     return calculateAddress(workchain, stateInit);
 }
 

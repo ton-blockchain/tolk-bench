@@ -1,4 +1,4 @@
-
+import "storage.tolk"
 
 const one_ton = 1000000000;
 const dns_next_resolver_prefix = 0xba93; // dns_next_resolver prefix - https://github.com/ton-blockchain/ton/blob/7e3df93ca2ab336716a230fceb1726d81bac0a06/crypto/block/block.tlb#L819
@@ -58,27 +58,9 @@ const ERR_BAD_SUBDOMAIN_LENGTH = 70;
 const min_tons_for_storage = one_ton;
 const workchain = 0;
 
-@pure
-fun slice.isSkipFirstZeroByte(mutate self): int
-    asm "x{00} SDBEGINSQ";
-
 @inline
 fun forceChain(address: address) {
     assert(address.getWorkchain() == workchain) throw ERR_INCORRECT_WORKCHAIN;
-}
-
-
-// "ton\0test\0" -> "ton"
-@inline
-fun getTopDomainBits(domain: slice): int {
-    var i: int = -8;
-    var char: int = 1;
-    while (char) {
-        i += 8;
-        char = domain.loadUint(8); // we do not check domain.length because it MUST contains \0 character
-    }
-    assert(i) throw 201; // should not start with \0
-    return i;
 }
 
 @inline
@@ -94,6 +76,7 @@ fun slice.loadTextRef(mutate self) {
     var text: slice = textCs.loadText();
     return text;
 }
+
 
 @inline
 fun builder.storeText(mutate self, text: slice): self {
@@ -173,115 +156,25 @@ fun calculateAddress(wc: int, stateInit: cell): address {
 }
 
 @inline
-fun unpackItemConfig(c: cell): (int, address) {
-    var cs: slice = c.beginParse();
-    var res = (
-            cs.loadUint(256),
-            cs.loadAddress()
-    );
-    cs.assertEnd();
-    return res;
-}
-
-@inline
-fun packItemConfig(itemIndex: int, collectionAddress: address): cell {
-    return beginCell()
-            .storeUint(itemIndex, 256)
-            .storeAddress(collectionAddress)
-            .endCell();
-}
-
-@inline
-fun unpackItemData(): (cell, cell?) {
-    var cs = contract.getData().beginParse();
-    var res = (cs.loadRef(), cs.loadMaybeRef());
-    cs.assertEnd();
-    return res;
-}
-
-@inline
-fun packNftRoyaltyParams(numerator: int, denominator: int, destination: slice): cell {
-    return beginCell()
-            .storeUint(numerator, 16)
-            .storeUint(denominator, 16)
-            .storeSlice(destination)
-            .endCell();
-}
-
-@inline
-fun unpackNftRoyaltyParams(c: cell): (int, int, address) {
-    var cs = c.beginParse();
-    var res = (
-            cs.loadUint(16),
-            cs.loadUint(16),
-            cs.loadAddress()
-    );
-    cs.assertEnd();
-    return res;
-}
-
-@inline
-fun packItemData(config: cell, state: cell?): cell {
-    return beginCell()
-            .storeRef(config)
-            .storeMaybeRef(state)
-            .endCell();
-}
-
-@inline
-fun packItemContent(nftContent: cell, dns: cell?, tokenInfo: cell): cell {
-    return beginCell()
-            .storeRef(nftContent)
-            .storeDict(dns)
-            .storeRef(tokenInfo)
-            .endCell();
-}
-
-@inline
-fun unpackItemContent(c: cell): (cell, dict, cell) {
-    var cs = c.beginParse();
-    var res = (
-            cs.loadRef(),
-            cs.loadDict(),
-            cs.loadRef()
-    );
-    cs.assertEnd();
-    return res;
-}
-
-@inline
-fun unpackItemState(c: cell): (address, cell, cell?, cell) {
-    var cs = c.beginParse();
-    var res = (
-            cs.loadAddress(),
-            cs.loadRef(),
-            cs.loadMaybeRef(),
-            cs.loadRef()
-    );
-    cs.assertEnd();
-    return res;
-}
-
-@inline
-fun packItemState(ownerAddress: address, content: cell, auction: cell?, royaltyParams: cell): cell {
-    return beginCell()
-            .storeAddress(ownerAddress)
-            .storeRef(content)
-            .storeMaybeRef(auction)
-            .storeRef(royaltyParams)
-            .endCell();
-}
-
-@inline
-fun saveItemData(config: cell, state: cell) {
-    contract.setData(packItemData(config, state));
+fun packItemState(ownerAddress: address, content: Cell<ItemContent>, auction: Cell<Auction>?, royaltyParams: Cell<RoyaltyParams>): Cell<ItemState> {
+    return ItemState {
+        ownerAddress,
+        content,
+        auction,
+        royaltyParams,
+    }.toCell()
 }
 
 @inline
 fun packItemStateInit(itemIndex: int, itemCode: cell): cell {
-    var itemConfig = packItemConfig(itemIndex, contract.getAddress());
-    var itemData = packItemData(itemConfig, null);
-    return packStateInit(itemCode, itemData);
+    val initialItemData: ItemStorage = {
+        config: ItemConfig {
+            index: itemIndex,
+            collectionAddress: contract.getAddress()
+        }.toCell(),
+        state: null,
+    };
+    return packStateInit(itemCode, initialItemData.toCell());
 }
 
 @inline
@@ -308,36 +201,6 @@ fun unpackTeleitemMsgDeploy(cs: slice): (address, int, cell, cell, cell, cell) {
 }
 
 @inline
-fun unpackCollectionData(): (bool, int, int, cell, cell, slice, cell) {
-    var cs = contract.getData().beginParse();
-    var res = (
-            cs.loadBool(), // touched
-            cs.loadUint(32), // subwallet_id
-            cs.loadUint(256), // owner_key
-            cs.loadRef(), // content
-            cs.loadRef(), // item_code
-            cs.loadTextRef(), // full_domain
-            cs.loadRef() // royalty_params
-    );
-    cs.assertEnd();
-    return res;
-}
-
-@inline
-fun saveCollectionData(touched: bool, subwalletId: int, ownerKey: int, content: cell, itemCode: cell, fullDomain: slice, royaltyParams: cell) {
-    var data: cell = beginCell()
-            .storeBool(touched)
-            .storeUint(subwalletId, 32)
-            .storeUint(ownerKey, 256)
-            .storeRef(content)
-            .storeRef(itemCode)
-            .storeRef(beginCell().storeText(fullDomain).endCell())
-            .storeRef(royaltyParams)
-            .endCell();
-    contract.setData(data);
-}
-
-@inline
 fun unpackSignedCmd(cs: slice) {
     return (
             cs.loadBits(512), // signature
@@ -359,83 +222,6 @@ fun unpackDeployMsg(cs: slice) {
     );
     cs.assertEnd();
     return res;
-}
-
-//teleitem_last_bid bidder_address:MsgAddressInt bid:Grams bid_ts:uint32 = TeleitemLastBid;
-@inline
-fun unpackLastBid(c: cell): (address, int, int) {
-    var cs: slice = c.beginParse();
-    var res = (
-            cs.loadAddress(), // bidder_address
-            cs.loadCoins(), // bid
-            cs.loadUint(32) // bid_ts
-    );
-    cs.assertEnd();
-    return res;
-}
-@inline
-fun packLastBid(bidderAddress: address, bid: int, bidTs: int): cell {
-    return beginCell()
-            .storeAddress(bidderAddress)
-            .storeCoins(bid)
-            .storeUint(bidTs, 32)
-            .endCell();
-}
-
-//teleitem_auction_state$_ last_bid:(Maybe ^TeleitemLastBid) min_bid:Grams end_time:uint32 = TeleitemAuctionState;
-@inline
-fun unpackAuctionState(c: cell): (cell?, int, int) {
-    var cs: slice = c.beginParse();
-    var res = (
-            cs.loadMaybeRef(), // maybe last_bid
-            cs.loadCoins(), // min_bid
-            cs.loadUint(32) // end_time
-    );
-    cs.assertEnd();
-    return res;
-}
-@inline
-fun packAuctionState(lastBid: cell?, minBid: int, endTime: int): cell {
-    return beginCell()
-            .storeMaybeRef(lastBid)
-            .storeCoins(minBid)
-            .storeUint(endTime, 32)
-            .endCell();
-}
-
-@inline
-fun unpackAuctionConfig(c: cell): (address, int, int, int, int, int) {
-    var cs: slice = c.beginParse();
-    var res = (
-            cs.loadAddress(), // beneficiary address
-            cs.loadCoins(), // initial_min_bid
-            cs.loadCoins(), // max_bid
-            cs.loadUint(8), // min_bid_step
-            cs.loadUint(32), // min_extend_time
-            cs.loadUint(32) // duration
-    );
-    cs.assertEnd();
-    return res;
-}
-
-//teleitem_auction$_ state:^TeleitemAuctionState config:^TeleitemConfig = TeleitemAuction;
-@inline
-fun unpackAuction(c: cell): (cell, cell) {
-    var cs: slice = c.beginParse();
-    var res = (
-            cs.loadRef(),
-            cs.loadRef()
-    );
-    cs.assertEnd();
-    return res;
-}
-
-@inline
-fun packAuction(state: cell, config: cell): cell {
-    return beginCell()
-            .storeRef(state)
-            .storeRef(config)
-            .endCell();
 }
 
 @inline
