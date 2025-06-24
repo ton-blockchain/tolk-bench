@@ -68,3 +68,22 @@ struct LastBidInfo {
     bidAmount: coins;
     bidTimestamp: uint32;
 }
+
+fun ItemStorage.generateEmptyData(index: int, collectionAddress: address, state: Cell<ItemState>?) {
+    val emptyItemStorage: ItemStorage = {
+        config: ItemConfig { index, collectionAddress }.toCell(),
+        state,
+    };
+    return emptyItemStorage.toCell()
+}
+
+fun Auction.createStartingFromNow(config: Cell<AuctionConfig>, minBid: coins, duration: int) {
+    return Auction {
+        config: config,
+        state: AuctionState {
+            lastBid: null,
+            minBid: minBid,
+            endTime: blockchain.now() + duration
+        }.toCell()
+    }.toCell()
+}

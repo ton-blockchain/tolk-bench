@@ -1,7 +1,7 @@
 import "storage.tolk"
 
-const one_ton = 1000000000;
-const dns_next_resolver_prefix = 0xba93; // dns_next_resolver prefix - https://github.com/ton-blockchain/ton/blob/7e3df93ca2ab336716a230fceb1726d81bac0a06/crypto/block/block.tlb#L819
+const cheap_min_tons_for_storage = ton("0.03");
+const cheap_minting_price = ton("0.03");
 
 const OP_FILL_UP = 0x370fec51;
 const OP_OUTBID_NOTIFICATION = 0x557cea20;
@@ -55,13 +55,7 @@ const ERR_INCORRECT_WORKCHAIN = 333;
 const ERR_NO_FIRST_ZERO_BYTE = 413;
 const ERR_BAD_SUBDOMAIN_LENGTH = 70;
 
-const min_tons_for_storage = one_ton;
-const workchain = 0;
-
-@inline
-fun forceChain(address: address) {
-    assert(address.getWorkchain() == workchain) throw ERR_INCORRECT_WORKCHAIN;
-}
+const MY_WORKCHAIN = 0;
 
 @inline
 fun slice.loadText(mutate self) {
@@ -156,16 +150,6 @@ fun calculateAddress(wc: int, stateInit: cell): address {
 }
 
 @inline
-fun packItemState(ownerAddress: address, content: Cell<ItemContent>, auction: Cell<Auction>?, royaltyParams: Cell<RoyaltyParams>): Cell<ItemState> {
-    return ItemState {
-        ownerAddress,
-        content,
-        auction,
-        royaltyParams,
-    }.toCell()
-}
-
-@inline
 fun packItemStateInit(itemIndex: int, itemCode: cell): cell {
     val initialItemData: ItemStorage = {
         config: ItemConfig {
@@ -177,61 +161,11 @@ fun packItemStateInit(itemIndex: int, itemCode: cell): cell {
     return packStateInit(itemCode, initialItemData.toCell());
 }
 
-@inline
-fun packTeleitemMsgDeploy(senderAddress: address, bid: int, info: cell, content: cell, auctionConfig: cell, royaltyParams: cell): cell {
-    return beginCell()
-            .storeUint(OP_TELEITEM_MSG_DEPLOY, 32)
-            .storeAddress(senderAddress)
-            .storeCoins(bid)
-            .storeRef(info)
-            .storeRef(content)
-            .storeRef(auctionConfig)
-            .storeRef(royaltyParams)
-            .endCell();
-}
-
-@inline
-fun unpackTeleitemMsgDeploy(cs: slice): (address, int, cell, cell, cell, cell) {
-    return (cs.loadAddress(),
-            cs.loadCoins(),
-            cs.loadRef(),
-            cs.loadRef(),
-            cs.loadRef(),
-            cs.loadRef());
-}
-
-@inline
-fun unpackSignedCmd(cs: slice) {
-    return (
-            cs.loadBits(512), // signature
-            cs.hash(), // hash
-            cs.loadUint(32), // subwallet_id
-            cs.loadUint(32), // valid_since
-            cs.loadUint(32), // valid_till
-            cs // cmd
-    );
-}
-
-@inline
-fun unpackDeployMsg(cs: slice) {
-    var res = (
-            cs.loadText(), // token_name
-            cs.loadRef(), // content
-            cs.loadRef(), // auction_config
-            cs.loadMaybeRef() // royalty
-    );
-    cs.assertEnd();
-    return res;
-}
-
-@inline
-fun unpackNftCmdTransfer(cs: slice): (int, address, address, cell?, int, slice) {
-    return (
-            cs.loadUint(64),
-            cs.loadAddress(),
-            cs.loadAddress(),
-            cs.loadMaybeRef(),
-            cs.loadCoins(),
-            cs
-    );
+fun AuctionConfig.isInvalid(self) {
+    return
+        (self.minBid < cheap_min_tons_for_storage + cheap_minting_price) |
+        ((self.maxBid != 0) & (self.maxBid < self.minBid)) |
+        (self.minBidStep <= 0) |
+        (self.minExtendTime > 60 * 60 * 24 * 7) |
+        (self.duration > 60 * 60 * 24 * 365);
 }
