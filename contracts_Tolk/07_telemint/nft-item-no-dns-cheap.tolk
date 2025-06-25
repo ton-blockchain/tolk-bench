@@ -14,9 +14,17 @@ fun ItemStorage.save(self) {
 }
 
 fun sendMoney(myBalance: int, address: address, value: int): int {
-    var amountToSend: int = min(myBalance - cheap_min_tons_for_storage, value);
+    var amountToSend: int = min(myBalance - MIN_TONS_FOR_STORAGE, value);
     if (amountToSend > 0) {
-        sendMsg(address, amountToSend, OP_FILL_UP, blockchain.logicalTime(), null, 2); // ignore errors
+        val sendMoneyMsg = createMessage({
+            bounce: false,
+            dest: address,
+            value: amountToSend,
+            body: SendMoneyToSomebody {
+                queryId: blockchain.logicalTime()
+            }
+        });
+        sendMoneyMsg.send(SEND_MODE_IGNORE_ERRORS);
         myBalance -= amountToSend;
     }
     return myBalance;
@@ -41,14 +49,28 @@ fun maybeEndAuction(myBalance: int, owner: address, auctionCell: Cell<Auction>, 
     var lastBid = lazy auctionState.lastBid.load();
     val royaltyParams = lazy royaltyParamsCell.load();
 
-    sendMsg(lastBid.bidderAddress, 0, OP_OWNERSHIP_ASSIGNED, blockchain.logicalTime(),
-            beginCell()
-                    .storeAddress(owner)
-                    .storeInt(0, 1)
-                    .storeUint(OP_TELEITEM_BID_INFO, 32)
-                    .storeCoins(lastBid.bidAmount)
-                    .storeUint(lastBid.bidTimestamp, 32),
-            1); // paying fees, revert on errors
+    val newOwnerAddress = lastBid.bidderAddress;
+    val ownershipMsg = createMessage({
+        bounce: false,
+        dest: newOwnerAddress,
+        value: 0,
+        // if `coins` values are very-very large, body may not fit the same cell as message contents;
+        // but since we know that send amount is 0 (4 bits) and expect relatively small bidAmount,
+        // force the compiler not to create a ref for message body
+        body: UnsafeBodyNoRef {
+            forceInline: NotificationOwnershipAssigned {
+                queryId: blockchain.logicalTime(),
+                oldOwnerAddress: owner,
+                payload: ForwardPayloadInlineWrapper {
+                    contents: ProvidedTeleitemBidInfo {
+                        bidAmount: lastBid.bidAmount,
+                        bidTimestamp: lastBid.bidTimestamp,
+                    }
+                }
+            }
+        }
+    });
+    ownershipMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
 
     if ((royaltyParams.royaltyFactor > 0) & (royaltyParams.royaltyBase > 0) & (royaltyParams.address != auctionConfig.benificiaryAddress)) {
         var royaltyValue: int = min(lastBid.bidAmount, mulDivFloor(lastBid.bidAmount, royaltyParams.royaltyFactor, royaltyParams.royaltyBase));
@@ -58,7 +80,7 @@ fun maybeEndAuction(myBalance: int, owner: address, auctionCell: Cell<Auction>, 
 
     myBalance = sendMoney(myBalance, auctionConfig.benificiaryAddress, lastBid.bidAmount);
 
-    return (myBalance, lastBid.bidderAddress, null);
+    return (myBalance, newOwnerAddress, null);
 }
 
 fun processNewBid(myBalance: int, newBidAddress: address, newBid: int, auctionCell: Cell<Auction>): (int, Cell<Auction>) {
@@ -80,12 +102,21 @@ fun processNewBid(myBalance: int, newBidAddress: address, newBid: int, auctionCe
     var newMinBid: int = max(newBid + ton("1"), (newBid * (100 + auctionConfig.minBidStep) + 99) / 100);
     if (auctionState.lastBid != null) {
         val lastBid = lazy auctionState.lastBid.load();
-        var toSend: int = min(myBalance - cheap_min_tons_for_storage, lastBid.bidAmount);
+        var toSend: int = min(myBalance - MIN_TONS_FOR_STORAGE, lastBid.bidAmount);
         if (toSend > 0) {
-            sendMsg(lastBid.bidderAddress, toSend, OP_OUTBID_NOTIFICATION, blockchain.logicalTime(), null, 1);
+            val notificationMsg = createMessage({
+                bounce: false,
+                dest: lastBid.bidderAddress,
+                value: toSend,
+                body: OutbidNotificationToBidder {
+                    queryId: blockchain.logicalTime()
+                }
+            });
+            notificationMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
             myBalance -= toSend;
         }
     }
+
     return (myBalance, Auction {
         config: auction.config,
         state: AuctionState {
@@ -148,7 +179,9 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
         val itemConfig = lazy storage.config.load();
         assert (senderAddress == itemConfig.collectionAddress) throw ERR_UNINITED;
 
-        val msg = TelemintItemDeploy.fromSlice(inMsgBody, {throwIfOpcodeDoesNotMatch: ERR_UNKNOWN_OP});
+        val msg = TelemintItemDeploy.fromSlice(inMsgBody, {
+            throwIfOpcodeDoesNotMatch: ERR_UNKNOWN_OP
+        });
         storage.state = onItemIsDeployingByCollection(myBalance, msg);
         storage.save();
         return;
@@ -194,12 +227,37 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
         }
 
         RequestRoyaltyParams => {
-            sendMsg(senderAddress, 0, OP_REPORT_ROYALTY_PARAMS, msg.queryId, beginCell().storeSlice(state.royaltyParams.beginParse()), 64); // carry all the remaining value of the inbound message
+            val respondMsg = createMessage({
+                bounce: false,
+                dest: senderAddress,
+                value: 0,
+                body: ResponseRoyaltyParams {
+                    queryId: msg.queryId,
+                    royaltyParams: state.royaltyParams.load()
+                }
+            });
+            respondMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
         }
 
         RequestStaticData => {
             val itemConfig = lazy storage.config.load();
-            sendMsg(senderAddress, 0, OP_REPORT_STATIC_DATA, msg.queryId, beginCell().storeUint(itemConfig.index, 256).storeAddress(itemConfig.collectionAddress), 64); // carry all the remaining value of the inbound message
+            val respondMsg = createMessage({
+                bounce: false,
+                dest: senderAddress,
+                value: 0,
+                // since item index is encoded as 256-bit (not 64-bit),
+                // size of a response becomes too long (64 + 256 + address), the compiler will create a ref;
+                // but because we know that msg value = 0 (4 bits),
+                // tell the compiler to inline body into a message cell directly
+                body: UnsafeBodyNoRef {
+                    forceInline: ResponseStaticData {
+                        queryId: msg.queryId,
+                        index: itemConfig.index,
+                        collectionAddress: itemConfig.collectionAddress,
+                    }
+                }
+            });
+            respondMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
         }
 
         AskToStartAuction => {
@@ -214,7 +272,13 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
             storage.save();
 
             if (msg.queryId) {
-                sendMsg(senderAddress, 0, OP_TELEITEM_OK, msg.queryId, null, 64); // carry all the remaining value of the inbound message
+                val respondMsg = createMessage({
+                    bounce: false,
+                    dest: senderAddress,
+                    value: 0,
+                    body: RespondTeleitemOK{}
+                });
+                respondMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
             }
         }
 
@@ -226,7 +290,13 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
             val auctionState = lazy loadedAuction.state.load();
             assert (auctionState.lastBid == null) throw ERR_ALREADY_HAS_STAKES;
             if (msg.queryId) {
-                sendMsg(senderAddress, 0, OP_TELEITEM_OK, msg.queryId, null, 64); // carry all the remaining value of the inbound message
+                val respondMsg = createMessage({
+                    bounce: false,
+                    dest: senderAddress,
+                    value: 0,
+                    body: RespondTeleitemOK{}
+                });
+                respondMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
             }
 
             state.auction = null;
@@ -239,9 +309,9 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
             assert(senderAddress == state.ownerAddress) throw ERR_FORBIDDEN_TRANSFER;
             assert(msg.newOwnerAddress.getWorkchain() == MY_WORKCHAIN) throw ERR_INCORRECT_WORKCHAIN;
 
-            var restAmount: int = myBalance - cheap_min_tons_for_storage;
-            if (msg.forwardAmount) {
-                restAmount -= (msg.forwardAmount + fwdFee);
+            var restAmount: int = myBalance - MIN_TONS_FOR_STORAGE;
+            if (msg.forwardTonAmount) {
+                restAmount -= (msg.forwardTonAmount + fwdFee);
             }
             var needResponse = msg.sendExcessesTo.isInternal();
             if (needResponse) {
@@ -251,13 +321,35 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
 
             assert(restAmount >= 0) throw ERR_NOT_ENOUGH_FUNDS; // base nft spends fixed amount of gas, will not check for response
 
-            if (msg.forwardAmount) {
-                sendMsg(msg.newOwnerAddress, msg.forwardAmount, OP_OWNERSHIP_ASSIGNED, msg.queryId,
-                    beginCell().storeAddress(state.ownerAddress).storeSlice(msg.forwardPayload), 1); // paying fees, revert on errors
-
+            if (msg.forwardTonAmount) {
+                val ownershipMsg = createMessage({
+                    bounce: false,
+                    dest: msg.newOwnerAddress,
+                    value: msg.forwardTonAmount,
+                    // in FunC implementation, forward_payload was embedded directly (not into a ref);
+                    // it can fail if payload is big;
+                    // Tolk compiler will always create a ref (cell) here, because it's undetermined;
+                    // force it not to create a ref to follow initial FunC implementation
+                    body: UnsafeBodyNoRef {
+                        forceInline: NotificationOwnershipAssigned {
+                            queryId: msg.queryId,
+                            oldOwnerAddress: state.ownerAddress,
+                            payload: msg.forwardPayload,
+                        }
+                    }
+                });
+                ownershipMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
             }
             if (needResponse) {
-                sendMsg(msg.sendExcessesTo, restAmount, OP_EXCESSES, msg.queryId, null, 1); // paying fees, revert on errors
+                val excessesMsg = createMessage({
+                    bounce: false,
+                    dest: msg.sendExcessesTo,
+                    value: restAmount,
+                    body: ReturnExcessesBack {
+                        queryId: msg.queryId
+                    }
+                });
+                excessesMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
             }
 
             state.ownerAddress = msg.newOwnerAddress;
@@ -268,7 +360,13 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
         TelemintItemDeploy => {
             val itemConfig = lazy storage.config.load();
             assert (senderAddress == itemConfig.collectionAddress) throw ERR_FORBIDDEN_NOT_DEPLOY;
-            sendMsg(msg.bidderAddress, 0, OP_TELEITEM_RETURN_BID, blockchain.logicalTime(), null, 64); // carry all the remaining value of the inbound message
+            val returnBidMsg = createMessage({
+                bounce: false,
+                dest: msg.bidderAddress,
+                value: 0,
+                body: ReturnBidBackToBidder{}
+            });
+            returnBidMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
         }
 
         else => throw ERR_UNKNOWN_OP

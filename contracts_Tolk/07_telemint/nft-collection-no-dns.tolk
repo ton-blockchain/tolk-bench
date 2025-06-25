@@ -30,8 +30,6 @@ struct Restrictions {
     rewriteSenderAddress: address?;
 }
 
-const ERR_INVALID_SENDER_ADDRESS = 224;
-
 @inline
 fun checkRestrictions(restrictionsCell: Cell<Restrictions>?, senderAddress: address) : address {
     if (restrictionsCell != null) {
@@ -54,7 +52,13 @@ fun deployItem(senderAddress: address, bidAmount: coins, nftItemCode: cell, cmd:
     val auctionConfig = lazy params.auctionConfig.load();
     assert(bidAmount >= auctionConfig.minBid) throw ERR_NOT_ENOUGH_FUNDS;
     if (auctionConfig.isInvalid()) {
-        sendMsg(senderAddress, 0, OP_TELEITEM_RETURN_BID, blockchain.logicalTime(), null, 64); // carry all the remaining value of the inbound message
+        val returnBidMsg = createMessage({
+            bounce: false,
+            dest: senderAddress,
+            value: 0,
+            body: ReturnBidBackToBidder{}
+        });
+        returnBidMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
         return;
     }
 
@@ -67,7 +71,7 @@ fun deployItem(senderAddress: address, bidAmount: coins, nftItemCode: cell, cmd:
             workchain: MY_WORKCHAIN,
             stateInit: {
                 code: nftItemCode,
-                data: ItemStorage.generateEmptyData(itemIndex, contract.getAddress(), null)
+                data: ItemStorage.generateEmptyData(itemIndex, contract.getAddress())
             }
         },
         value: 0,
@@ -134,6 +138,28 @@ fun onExternalMessage(inMsg: slice) {
 
 // Get methods
 
+// todo make such built-in function?
+fun StateInit.generateCellCodeData(code: cell, data: cell): cell asm (data code) """
+    NEWC
+    b{00} STSLICECONST      // no fixedPrefixLength, no tickTock
+    STOPTREF                // code
+    STOPTREF                // data
+    b{0} STSLICECONST       // no library
+    ENDC
+""";
+
+fun buildAddressOfNftItem(itemIndex: int, collectionAddress: address, nftItemCode: cell): builder {
+    val stateInitCell = StateInit.generateCellCodeData(
+        nftItemCode,
+        ItemStorage.generateEmptyData(itemIndex, collectionAddress)
+    );
+    // todo manual work, how to better avoid it? (it's important to leave builder here)
+    return beginCell()
+        .storeUint(0b100, 3)
+        .storeUint(BASECHAIN, 8)
+        .storeUint(stateInitCell.hash(), 256)
+}
+
 get get_collection_data() : (bool, cell, address) {
     val storage = lazy CollectionStorage.load();
     return (true, storage.content, createAddressNone());
@@ -141,8 +167,8 @@ get get_collection_data() : (bool, cell, address) {
 
 get get_nft_address_by_index(index: int) : address {
     val storage = lazy CollectionStorage.load();
-    var stateInit = packItemStateInit(index, storage.nftItemCode);
-    return calculateAddress(MY_WORKCHAIN, stateInit);
+    val addrBuilt = buildAddressOfNftItem(index, contract.getAddress(), storage.nftItemCode);
+    return address.fromValidBuilder(addrBuilt);
 }
 
 get get_nft_content(index: int, individualNftContent: cell) : cell {

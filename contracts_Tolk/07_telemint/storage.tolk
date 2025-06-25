@@ -69,10 +69,10 @@ struct LastBidInfo {
     bidTimestamp: uint32;
 }
 
-fun ItemStorage.generateEmptyData(index: int, collectionAddress: address, state: Cell<ItemState>?) {
+fun ItemStorage.generateEmptyData(index: int, collectionAddress: address) {
     val emptyItemStorage: ItemStorage = {
         config: ItemConfig { index, collectionAddress }.toCell(),
-        state,
+        state: null,
     };
     return emptyItemStorage.toCell()
 }
