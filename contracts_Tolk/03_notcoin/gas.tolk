@@ -1,6 +1,8 @@
 import "@stdlib/gas-payments"
-import "workchain.tolk"
 import "op-codes.tolk"
+
+// we're working in basechain, but theoretically, a jetton might even work in masterchain
+const MY_WORKCHAIN = BASECHAIN;
 
 @pure
 fun getPrecompiledGasConsumption(): int?
@@ -25,10 +27,10 @@ const MIN_STORAGE_DURATION = 5 * 365 * 24 * 3600; // 5 years
 // they must be absolutely equal to consumed gas; if not, tests fail;
 // actual consumed gas (desired value of these constants) are printed to console after tests run
 
-const GAS_CONSUMPTION_JettonTransfer    = 8307;
-const GAS_CONSUMPTION_JettonReceive     = 9440;
-const GAS_CONSUMPTION_BurnRequest       = 5259;
-const GAS_CONSUMPTION_BurnNotification  = 6014;
+const GAS_CONSUMPTION_JettonTransfer    = 8150;
+const GAS_CONSUMPTION_JettonReceive     = 9252;
+const GAS_CONSUMPTION_BurnRequest       = 5192;
+const GAS_CONSUMPTION_BurnNotification  = 6024;
 
 
 @inline

@@ -1,5 +1,5 @@
-import "workchain.tolk"
-import "op-codes.tolk"
+import "gas"
+import "op-codes"
 
 const STATUS_SIZE = 4;
 
