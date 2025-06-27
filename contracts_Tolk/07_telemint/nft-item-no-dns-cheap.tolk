@@ -4,6 +4,35 @@ import "common.tolk"
 import "storage.tolk"
 import "messages.tolk"
 
+// actual storage of NFT item is tricky: it's either inited or not;
+// after NFT has been inited, it's represented as `ItemStorage`;
+// before initialization, it has only cell ItemConfig: `ItemStorageUninitialized`;
+// hence, we start parsing it, then we detect, whether it's inited or not
+struct ItemStorageEitherInitedOrNot {
+    contractData: slice;
+}
+
+// how do we detect whether it's inited or not?
+// the answer: when "inited", we store `ownerAddress` and other fields,
+// so, we have some data bits, and for uninited, we have only 1 ref (see ItemStorageUninitialized)
+fun ItemStorageEitherInitedOrNot.isInited(self) {
+    val hasData = self.contractData.remainingBitsCount();
+    return hasData
+}
+
+fun ItemStorageEitherInitedOrNot.parseAsUninited(self) {
+    return ItemStorageUninitialized.fromSlice(self.contractData)
+}
+
+fun ItemStorageEitherInitedOrNot.parseAsInited(self) {
+    return ItemStorage.fromSlice(self.contractData)
+}
+
+fun startLoadingItemStorage(): ItemStorageEitherInitedOrNot {
+    return {
+        contractData: contract.getData().beginParse()
+    }
+}
 
 fun ItemStorage.load() {
     return ItemStorage.fromCell(contract.getData())
@@ -30,29 +59,25 @@ fun sendMoney(myBalance: int, address: address, value: int): int {
     return myBalance;
 }
 
-fun maybeEndAuction(myBalance: int, owner: address, auctionCell: Cell<Auction>, royaltyParamsCell: Cell<RoyaltyParams>, isExternal: bool): (int, address, Cell<Auction>?) {
-    val auction = lazy auctionCell.load();
-    val auctionState = lazy auction.state.load();
-    if (blockchain.now() < auctionState.endTime) {
-        return (myBalance, owner, auctionCell);
-    }
-    if (isExternal) {
-        acceptExternalMessage();
-    }
-    // should end auction
-    if (auctionState.lastBid == null) {
+fun Auction.isExpired(self) {
+    return blockchain.now() >= self.endTime
+}
+
+@inline_ref
+fun Auction.calcNewOwnerOnExpire(self, mutate myBalance: int, oldOwner: address, royaltyParamsCell: Cell<RoyaltyParams>): address {
+    if (self.lastBid == null) {
         // no stakes were made
         // NB: owner is not null now
-        return (myBalance, owner, null);
+        return oldOwner;
     }
-    val auctionConfig = lazy auction.config.load();
-    var lastBid = lazy auctionState.lastBid.load();
+    val auctionConfig = lazy self.config.load();
+    var lastBid = lazy self.lastBid.load();
     val royaltyParams = lazy royaltyParamsCell.load();
 
-    val newOwnerAddress = lastBid.bidderAddress;
+    val newOwner = lastBid.bidderAddress;
     val ownershipMsg = createMessage({
         bounce: false,
-        dest: newOwnerAddress,
+        dest: newOwner,
         value: 0,
         // if `coins` values are very-very large, body may not fit the same cell as message contents;
         // but since we know that send amount is 0 (4 bits) and expect relatively small bidAmount,
@@ -60,7 +85,7 @@ fun maybeEndAuction(myBalance: int, owner: address, auctionCell: Cell<Auction>, 
         body: UnsafeBodyNoRef {
             forceInline: NotificationOwnershipAssigned {
                 queryId: blockchain.logicalTime(),
-                oldOwnerAddress: owner,
+                oldOwnerAddress: oldOwner,
                 payload: ForwardPayloadInlineWrapper {
                     contents: ProvidedTeleitemBidInfo {
                         bidAmount: lastBid.bidAmount,
@@ -79,29 +104,24 @@ fun maybeEndAuction(myBalance: int, owner: address, auctionCell: Cell<Auction>, 
     }
 
     myBalance = sendMoney(myBalance, auctionConfig.benificiaryAddress, lastBid.bidAmount);
-
-    return (myBalance, newOwnerAddress, null);
+    return newOwner;
 }
 
-fun processNewBid(myBalance: int, newBidAddress: address, newBid: int, auctionCell: Cell<Auction>): (int, Cell<Auction>) {
-    val auction = lazy auctionCell.load();
-    val auctionState = lazy auction.state.load();
-    assert(newBid >= auctionState.minBid) throw ERR_TOO_SMALL_STAKE;
-    val auctionConfig = lazy auction.config.load();
-    val newLastBid = LastBidInfo {
-        bidderAddress: newBidAddress,
-        bidAmount: newBid,
-        bidTimestamp: blockchain.now(),
-    }.toCell();
-    var newEndTime: int = max(auctionState.endTime, blockchain.now() + auctionConfig.minExtendTime);
+@inline
+fun Auction.processNewBid(mutate self, mutate myBalance: coins, newBidAddress: address, newBid: int) {
+    assert(newBid >= self.minBid) throw ERR_TOO_SMALL_STAKE;
+    val auctionConfig = lazy self.config.load();
+
+    var newEndTime: int = max(self.endTime, blockchain.now() + auctionConfig.minExtendTime);
     if ((auctionConfig.maxBid > 0) & (newBid >= auctionConfig.maxBid)) {
-        // for maybe_end_auction
+        // mark expired when current bid reaches max
         newEndTime = 0;
     }
+
     // step is at least GR$1
     var newMinBid: int = max(newBid + ton("1"), (newBid * (100 + auctionConfig.minBidStep) + 99) / 100);
-    if (auctionState.lastBid != null) {
-        val lastBid = lazy auctionState.lastBid.load();
+    if (self.lastBid != null) {
+        val lastBid = lazy self.lastBid.load();
         var toSend: int = min(myBalance - MIN_TONS_FOR_STORAGE, lastBid.bidAmount);
         if (toSend > 0) {
             val notificationMsg = createMessage({
@@ -117,34 +137,39 @@ fun processNewBid(myBalance: int, newBidAddress: address, newBid: int, auctionCe
         }
     }
 
-    return (myBalance, Auction {
-        config: auction.config,
-        state: AuctionState {
-            lastBid: newLastBid,
-            minBid: newMinBid,
-            endTime: newEndTime,
-        }.toCell()
-    }.toCell());
+    self.lastBid = LastBidInfo {
+        bidderAddress: newBidAddress,
+        bidAmount: newBid,
+        bidTimestamp: blockchain.now(),
+    }.toCell();
+    self.minBid = newMinBid;
+    self.endTime = newEndTime;
 }
 
-fun onItemIsDeployingByCollection(myBalance: int, msg: TelemintItemDeploy): Cell<ItemState> {
+fun initializeItemOnDeployingByCollection(uninitedSt: ItemStorageUninitialized, myBalance: int, msg: TelemintItemDeploy): ItemStorage {
+    var ownerAddress = createAddressNone();
+    var auctionForStorage: Cell<Auction>? = null;
+
     val auctionConfig = lazy msg.auctionConfig.load();
-    var auction: Cell<Auction>? = Auction.createStartingFromNow(msg.auctionConfig, auctionConfig.minBid, auctionConfig.duration);
-    var ownerAddress: address;
+    var auction = Auction.createStartingFromNow(msg.auctionConfig, auctionConfig.minBid, auctionConfig.duration);
+    auction.processNewBid(mutate myBalance, msg.bidderAddress, msg.bidAmount);
+    if (auction.isExpired()) {
+        ownerAddress = auction.calcNewOwnerOnExpire(mutate myBalance, ownerAddress, msg.royaltyParams);
+    } else {
+        auctionForStorage = auction.toCell();
+    }
 
-    (myBalance, auction) = processNewBid(myBalance, msg.bidderAddress, msg.bidAmount, auction);
-    (myBalance, ownerAddress, auction) = maybeEndAuction(myBalance, createAddressNone(), auction, msg.royaltyParams, false);
-
-    return ItemState {
-        ownerAddress: ownerAddress,
+    return {
+        config: uninitedSt.config,
+        ownerAddress,
         content: ItemContent{
             nftContent: msg.nftContent,
             dns: null,
             tokenInfo: msg.tokenInfo,
         }.toCell(),
-        auction: auction,
+        auction: auctionForStorage,
         royaltyParams: msg.royaltyParams,
-    }.toCell()
+    }
 }
 
 type AllowedMessageToItem =
@@ -173,30 +198,33 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
     cs.loadCoins(); // skip ihr_fee
     var fwdFee: int = mulDivFloor(cs.loadCoins(), 3, 2); // we use message fwd_:fee for estimation of forward_payload costs
 
-    var storage = ItemStorage.load();
-
-    if (storage.state == null) {
-        val itemConfig = lazy storage.config.load();
+    var loadingStorage = startLoadingItemStorage();
+    if (!loadingStorage.isInited()) {
+        val uninitedSt = loadingStorage.parseAsUninited();
+        val itemConfig = lazy uninitedSt.config.load();
         assert (senderAddress == itemConfig.collectionAddress) throw ERR_UNINITED;
 
+        // using a message from collection, convert "uninitialized" to "initialized" state
         val msg = TelemintItemDeploy.fromSlice(inMsgBody, {
             throwIfOpcodeDoesNotMatch: ERR_UNKNOWN_OP
         });
-        storage.state = onItemIsDeployingByCollection(myBalance, msg);
+        val storage = initializeItemOnDeployingByCollection(uninitedSt, myBalance, msg);
         storage.save();
         return;
     }
 
-    var state: ItemState = storage.state.load();
+    var state = loadingStorage.parseAsInited();
 
+    // since the last accepted message, current auction might have expired
     if (state.auction != null) {
-        myBalance -= msgValue;      // sender does not pay for auction with its message
-        (myBalance, state.ownerAddress, state.auction) = maybeEndAuction(myBalance, state.ownerAddress, state.auction, state.royaltyParams, false);
-        if (state.auction == null) {
-            storage.state = state.toCell();
-            storage.save();
+        val auction = state.auction.load();
+        if (auction.isExpired()) {
+            myBalance -= msgValue;      // sender does not pay for auction with its message
+            state.ownerAddress = auction.calcNewOwnerOnExpire(mutate myBalance, state.ownerAddress, state.royaltyParams);
+            myBalance += msgValue;
+            state.auction = null;
+            state.save();
         }
-        myBalance += msgValue;
     }
 
     // treat an empty message like "stake" (with attached tons)
@@ -220,10 +248,15 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
                 assert(senderAddress == state.ownerAddress) throw ERR_FORBIDDEN_TOPUP;
                 return;
             }
-            (myBalance, state.auction) = processNewBid(myBalance, senderAddress, msgValue, state.auction);
-            (myBalance, state.ownerAddress, state.auction) = maybeEndAuction(myBalance, state.ownerAddress, state.auction, state.royaltyParams, false);
-            storage.state = state.toCell();
-            storage.save();
+            var auction = state.auction.load();
+            auction.processNewBid(mutate myBalance, senderAddress, msgValue);
+            if (auction.isExpired()) {
+                state.ownerAddress = auction.calcNewOwnerOnExpire(mutate myBalance, state.ownerAddress, state.royaltyParams);
+                state.auction = null;
+            } else {
+                state.auction = auction.toCell();
+            }
+            state.save();
         }
 
         RequestRoyaltyParams => {
@@ -240,7 +273,7 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
         }
 
         RequestStaticData => {
-            val itemConfig = lazy storage.config.load();
+            val itemConfig = lazy state.config.load();
             val respondMsg = createMessage({
                 bounce: false,
                 dest: senderAddress,
@@ -262,14 +295,13 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
 
         AskToStartAuction => {
             assert (state.auction == null) throw ERR_FORBIDDEN_NOT_STAKE;
-            assert(senderAddress == state.ownerAddress) throw ERR_FORBIDDEN_AUCTION;
+            assert (senderAddress == state.ownerAddress) throw ERR_FORBIDDEN_AUCTION;
 
             val config = lazy msg.newAuctionConfig.load();
-            assert(!config.isInvalid()) throw ERR_INVALID_AUCTION_CONFIG;
+            assert (!config.isInvalid()) throw ERR_INVALID_AUCTION_CONFIG;
 
-            state.auction = Auction.createStartingFromNow(msg.newAuctionConfig, config.minBid, config.duration);
-            storage.state = state.toCell();
-            storage.save();
+            state.auction = Auction.createStartingFromNow(msg.newAuctionConfig, config.minBid, config.duration).toCell();
+            state.save();
 
             if (msg.queryId) {
                 val respondMsg = createMessage({
@@ -286,9 +318,8 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
             assert (state.auction != null) throw ERR_NO_AUCTION;
             assert (senderAddress == state.ownerAddress) throw ERR_FORBIDDEN_AUCTION;
 
-            val loadedAuction = lazy state.auction.load();
-            val auctionState = lazy loadedAuction.state.load();
-            assert (auctionState.lastBid == null) throw ERR_ALREADY_HAS_STAKES;
+            val auction = lazy state.auction.load();
+            assert (auction.lastBid == null) throw ERR_ALREADY_HAS_STAKES;
             if (msg.queryId) {
                 val respondMsg = createMessage({
                     bounce: false,
@@ -300,14 +331,13 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
             }
 
             state.auction = null;
-            storage.state = state.toCell();
-            storage.save();
+            state.save();
         }
 
         AskToTransfer => {
             assert (state.auction == null) throw ERR_FORBIDDEN_NOT_STAKE;
-            assert(senderAddress == state.ownerAddress) throw ERR_FORBIDDEN_TRANSFER;
-            assert(msg.newOwnerAddress.getWorkchain() == MY_WORKCHAIN) throw ERR_INCORRECT_WORKCHAIN;
+            assert (senderAddress == state.ownerAddress) throw ERR_FORBIDDEN_TRANSFER;
+            assert (msg.newOwnerAddress.getWorkchain() == MY_WORKCHAIN) throw ERR_INCORRECT_WORKCHAIN;
 
             var restAmount: int = myBalance - MIN_TONS_FOR_STORAGE;
             if (msg.forwardTonAmount) {
@@ -319,7 +349,7 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
                 restAmount -= fwdFee;
             }
 
-            assert(restAmount >= 0) throw ERR_NOT_ENOUGH_FUNDS; // base nft spends fixed amount of gas, will not check for response
+            assert (restAmount >= 0) throw ERR_NOT_ENOUGH_FUNDS; // base nft spends fixed amount of gas, will not check for response
 
             if (msg.forwardTonAmount) {
                 val ownershipMsg = createMessage({
@@ -353,12 +383,11 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
             }
 
             state.ownerAddress = msg.newOwnerAddress;
-            storage.state = state.toCell();
-            storage.save();
+            state.save();
         }
 
         TelemintItemDeploy => {
-            val itemConfig = lazy storage.config.load();
+            val itemConfig = lazy state.config.load();
             assert (senderAddress == itemConfig.collectionAddress) throw ERR_FORBIDDEN_NOT_DEPLOY;
             val returnBidMsg = createMessage({
                 bounce: false,
@@ -374,13 +403,15 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
 }
 
 fun onExternalMessage(inMsg: slice) {
-    var storage = lazy ItemStorage.load();
-    var itemState = lazy storage.state!.load();
-    var (myBalance, ownerAddress, auction) = maybeEndAuction(contract.getOriginalBalance(), itemState.ownerAddress, itemState.auction!, itemState.royaltyParams, true);
-    itemState.auction = auction;
-    itemState.ownerAddress = ownerAddress;
-    storage.state = itemState.toCell();
-    storage.save();
+    var state = lazy ItemStorage.load();
+    val auction = state.auction!.load();    // if no auction in progress, parsing will fail, it's ok
+    if (auction.isExpired()) {
+        acceptExternalMessage();
+        var myBalance = contract.getOriginalBalance();
+        state.ownerAddress = auction.calcNewOwnerOnExpire(mutate myBalance, state.ownerAddress, state.royaltyParams);
+        state.auction = null;
+        state.save();
+    }
 }
 
 //
@@ -388,55 +419,51 @@ fun onExternalMessage(inMsg: slice) {
 //
 
 get get_nft_data(): (bool, int, address, address, cell?) {
-    val storage = lazy ItemStorage.load();
-    val itemConfig = lazy storage.config.load();
-    if (storage.state == null) {
+    var loadingStorage = startLoadingItemStorage();
+    if (!loadingStorage.isInited()) {
+        val uninitedSt = loadingStorage.parseAsUninited();
+        val itemConfig = lazy uninitedSt.config.load();
         return (false, itemConfig.index, itemConfig.collectionAddress, createAddressNone(), null);
+    } else {
+        val storage = loadingStorage.parseAsInited();
+        val itemConfig = lazy storage.config.load();
+        return (true, itemConfig.index, itemConfig.collectionAddress, storage.ownerAddress, storage.content);
     }
-    val itemState = lazy storage.state.load();
-    val itemContent = lazy itemState.content.load();
-    return (true, itemConfig.index, itemConfig.collectionAddress, itemState.ownerAddress, itemContent.nftContent);
 }
 
 get get_telemint_token_name(): slice {
     val storage = lazy ItemStorage.load();
-    val itemState = lazy storage.state!.load();
-    val itemContent = lazy itemState.content.load();
+    val itemContent = lazy storage.content.load();
     var (tokenName: slice, domain: slice) = unpackTokenInfo(itemContent.tokenInfo);
     return tokenName;
 }
 
 get get_telemint_auction_state(): (address?, int, int, int, int) {
     val storage = lazy ItemStorage.load();
-    val itemState = lazy storage.state!.load();
-    assert (itemState.auction != null) throw ERR_NO_AUCTION;
+    assert (storage.auction != null) throw ERR_NO_AUCTION;
 
-    val auction = itemState.auction.load();
-    val auctionState = auction.state.load();
+    val auction = storage.auction.load();
     var (bidderAddress: address?, bid: int, bidTs: int) = (null, 0, 0);
-    if (auctionState.lastBid != null) {
-        val lastBid = auctionState.lastBid.load();
+    if (auction.lastBid != null) {
+        val lastBid = auction.lastBid.load();
         (bidderAddress, bid, bidTs) = (lastBid.bidderAddress, lastBid.bidAmount, lastBid.bidTimestamp);
     }
-    return (bidderAddress, bid, bidTs, auctionState.minBid, auctionState.endTime);
+    return (bidderAddress, bid, bidTs, auction.minBid, auction.endTime);
 }
 
 get get_telemint_auction_config(): (address?, int, int, int, int, int) {
     val storage = lazy ItemStorage.load();
-    val itemState = lazy storage.state!.load();     // in FunC, there was no check for null
-    if (itemState.auction == null) {
+    if (storage.auction == null) {
         // Do not throw error, so it is easy to check if get_telemint_auction_config method exists
         return (null, 0, 0, 0, 0, 0);
     }
 
-    val auction = lazy itemState.auction.load();
+    val auction = lazy storage.auction.load();
     val c = lazy auction.config.load();
     return (c.benificiaryAddress, c.minBid, c.maxBid, c.minBidStep, c.minExtendTime, c.duration);
 }
 
 get royalty_params(): RoyaltyParams {
     val storage = lazy ItemStorage.load();
-    // todo with lazy, it does not work!!!
-    val itemState = storage.state!.load();     // in FunC, there was no check for null
-    return itemState.royaltyParams.load();
+    return storage.royaltyParams.load();
 }

@@ -20,21 +20,21 @@ struct RoyaltyParams {
     address: address;
 }
 
+struct ItemStorageUninitialized {
+    config: Cell<ItemConfig>;
+}
+
 struct ItemStorage {
     config: Cell<ItemConfig>;
-    state: Cell<ItemState>?;
+    ownerAddress: address;
+    content: Cell<ItemContent>;
+    auction: Cell<Auction>?;
+    royaltyParams: Cell<RoyaltyParams>;
 }
 
 struct ItemConfig {
     index: uint256;
     collectionAddress: address;
-}
-
-struct ItemState {
-    ownerAddress: address;
-    content: Cell<ItemContent>;
-    auction: Cell<Auction>?;
-    royaltyParams: Cell<RoyaltyParams>;
 }
 
 struct ItemContent {
@@ -52,15 +52,11 @@ struct AuctionConfig {
     duration: uint32;
 }
 
-struct AuctionState {
+struct Auction {
+    config: Cell<AuctionConfig>;
     lastBid: Cell<LastBidInfo>?;
     minBid: coins;
     endTime: uint32;
-}
-
-struct Auction {
-    state: Cell<AuctionState>;
-    config: Cell<AuctionConfig>;
 }
 
 struct LastBidInfo {
@@ -69,21 +65,18 @@ struct LastBidInfo {
     bidTimestamp: uint32;
 }
 
-fun ItemStorage.generateEmptyData(index: int, collectionAddress: address) {
-    val emptyItemStorage: ItemStorage = {
+fun ItemStorageUninitialized.generateEmptyData(index: int, collectionAddress: address) {
+    val emptyItemStorage: ItemStorageUninitialized = {
         config: ItemConfig { index, collectionAddress }.toCell(),
-        state: null,
     };
     return emptyItemStorage.toCell()
 }
 
-fun Auction.createStartingFromNow(config: Cell<AuctionConfig>, minBid: coins, duration: int) {
-    return Auction {
+fun Auction.createStartingFromNow(config: Cell<AuctionConfig>, minBid: coins, duration: int): Auction {
+    return {
         config: config,
-        state: AuctionState {
-            lastBid: null,
-            minBid: minBid,
-            endTime: blockchain.now() + duration
-        }.toCell()
-    }.toCell()
+        lastBid: null,
+        minBid: minBid,
+        endTime: blockchain.now() + duration
+    }
 }

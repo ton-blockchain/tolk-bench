@@ -71,7 +71,7 @@ fun deployItem(senderAddress: address, bidAmount: coins, nftItemCode: cell, cmd:
             workchain: MY_WORKCHAIN,
             stateInit: {
                 code: nftItemCode,
-                data: ItemStorage.generateEmptyData(itemIndex, contract.getAddress())
+                data: ItemStorageUninitialized.generateEmptyData(itemIndex, contract.getAddress())
             }
         },
         value: 0,
@@ -151,7 +151,7 @@ fun StateInit.generateCellCodeData(code: cell, data: cell): cell asm (data code)
 fun buildAddressOfNftItem(itemIndex: int, collectionAddress: address, nftItemCode: cell): builder {
     val stateInitCell = StateInit.generateCellCodeData(
         nftItemCode,
-        ItemStorage.generateEmptyData(itemIndex, collectionAddress)
+        ItemStorageUninitialized.generateEmptyData(itemIndex, collectionAddress)
     );
     // todo manual work, how to better avoid it? (it's important to leave builder here)
     return beginCell()
