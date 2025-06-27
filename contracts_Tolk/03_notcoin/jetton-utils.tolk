@@ -1,7 +1,6 @@
 import "gas"
 import "op-codes"
-
-const STATUS_SIZE = 4;
+import "messages"
 
 const MSG_INFO_REST_BITS = 1 + 4 + 4 + 64 + 32;
 
@@ -16,24 +15,19 @@ const MSG_BODY_IN_REF = 1;
 
 const MSG_ONLY_BODY_SIZE = MSG_INFO_REST_BITS + 1 + 1;
 
-
 @inline
-fun packJettonWalletDataBuilder(status: int, balance: int, ownerAddress: address, jettonMasterAddress: address): builder {
-    return beginCell()
-        .storeUint(status, STATUS_SIZE)
-        .storeCoins(balance)
-        .storeAddress(ownerAddress)
-        .storeAddress(jettonMasterAddress);
+fun packJettonWalletData(status: int, balance: int, ownerAddress: address, minterAddress: address) {
+    var emptyWalletStorage: WalletStorage = {
+        status: status,
+        balance: balance,
+        ownerAddress: ownerAddress,
+        minterAddress: minterAddress,
+    };
+    return emptyWalletStorage.toCell();
 }
 
 @inline
-fun packJettonWalletData(status: int, balance: int, ownerAddress: address, jettonMasterAddress: address): cell {
-    return packJettonWalletDataBuilder(status, balance, ownerAddress, jettonMasterAddress)
-           .endCell();
-}
-
-@inline
-fun calculateJettonWalletStateInit(ownerAddress: address, jettonMasterAddress: address, jettonWalletCode: cell): cell {
+fun calculateJettonWalletStateInit(ownerAddress: address, minterAddress: address, jettonWalletCode: cell): cell {
     /*
     https://github.com/ton-blockchain/ton/blob/8a9ff339927b22b72819c5125428b70c406da631/crypto/block/block.tlb#L144
     _ split_depth:(Maybe (## 5)) special:(Maybe TickTock)
@@ -48,7 +42,7 @@ fun calculateJettonWalletStateInit(ownerAddress: address, jettonMasterAddress: a
             0, // status
             0, // balance
             ownerAddress,
-            jettonMasterAddress)
+            minterAddress)
     )
     .storeUint(0, 1) // Empty libraries
     .endCell();
@@ -69,8 +63,8 @@ fun calculateJettonWalletAddress(stateInit: cell): address {
 }
 
 @inline
-fun calculateUserJettonWalletAddress(ownerAddress: address, jettonMasterAddress: address, jettonWalletCode: cell): address {
-    return calculateJettonWalletAddress(calculateJettonWalletStateInit(ownerAddress, jettonMasterAddress, jettonWalletCode));
+fun calculateUserJettonWalletAddress(ownerAddress: address, minterAddress: address, jettonWalletCode: cell): address {
+    return calculateJettonWalletAddress(calculateJettonWalletStateInit(ownerAddress, minterAddress, jettonWalletCode));
 }
 
 @inline

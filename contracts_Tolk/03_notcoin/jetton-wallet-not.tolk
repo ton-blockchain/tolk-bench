@@ -7,32 +7,14 @@ import "@stdlib/gas-payments"
 import "op-codes.tolk"
 import "jetton-utils.tolk"
 import "gas.tolk"
+import "messages.tolk"
 
-/*
-  Storage
-
-  storage#_ status:uint4
-            balance:Coins owner_address:MsgAddressInt
-            jetton_master_address:MsgAddressInt = Storage;
-*/
-
-@inline
-fun loadData(): (int, int, address, address) {
-    var ds: slice = contract.getData().beginParse();
-    var data = (
-        ds.loadUint(STATUS_SIZE), // status
-        ds.loadCoins(), // balance
-        ds.loadAddress(), // owner_address
-        ds.loadAddress() // jetton_master_address
-    );
-    ds.assertEnd();
-    return data;
+fun WalletStorage.load() {
+    return WalletStorage.fromCell(contract.getData())
 }
 
-@inline
-fun saveData(status: int, balance: int, ownerAddress: address, jettonMasterAddress: address) {
-    var dataBuilder: builder = packJettonWalletDataBuilder(status, balance, ownerAddress, jettonMasterAddress);
-    contract.setData(dataBuilder.endCell());
+fun WalletStorage.save(self) {
+    contract.setData(self.toCell())
 }
 
 @inline
@@ -41,9 +23,10 @@ fun onBounce(inMsgBody: slice) {
     var op: int = inMsgBody.loadMessageOp();
     assert((op == OP_INTERNAL_TRANSFER) | (op == OP_BURN_NOTIFICATION)) throw ERROR_WRONG_OP;
     inMsgBody.skipMessageQueryId();
-    var (status: int, balance: int, ownerAddress: address, jettonMasterAddress: address) = loadData();
     var jettonAmount: int = inMsgBody.loadCoins();
-    saveData(status, balance + jettonAmount, ownerAddress, jettonMasterAddress);
+    var storage = lazy WalletStorage.load();
+    storage.balance += jettonAmount;
+    storage.save();
 }
 
 fun onInternalMessage(myTonBalance: int, msgValue: int, inMsgFull: cell, inMsgBody: slice) {
@@ -58,6 +41,7 @@ fun onInternalMessage(myTonBalance: int, msgValue: int, inMsgFull: cell, inMsgBo
     var fwdFee: int = calculateOriginalMessageFee(MY_WORKCHAIN, fwdFeeFromInMsg); // we use message fwd_fee for estimation of forward_payload costs
 
     var op: int = inMsgBody.loadMessageOp();
+    // todo load storage once or lazily in each branch?
 
     // outgoing transfer
     if (op == OP_TRANSFER) {
@@ -72,13 +56,15 @@ fun onInternalMessage(myTonBalance: int, msgValue: int, inMsgFull: cell, inMsgBo
         checkEitherForwardPayload(eitherForwardPayload);
 
         assert(toOwnerAddress.getWorkchain() == MY_WORKCHAIN) throw ERROR_WRONG_WORKCHAIN;
-        var (status: int, balance: int, ownerAddress: address, jettonMasterAddress: address) = loadData();
-        assert(senderAddress == ownerAddress) throw ERROR_NOT_OWNER;
-        assert(balance >= jettonAmount) throw ERROR_BALANCE_ERROR;
-        balance -= jettonAmount;
-        saveData(status, balance, ownerAddress, jettonMasterAddress);
+        var storage = lazy WalletStorage.load();
+        assert(senderAddress == storage.ownerAddress) throw ERROR_NOT_OWNER;
+        checkAmountIsEnoughToTransfer(msgValue, forwardTonAmount, fwdFee);  // todo move upper
 
-        var stateInit = calculateJettonWalletStateInit(toOwnerAddress, jettonMasterAddress, contract.getCode());
+        assert(storage.balance >= jettonAmount) throw ERROR_BALANCE_ERROR;
+        storage.balance -= jettonAmount;
+        storage.save();
+
+        var stateInit = calculateJettonWalletStateInit(toOwnerAddress, storage.minterAddress, contract.getCode());
         var toWalletAddress = calculateJettonWalletAddress(stateInit);
 
         // see internal TL-B layout in jetton.tlb
@@ -86,7 +72,7 @@ fun onInternalMessage(myTonBalance: int, msgValue: int, inMsgFull: cell, inMsgBo
             .storeMessageOp(OP_INTERNAL_TRANSFER)
             .storeMessageQueryId(queryId)
             .storeCoins(jettonAmount)
-            .storeAddress(ownerAddress)
+            .storeAddress(storage.ownerAddress)
             .storeAddress(responseAddress)
             .storeCoins(forwardTonAmount)
             .storeSlice(eitherForwardPayload)
@@ -99,8 +85,6 @@ fun onInternalMessage(myTonBalance: int, msgValue: int, inMsgFull: cell, inMsgBo
             .storeCoins(0)
             .storeStatinitRefAndBodyRef(stateInit, msgBody)
             .endCell();
-
-        checkAmountIsEnoughToTransfer(msgValue, forwardTonAmount, fwdFee);  // todo move upper
 
         sendRawMessage(deployMsg, SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
         return;
@@ -118,12 +102,12 @@ fun onInternalMessage(myTonBalance: int, msgValue: int, inMsgFull: cell, inMsgBo
         var forwardTonAmount: int = inMsgBody.loadCoins();
         var eitherForwardPayload: slice = inMsgBody;
 
-        var (status: int, balance: int, ownerAddress: address, jettonMasterAddress: address) = loadData();
-        assert((senderAddress == jettonMasterAddress)
-            |
-            (senderAddress == calculateUserJettonWalletAddress(fromAddress, jettonMasterAddress, contract.getCode()))) throw ERROR_NOT_VALID_WALLET;
-        balance += jettonAmount;
-        saveData(status, balance, ownerAddress, jettonMasterAddress);
+        var storage = lazy WalletStorage.load();
+        if (senderAddress != storage.minterAddress) {
+            assert (senderAddress == calculateUserJettonWalletAddress(fromAddress, storage.minterAddress, contract.getCode())) throw ERROR_NOT_VALID_WALLET;
+        }
+        storage.balance += jettonAmount;
+        storage.save();
 
         if (forwardTonAmount) {
 
@@ -139,7 +123,7 @@ fun onInternalMessage(myTonBalance: int, msgValue: int, inMsgFull: cell, inMsgBo
             // build MessageRelaxed, see TL-B layout in stdlib.fc#L733
             var notifyOwnerMsg: cell = beginCell()
                 .storeMsgFlagsAndAddressNone(0x10)
-                .storeAddress(ownerAddress)
+                .storeAddress(storage.ownerAddress)
                 .storeCoins(forwardTonAmount)
                 .storeOnlyBodyRef(msgBody)
                 .endCell();
@@ -174,25 +158,25 @@ fun onInternalMessage(myTonBalance: int, msgValue: int, inMsgFull: cell, inMsgBo
         inMsgBody.skipMaybeRef(); // custom_payload
         inMsgBody.assertEnd();
 
-        var (status: int, balance: int, ownerAddress: address, jettonMasterAddress: address) = loadData();
-        assert(senderAddress == ownerAddress) throw ERROR_NOT_OWNER;
-        assert(balance >= jettonAmount) throw ERROR_BALANCE_ERROR;
-        balance -= jettonAmount;
-        saveData(status, balance, ownerAddress, jettonMasterAddress);
+        var storage = lazy WalletStorage.load();
+        assert(senderAddress == storage.ownerAddress) throw ERROR_NOT_OWNER;
+        assert(storage.balance >= jettonAmount) throw ERROR_BALANCE_ERROR;
+        storage.balance -= jettonAmount;
+        storage.save();
 
         // see burn_notification TL-B layout in jetton.tlb
         var msgBody: cell = beginCell()
             .storeMessageOp(OP_BURN_NOTIFICATION)
             .storeMessageQueryId(queryId)
             .storeCoins(jettonAmount)
-            .storeAddress(ownerAddress)
+            .storeAddress(storage.ownerAddress)
             .storeAddress(responseAddress)
             .endCell();
 
         // build MessageRelaxed, see TL-B layout in stdlib.fc#L733
         var notifyMinterMsg = beginCell()
             .storeMsgFlagsAndAddressNone(0x18)
-            .storeAddress(jettonMasterAddress)
+            .storeAddress(storage.minterAddress)
             .storeCoins(0)
             .storeOnlyBodyRef(msgBody)
             .endCell();
@@ -211,11 +195,11 @@ fun onInternalMessage(myTonBalance: int, msgValue: int, inMsgFull: cell, inMsgBo
 }
 
 get get_wallet_data(): (int, address, address, cell) {
-    var (status: int, balance: int, ownerAddress: address, jettonMasterAddress: address) = loadData();
-    return (balance, ownerAddress, jettonMasterAddress, contract.getCode());
+    var storage = lazy WalletStorage.load();
+    return (storage.balance, storage.ownerAddress, storage.minterAddress, contract.getCode());
 }
 
 get get_status(): int {
-    var (status: int, _, _, _) = loadData();
-    return status;
+    var storage = lazy WalletStorage.load();
+    return storage.status;
 }

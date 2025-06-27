@@ -66,5 +66,22 @@
       "wallet bits": 6010,
       "wallet cells": 13
     }
+  },
+  {
+    "commitDesc": "struct MinterStorage and WalletStorage",
+    "gas": {
+      "MINT jettons by admin": 13330,
+      "TRANSFER with forward_amount": 17995,
+      "TRANSFER no forward_amount": 15408,
+      "BURN jettons": 11381,
+      "DISCOVER with include_address": 6355,
+      "DISCOVER no include_address": 5801
+    },
+    "codeSize": {
+      "minter bits": 7655,
+      "minter cells": 15,
+      "wallet bits": 5826,
+      "wallet cells": 13
+    }
   }
 ]
