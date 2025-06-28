@@ -68,7 +68,7 @@ fun calculateUserJettonWalletAddress(ownerAddress: address, minterAddress: addre
 }
 
 @inline
-fun checkEitherForwardPayload(s: slice) {
+fun checkEitherForwardPayload(s: ForwardPayloadRemainder) {
     if (s.preloadUint(1)) {
         // forward_payload in ref
         var (remainBits: int, remainRefs: int) = s.remainingBitsAndRefsCount();

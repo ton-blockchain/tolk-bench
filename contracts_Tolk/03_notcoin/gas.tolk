@@ -27,10 +27,10 @@ const MIN_STORAGE_DURATION = 5 * 365 * 24 * 3600; // 5 years
 // they must be absolutely equal to consumed gas; if not, tests fail;
 // actual consumed gas (desired value of these constants) are printed to console after tests run
 
-const GAS_CONSUMPTION_JettonTransfer    = 8162;
-const GAS_CONSUMPTION_JettonReceive     = 9215;
-const GAS_CONSUMPTION_BurnRequest       = 5048;
-const GAS_CONSUMPTION_BurnNotification  = 6024;
+const GAS_CONSUMPTION_JettonTransfer    = 8106;
+const GAS_CONSUMPTION_JettonReceive     = 9146;
+const GAS_CONSUMPTION_BurnRequest       = 4902;
+const GAS_CONSUMPTION_BurnNotification  = 5962;
 
 
 @inline

@@ -31,6 +31,19 @@ fun onBounce(inMsgBody: slice) {
     }
 }
 
+
+type AllowedMinterMessage =
+    MintNewJettons |
+    BurnNotificationForMinter |
+    RequestWalletAddress |
+    ChangeMinterAdmin |
+    ClaimMinterAdmin |
+    DropMinterAdmin |
+    ChangeMinterMetadataUri |
+    UpgradeMinterCode |
+    TopUpTons |
+;
+
 fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
     var inMsgFullSlice: slice = inMsgFull.beginParse();
     var msgFlags: int = inMsgFullSlice.loadMessageFlags();
@@ -43,168 +56,126 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
     var fwdFeeFromInMsg: int = inMsgFullSlice.retrieveFwdFee();
     var fwdFee: int = calculateOriginalMessageFee(MY_WORKCHAIN, fwdFeeFromInMsg); // we use message fwd_fee for estimation of forward_payload costs
 
-    var op = inMsgBody.loadMessageOp();
-
     // todo load storage once or lazily in each branch?
     var storage = MinterStorage.load();
 
-    if (op == OP_MINT) {
-        assert(senderAddress == storage.adminAddress) throw ERROR_NOT_OWNER;
-        var queryId = inMsgBody.loadMessageQueryId();
-        var toAddress = inMsgBody.loadAddress();
-        var tonAmount: int = inMsgBody.loadCoins();
-        var masterMsg: cell = inMsgBody.loadRef();
-        inMsgBody.assertEnd();
+    val msg = lazy AllowedMinterMessage.fromSlice(inMsgBody);
 
-        assert(toAddress.getWorkchain() == MY_WORKCHAIN) throw ERROR_WRONG_WORKCHAIN;
+    match (msg) {
+        MintNewJettons => {
+            assert(senderAddress == storage.adminAddress) throw ERROR_NOT_OWNER;
+            assert(msg.toOwnerAddress.getWorkchain() == MY_WORKCHAIN) throw ERROR_WRONG_WORKCHAIN;
 
-        // see internal_transfer TL-B layout in jetton.tlb
-        var masterMsgSlice: slice = masterMsg.beginParse();
-        assert(masterMsgSlice.loadMessageOp() == OP_INTERNAL_TRANSFER) throw ERROR_INVALID_OP;
-        masterMsgSlice.skipMessageQueryId();
-        var jettonAmount: int = masterMsgSlice.loadCoins();
-        masterMsgSlice.loadAddress(); // from_address
-        masterMsgSlice.loadAddress(); // response_address
-        var forwardTonAmount: int = masterMsgSlice.loadCoins(); // forward_ton_amount
-        checkEitherForwardPayload(masterMsgSlice); // either_forward_payload
+            val internalTransferMsg = lazy msg.internalTransferMsg.load({
+                throwIfOpcodeDoesNotMatch: ERROR_INVALID_OP
+            });
+            var forwardTonAmount = internalTransferMsg.forwardTonAmount;
+            checkEitherForwardPayload(internalTransferMsg.forwardPayload);
 
-        // a little more than needed, it’s ok since it’s sent by the admin and excesses will return back
-        checkAmountIsEnoughToTransfer(tonAmount, forwardTonAmount, fwdFee);
+            // a little more than needed, it’s ok since it’s sent by the admin and excesses will return back
+            checkAmountIsEnoughToTransfer(msg.tonAmount, forwardTonAmount, fwdFee);
 
-        storage.totalSupply += jettonAmount;
-        storage.save();
+            storage.totalSupply += internalTransferMsg.jettonAmount;
+            storage.save();
 
-        reserveToncoinsOnBalance(ton("0.01"), RESERVE_MODE_EXACT_AMOUNT); // reserve for storage fees
+            reserveToncoinsOnBalance(ton("0.01"), RESERVE_MODE_EXACT_AMOUNT); // reserve for storage fees
 
-        var stateInit = calculateJettonWalletStateInit(toAddress, contract.getAddress(), storage.jettonWalletCode);
-        var toWalletAddress = calculateJettonWalletAddress(stateInit);
+            var stateInit = calculateJettonWalletStateInit(msg.toOwnerAddress, contract.getAddress(), storage.jettonWalletCode);
+            var toWalletAddress = calculateJettonWalletAddress(stateInit);
 
-        // build MessageRelaxed, see TL-B layout in stdlib.fc#L733
-        var deployMsg = beginCell()
-            .storeMsgFlagsAndAddressNone(0x18)
-            .storeAddress(toWalletAddress) // dest
-            .storeCoins(tonAmount)
-            .storeStatinitRefAndBodyRef(stateInit, masterMsg)
-            .endCell();
-
-        sendRawMessage(deployMsg, SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
-        return;
-    }
-
-    if (op == OP_BURN_NOTIFICATION) {
-        // see burn_notification TL-B layout in jetton.tlb
-        var queryId = inMsgBody.loadMessageQueryId();
-        var jettonAmount = inMsgBody.loadCoins();
-        var fromAddress = inMsgBody.loadAddress();
-        var responseAddress = inMsgBody.loadAddress();
-        inMsgBody.assertEnd();
-
-        assert(senderAddress == calculateUserJettonWalletAddress(fromAddress, contract.getAddress(), storage.jettonWalletCode)) throw ERROR_NOT_VALID_WALLET;
-
-        storage.totalSupply -= jettonAmount;
-        storage.save();
-
-        if (responseAddress.isInternal()) {
             // build MessageRelaxed, see TL-B layout in stdlib.fc#L733
-            var excessesMsg = beginCell()
+            var deployMsg = beginCell()
+                .storeMsgFlagsAndAddressNone(0x18)
+                .storeAddress(toWalletAddress) // dest
+                .storeCoins(msg.tonAmount)
+                .storeStatinitRefAndBodyRef(stateInit, msg.internalTransferMsg)
+                .endCell();
+
+            sendRawMessage(deployMsg, SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+        }
+
+        BurnNotificationForMinter => {
+            assert(senderAddress == calculateUserJettonWalletAddress(msg.fromOwnerAddress, contract.getAddress(), storage.jettonWalletCode)) throw ERROR_NOT_VALID_WALLET;
+
+            storage.totalSupply -= msg.jettonAmount;
+            storage.save();
+
+            if (msg.sendExcessesTo.isInternal()) {
+                // build MessageRelaxed, see TL-B layout in stdlib.fc#L733
+                var excessesMsg = beginCell()
+                    .storeMsgFlagsAndAddressNone(0x10)
+                    .storeAddress(msg.sendExcessesTo) // dest
+                    .storeCoins(0)
+                    .storePrefixOnlyBody()
+                    .storeMessageOp(OP_EXCESSES)
+                    .storeMessageQueryId(msg.queryId)
+                    .endCell();
+                sendRawMessage(excessesMsg, SEND_MODE_IGNORE_ERRORS | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+            }
+        }
+
+        RequestWalletAddress => {
+            var includedAddress: cell? = msg.isIncludeAddress
+                ? beginCell().storeAddress(msg.ownerAddress).endCell()
+                : null;
+
+            // build MessageRelaxed, see TL-B layout in stdlib.fc#L733
+            var msgBuilder = beginCell()
                 .storeMsgFlagsAndAddressNone(0x10)
-                .storeAddress(responseAddress) // dest
+                .storeAddress(senderAddress)
                 .storeCoins(0)
                 .storePrefixOnlyBody()
-                .storeMessageOp(OP_EXCESSES)
-                .storeMessageQueryId(queryId)
-                .endCell();
-            sendRawMessage(excessesMsg, SEND_MODE_IGNORE_ERRORS | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
-        }
-        return;
-    }
+                .storeMessageOp(OP_TAKE_WALLET_ADDRESS)
+                .storeMessageQueryId(msg.queryId);
 
-    if (op == OP_PROVIDE_WALLET_ADDRESS) {
-        // see provide_wallet_address TL-B layout in jetton.tlb
-        var queryId = inMsgBody.loadMessageQueryId();
-        var ownerAddress = inMsgBody.loadAddress();
-        var isIncludeAddress = inMsgBody.loadBool();
-        inMsgBody.assertEnd();
+            if (msg.ownerAddress.getWorkchain() == MY_WORKCHAIN) {
+                msgBuilder = msgBuilder.storeAddress(calculateUserJettonWalletAddress(msg.ownerAddress, contract.getAddress(), storage.jettonWalletCode));
+            } else {
+                msgBuilder = msgBuilder.storeAddressNone();
+            }
 
-        var includedAddress: cell? = isIncludeAddress
-            ? beginCell().storeAddress(ownerAddress).endCell()
-            : null;
-
-        // build MessageRelaxed, see TL-B layout in stdlib.fc#L733
-        var msg = beginCell()
-            .storeMsgFlagsAndAddressNone(0x10)
-            .storeAddress(senderAddress)
-            .storeCoins(0)
-            .storePrefixOnlyBody()
-            .storeMessageOp(OP_TAKE_WALLET_ADDRESS)
-            .storeMessageQueryId(queryId);
-
-        if (ownerAddress.getWorkchain() == MY_WORKCHAIN) {
-            msg = msg.storeAddress(calculateUserJettonWalletAddress(ownerAddress, contract.getAddress(), storage.jettonWalletCode));
-        } else {
-            msg = msg.storeAddressNone();
+            var respondMsg = msgBuilder.storeMaybeRef(includedAddress).endCell();
+            sendRawMessage(respondMsg, SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
         }
 
-        var respondMsg = msg.storeMaybeRef(includedAddress).endCell();
-        sendRawMessage(respondMsg, SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
-        return;
-    }
+        ChangeMinterAdmin => {
+            assert(senderAddress == storage.adminAddress) throw ERROR_NOT_OWNER;
+            storage.nextAdminAddress = msg.newAdminAddress;
+            storage.save();
+        }
 
-    if (op == OP_CHANGE_ADMIN) {
-        assert(senderAddress == storage.adminAddress) throw ERROR_NOT_OWNER;
-        var queryId = inMsgBody.loadMessageQueryId();
-        val nextAdminAddress = inMsgBody.loadAddress();
-        inMsgBody.assertEnd();
-        storage.nextAdminAddress = nextAdminAddress;
-        storage.save();
-        return;
-    }
+        ClaimMinterAdmin => {
+            assert(senderAddress == storage.nextAdminAddress) throw ERROR_NOT_OWNER;
+            storage.adminAddress = storage.nextAdminAddress;
+            storage.nextAdminAddress = createAddressNone();
+            storage.save();
+        }
 
-    if (op == OP_CLAIM_ADMIN) {
-        var queryId = inMsgBody.loadMessageQueryId();
-        inMsgBody.assertEnd();
-        assert(senderAddress == storage.nextAdminAddress) throw ERROR_NOT_OWNER;
-        storage.adminAddress = storage.nextAdminAddress;
-        storage.nextAdminAddress = createAddressNone();
-        storage.save();
-        return;
-    }
+        DropMinterAdmin => {
+            assert(senderAddress == storage.adminAddress) throw ERROR_NOT_OWNER;
+            storage.adminAddress = createAddressNone();
+            storage.nextAdminAddress = createAddressNone();
+            storage.save();
+        }
 
-    if (op == OP_DROP_ADMIN) {
-        assert(senderAddress == storage.adminAddress) throw ERROR_NOT_OWNER;
-        var queryId = inMsgBody.loadMessageQueryId();
-        inMsgBody.assertEnd();
-        storage.adminAddress = createAddressNone();
-        storage.nextAdminAddress = createAddressNone();
-        storage.save();
-        return;
-    }
+        ChangeMinterMetadataUri => {
+            assert(senderAddress == storage.adminAddress) throw ERROR_NOT_OWNER;
+            storage.metadataUrl = beginCell().storeSlice(msg.newMetadataUrl).endCell();
+            storage.save();
+        }
 
-    if (op == OP_CHANGE_METADATA_URI) {
-        assert(senderAddress == storage.adminAddress) throw ERROR_NOT_OWNER;
-        var queryId = inMsgBody.loadMessageQueryId();
-        val metadataUri = inMsgBody;
-        storage.metadataUrl = beginCell().storeSlice(metadataUri).endCell();
-        storage.save();
-        return;
-    }
+        UpgradeMinterCode => {
+            assert(senderAddress == storage.adminAddress) throw ERROR_NOT_OWNER;
+            contract.setData(msg.newData);
+            contract.setCodePostponed(msg.newCode);
+        }
 
-    if (op == OP_UPGRADE) {
-        assert(senderAddress == storage.adminAddress) throw ERROR_NOT_OWNER;
-        var queryId = inMsgBody.loadMessageQueryId();
-        var newData = inMsgBody.loadRef();
-        var newCode = inMsgBody.loadRef();
-        inMsgBody.assertEnd();
-        contract.setData(newData);
-        contract.setCodePostponed(newCode);
-        return;
-    }
+        TopUpTons => {
+            // just accept tons
+        }
 
-    if (op == OP_TOP_UP) {
-        return; // just accept tons
+        else => throw 0xFFFF
     }
-
-    throw ERROR_WRONG_OP;
 }
 
 @inline
