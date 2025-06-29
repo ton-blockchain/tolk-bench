@@ -12,42 +12,20 @@ fun CollectionStorage.save(self) {
     contract.setData(self.toCell())
 }
 
-fun slice.loadTextString(mutate self) : slice {
-    val len = self.loadUint(8);
-    val data = self.loadBits(len * 8);
-    return data
-}
-
-struct DeployItemCmdAfterText {
-    content: cell;
-    auctionConfig: Cell<AuctionConfig>;
-    royalty: Cell<RoyaltyParams>?;
-    restrictions: Cell<Restrictions>?;
-}
-
-struct Restrictions {
-    forceSenderAddress: address?;
-    rewriteSenderAddress: address?;
-}
-
-@inline
-fun checkRestrictions(restrictionsCell: Cell<Restrictions>?, senderAddress: address) : address {
-    if (restrictionsCell != null) {
-        val restrictions = restrictionsCell.load();
-        if (restrictions.forceSenderAddress != null) {
-            assert(senderAddress == restrictions.forceSenderAddress) throw ERR_INVALID_SENDER_ADDRESS;
-        }
-        if (restrictions.rewriteSenderAddress != null) {
-            senderAddress = restrictions.rewriteSenderAddress;
-        }
+fun checkRestrictions(restrictions: OverrideRestrictionsAtDeploy, senderAddress: address) : address {
+    if (restrictions.forceSenderAddress != null) {
+        assert(senderAddress == restrictions.forceSenderAddress) throw ERR_INVALID_SENDER_ADDRESS;
+    }
+    if (restrictions.rewriteSenderAddress != null) {
+        senderAddress = restrictions.rewriteSenderAddress;
     }
     return senderAddress;
 }
 
-fun deployItem(senderAddress: address, bidAmount: coins, nftItemCode: cell, cmd: slice, fullDomain: slice, defaultRoyaltyParams: Cell<RoyaltyParams>) {
-    val tokenName = cmd.loadTextString();
-    val params = DeployItemCmdAfterText.fromSlice(cmd);
-    senderAddress = checkRestrictions(params.restrictions, senderAddress);
+fun deployItem(senderAddress: address, bidAmount: coins, nftItemCode: cell, params: SignedDataAtDeploy, fullDomain: TelegramString, defaultRoyaltyParams: Cell<RoyaltyParams>) {
+    if (params.restrictions != null) {
+        senderAddress = checkRestrictions(params.restrictions.load(), senderAddress);
+    }
 
     val auctionConfig = lazy params.auctionConfig.load();
     assert(bidAmount >= auctionConfig.minBid) throw ERR_NOT_ENOUGH_FUNDS;
@@ -62,8 +40,7 @@ fun deployItem(senderAddress: address, bidAmount: coins, nftItemCode: cell, cmd:
         return;
     }
 
-    var itemIndex: int = tokenName.bitsHash();
-    var tokenInfo: cell = packTokenInfo(tokenName, fullDomain);
+    var itemIndex: int = (params.tokenName as slice).bitsHash();
 
     val deployMsg = createMessage({
         bounce: true,
@@ -78,7 +55,7 @@ fun deployItem(senderAddress: address, bidAmount: coins, nftItemCode: cell, cmd:
         body: TelemintItemDeploy {
             bidderAddress: senderAddress,
             bidAmount: bidAmount,
-            tokenInfo: tokenInfo,
+            tokenInfo: TokenNameAndDomain { tokenName: params.tokenName, domain: fullDomain }.toCell(),
             nftContent: params.content,
             auctionConfig: params.auctionConfig,
             royaltyParams: params.royalty != null ? params.royalty : defaultRoyaltyParams,
@@ -121,7 +98,7 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
             assert(input.validSince < now) throw ERR_NOT_YET_VALID_SIGNATURE;
             assert(now < input.validTill) throw ERR_EXPIRED_SIGNATURE;
 
-            deployItem(senderAddress, msgValue, storage.nftItemCode, input.cmd, storage.fullDomain.load().data, storage.royaltyParams);
+            deployItem(senderAddress, msgValue, storage.nftItemCode, input, storage.fullDomain.load(), storage.royaltyParams);
         }
 
         else => throw ERR_UNKNOWN_OP

@@ -32,46 +32,6 @@ const ERR_INVALID_SENDER_ADDRESS = 224;
 
 const MY_WORKCHAIN = 0;
 
-@inline
-fun slice.loadText(mutate self) {
-    var len: int = self.loadUint(8);
-    var text: slice = self.loadBits(len * 8);
-    return text;
-}
-
-@inline
-fun slice.loadTextRef(mutate self) {
-    var textCs: slice = self.loadRef().beginParse();
-    var text: slice = textCs.loadText();
-    return text;
-}
-
-@inline
-fun builder.storeText(mutate self, text: slice): self {
-    var len: int = text.remainingBitsCount();
-    var (bytes: int, rem: int) = divMod(len, 8);
-    assert(!(rem)) throw ERR_INVALID_LENGTH;
-    return self.storeUint(bytes, 8)
-               .storeSlice(text);
-}
-
-fun unpackTokenInfo(c: cell): (slice, slice) {
-    var cs: slice = c.beginParse();
-    var res = (
-            cs.loadText(),
-            cs.loadText()
-    );
-    cs.assertEnd();
-    return res;
-}
-
-fun packTokenInfo(name: slice, domain: slice): cell {
-    return beginCell()
-            .storeText(name)
-            .storeText(domain)
-            .endCell();
-}
-
 fun AuctionConfig.isInvalid(self) {
     return
         (self.minBid < MIN_TONS_FOR_STORAGE + MINTING_PRICE_UPPER_BOUND) |

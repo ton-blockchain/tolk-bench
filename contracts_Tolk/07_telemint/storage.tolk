@@ -1,17 +1,26 @@
 
+// encoded as TL/B `len: (## 8) data: (bits (len*8))`
+type TelegramString = slice;
+
+fun TelegramString.packToBuilder(self, mutate b: builder) {
+    val bytes = self.remainingBitsCount() / 8;      // assume it's divisible (since decoded from input)
+    b.storeUint(bytes, 8);
+    b.storeSlice(self);
+}
+
+fun TelegramString.unpackFromSlice(mutate s: slice) {
+    val bytes = s.loadUint(8);
+    return s.loadBits(bytes * 8);
+}
+
 struct CollectionStorage {
     isCollectionInitialized: bool;
     subwalletId: uint32;
     publicKey: uint256;
     content: cell;
     nftItemCode: cell;
-    fullDomain: Cell<TTT>;
+    fullDomain: Cell<TelegramString>;
     royaltyParams: Cell<RoyaltyParams>;
-}
-
-struct TTT {        // todo naming
-    length: uint8;
-    data: RemainingBitsAndRefs;
 }
 
 struct RoyaltyParams {
@@ -40,7 +49,12 @@ struct ItemConfig {
 struct ItemContent {
     nftContent: cell;
     dns: cell?;
-    tokenInfo: cell;
+    tokenInfo: Cell<TokenNameAndDomain>;
+}
+
+struct TokenNameAndDomain {
+    tokenName: TelegramString;
+    domain: TelegramString;
 }
 
 struct AuctionConfig {

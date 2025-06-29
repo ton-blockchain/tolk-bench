@@ -434,8 +434,8 @@ get get_nft_data(): (bool, int, address, address, cell?) {
 get get_telemint_token_name(): slice {
     val storage = lazy ItemStorage.load();
     val itemContent = lazy storage.content.load();
-    var (tokenName: slice, domain: slice) = unpackTokenInfo(itemContent.tokenInfo);
-    return tokenName;
+    val tokenInfo = lazy itemContent.tokenInfo.load();
+    return tokenInfo.tokenName as slice;
 }
 
 get get_telemint_auction_state(): (address?, int, int, int, int) {

@@ -10,17 +10,26 @@ struct (0x4637289b) AskToDeployItem {
     signedData: RemainingBitsAndRefs;
 }
 
+struct OverrideRestrictionsAtDeploy {
+    forceSenderAddress: address?;
+    rewriteSenderAddress: address?;
+}
+
 struct SignedDataAtDeploy {
     subwalletId: uint32;
     validSince: uint32;
     validTill: uint32;
-    cmd: RemainingBitsAndRefs;
+    tokenName: TelegramString;
+    content: cell;
+    auctionConfig: Cell<AuctionConfig>;
+    royalty: Cell<RoyaltyParams>?;
+    restrictions: Cell<OverrideRestrictionsAtDeploy>?;
 }
 
 struct (0x299a3e15) TelemintItemDeploy {
     bidderAddress: address;
     bidAmount: coins;
-    tokenInfo: cell;
+    tokenInfo: Cell<TokenNameAndDomain>;
     nftContent: cell;
     auctionConfig: Cell<AuctionConfig>;
     royaltyParams: Cell<RoyaltyParams>;
