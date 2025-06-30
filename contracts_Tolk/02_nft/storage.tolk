@@ -24,10 +24,16 @@ struct NftItemStorageUninitialized {
     collectionAddress: address;
 }
 
-fun NftItemStorageUninitialized.generateEmptyData(index: uint64, collectionAddress: address) {
-    val initialNftItemStorage: NftItemStorageUninitialized = {
+fun calcDeployedNftItem(index: uint64, collectionAddress: address, nftItemCode: cell): AutoDeployAddress {
+    val emptyNftItemStorage: NftItemStorageUninitialized = {
         index,
         collectionAddress,
     };
-    return initialNftItemStorage.toCell();
+
+    return {
+        stateInit: {
+            code: nftItemCode,
+            data: emptyNftItemStorage.toCell()
+        }
+    }
 }

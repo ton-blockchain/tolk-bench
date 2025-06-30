@@ -190,5 +190,29 @@
       "NftItem bits": 13256,
       "NftItem cells": 34
     }
+  },
+  {
+    "commitDesc": "AutoDeployAddress build/match",
+    "gas": {
+      "EXTERNAL to collection": 1181,
+      "DEPLOY item by admin": 15879,
+      "REJECT incorrect sender": 16577,
+      "OVERRIDE restrictions": 16509,
+      "INCREASE next bid": 8197,
+      "AUCTION end on expire": 8037,
+      "AUCTION end reached max bid": 13771,
+      "AUCTION start by owner": 4774,
+      "AUCTION cancel if no bids": 4030,
+      "AUCTION first bid": 6302,
+      "AUCTION next bid": 8197,
+      "TRANSFER item": 7271,
+      "GET royalty params": 3593
+    },
+    "codeSize": {
+      "NftCollection bits": 4271,
+      "NftCollection cells": 15,
+      "NftItem bits": 13256,
+      "NftItem cells": 34
+    }
   }
 ]

@@ -100,5 +100,22 @@
       "wallet bits": 5935,
       "wallet cells": 12
     }
+  },
+  {
+    "commitDesc": "AutoDeployAddress build/match",
+    "gas": {
+      "MINT jettons by admin": 12546,
+      "TRANSFER with forward_amount": 16109,
+      "TRANSFER no forward_amount": 13783,
+      "BURN jettons": 10307,
+      "DISCOVER with include_address": 5479,
+      "DISCOVER no include_address": 4925
+    },
+    "codeSize": {
+      "minter bits": 8303,
+      "minter cells": 19,
+      "wallet bits": 5933,
+      "wallet cells": 12
+    }
   }
 ]

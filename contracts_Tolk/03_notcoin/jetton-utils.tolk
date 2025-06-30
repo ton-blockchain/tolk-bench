@@ -2,35 +2,31 @@ import "gas"
 import "errors"
 import "messages"
 
-fun WalletStorage.generateEmptyData(ownerAddress: address, minterAddress: address) {
+fun calcDeployedJettonWallet(ownerAddress: address, minterAddress: address, jettonWalletCode: cell): AutoDeployAddress {
     val emptyWalletStorage: WalletStorage = {
         status: 0,
         balance: 0,
         ownerAddress,
         minterAddress,
     };
-    return emptyWalletStorage.toCell();
+
+    return {
+        workchain: MY_WORKCHAIN,
+        stateInit: {
+            code: jettonWalletCode,
+            data: emptyWalletStorage.toCell()
+        }
+    }
 }
 
-fun buildAddressOfJettonWallet(ownerAddress: address, minterAddress: address, jettonWalletCode: cell): builder {
-    val stateInitHash = StateInit.calcHashCodeData(
-        jettonWalletCode,
-        WalletStorage.generateEmptyData(ownerAddress, minterAddress)
-    );
-    // todo manual work, how to better avoid it? (it's important to leave builder here)
-    return beginCell()
-        .storeUint(0b100, 3)
-        .storeUint(MY_WORKCHAIN, 8)
-        .storeUint(stateInitHash, 256);
+fun buildAddressOfJettonWallet(ownerAddress: address, minterAddress: address, jettonWalletCode: cell) {
+    val jwDeployed = calcDeployedJettonWallet(ownerAddress, minterAddress, jettonWalletCode);
+    return jwDeployed.buildAddress()
 }
 
 fun address.isAddressOfJettonWallet(self, ownerAddress: address, minterAddress: address, jettonWalletCode: cell) {
-    val (wc, hash) = self.getWorkchainAndHash();
-    val stateInitHash = StateInit.calcHashCodeData(
-        jettonWalletCode,
-        WalletStorage.generateEmptyData(ownerAddress, minterAddress)
-    );
-    return (wc == MY_WORKCHAIN) & (hash == stateInitHash);
+    val jwDeployed = calcDeployedJettonWallet(ownerAddress, minterAddress, jettonWalletCode);
+    return jwDeployed.addressMatches(self)
 }
 
 fun ForwardPayloadRemainder.checkIsCorrectTLBEither(self) {

@@ -12,8 +12,8 @@
         "clear": "rm -f bench-snapshots/*.last.json",
         "test all": "npm run clear && jest",
         "bench all": "npm run clear && jest -t bench",
-        "test exact": "npm run clear && jest -t 07_",
-        "bench exact": "npm run clear && jest -t 07_.*bench",
+        "test exact": "npm run clear && jest -t 04_",
+        "bench exact": "npm run clear && jest -t 04_.*bench",
         "save": "node tests/bench-cli.js save",
         "show": "node tests/bench-cli.js show"
     },
@@ -30,7 +30,7 @@
         "ts-jest": "^29.3.1",
         "ts-node": "^10.9.2",
         "typescript": "^5.8.3",
-        "@ton/tolk-js": "file://./ton-tolk-js-tmp-78.tgz",
+        "@ton/tolk-js": "file://./ton-tolk-js-tmp-84.tgz",
         "@ton-community/func-js": "^0.9.1",
         "ansi-colors": "^4.1.3"
     }

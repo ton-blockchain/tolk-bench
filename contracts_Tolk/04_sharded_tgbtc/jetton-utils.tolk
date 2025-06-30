@@ -1,46 +1,34 @@
 import "messages.tolk"
-import "errors.tolk"
 import "sharding.tolk"
 
-fun WalletStorage.generateEmptyData(ownerAddress: address, minterAddress: address) {
+fun calcDeployedJettonWallet(ownerAddress: address, minterAddress: address, jettonWalletCode: cell): AutoDeployAddress {
     val emptyWalletStorage: WalletStorage = {
         balance: 0,
         ownerAddress,
         minterAddress,
     };
-    return emptyWalletStorage.toCell();
+
+    return {
+        workchain: MY_WORKCHAIN,
+        stateInit: {
+            code: jettonWalletCode,
+            data: emptyWalletStorage.toCell()
+        },
+        toShard: {
+            fixedPrefixLength: SHARD_DEPTH,
+            closeTo: ownerAddress
+        }
+    }
 }
 
-fun address.getShardPrefix(self): int {
-    val firstBits = (self as slice).preloadUint(3 + 8 + SHARD_DEPTH);
-    val mask = (1 << SHARD_DEPTH) - 1;
-    return firstBits & mask;
-}
-
-fun buildAddressOfJettonWallet(ownerAddress: address, minterAddress: address, jettonWalletCode: cell): builder {
-    val stateInitHash = StateInit.calcHashPrefixCodeData(
-        SHARD_DEPTH,
-        jettonWalletCode,
-        WalletStorage.generateEmptyData(ownerAddress, minterAddress)
-    );
-    // todo manual work, how to better avoid it? (it's important to leave builder here)
-    var mask = (1 << (256 - SHARD_DEPTH)) - 1;
-    return beginCell()
-        .storeUint(0b100, 3)
-        .storeUint(MY_WORKCHAIN, 8)
-        .storeUint(ownerAddress.getShardPrefix(), SHARD_DEPTH)
-        .storeUint(stateInitHash & mask, 256 - SHARD_DEPTH);
+fun buildAddressOfJettonWallet(ownerAddress: address, minterAddress: address, jettonWalletCode: cell) {
+    val jwDeployed = calcDeployedJettonWallet(ownerAddress, minterAddress, jettonWalletCode);
+    return jwDeployed.buildAddress()
 }
 
 fun address.isAddressOfJettonWallet(self, ownerAddress: address, minterAddress: address, jettonWalletCode: cell) {
-    val (wc, hash) = self.getWorkchainAndHash();
-    val stateInitHash = StateInit.calcHashPrefixCodeData(
-        SHARD_DEPTH,
-        jettonWalletCode,
-        WalletStorage.generateEmptyData(ownerAddress, minterAddress)
-    );
-    var mask = (1 << (256 - SHARD_DEPTH)) - 1;
-    return (wc == MY_WORKCHAIN) & ((hash & mask) == (stateInitHash & mask));
+    val jwDeployed = calcDeployedJettonWallet(ownerAddress, minterAddress, jettonWalletCode);
+    return jwDeployed.addressMatches(self)
 }
 
 fun ForwardPayloadRemainder.checkIsCorrectTLBEither(self) {
@@ -52,6 +40,7 @@ fun ForwardPayloadRemainder.checkIsCorrectTLBEither(self) {
     // else forward_payload in slice - arbitrary bits and refs
 }
 
+// todo del after TVM 11
 // parse after sender_address
 @inline
 fun slice.retrieveFwdFee(mutate self): coins {

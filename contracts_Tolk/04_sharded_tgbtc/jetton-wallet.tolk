@@ -105,17 +105,7 @@ fun onInternalMessage(myTonBalance: int, msgValue: int, inMsgFull: cell, inMsgBo
 
             val deployMsg = createMessage({
                 bounce: true,
-                dest: {
-                    workchain: MY_WORKCHAIN,
-                    stateInit: {
-                        code: contract.getCode(),
-                        data: WalletStorage.generateEmptyData(msg.toOwnerAddress, storage.minterAddress)
-                    },
-                    toShard: {
-                        closeTo: msg.toOwnerAddress,
-                        fixedPrefixLength: SHARD_DEPTH
-                    }
-                },
+                dest: calcDeployedJettonWallet(msg.toOwnerAddress, storage.minterAddress, contract.getCode()),
                 value: 0,
                 body: InternalTransfer {
                     queryId: msg.queryId,

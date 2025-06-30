@@ -13,28 +13,11 @@ fun NftCollectionStorage.save(self) {
     contract.setData(self.toCell())
 }
 
-fun buildAddressOfNftItem(itemIndex: int, collectionAddress: address, nftItemCode: cell): builder {
-    val stateInitHash = StateInit.calcHashCodeData(
-        nftItemCode,
-        NftItemStorageUninitialized.generateEmptyData(itemIndex, collectionAddress)
-    );
-    // todo manual work, how to better avoid it? (it's important to leave builder here)
-    return beginCell()
-        .storeUint(0b100, 3)
-        .storeUint(BASECHAIN, 8)
-        .storeUint(stateInitHash, 256)
-}
-
 @inline
 fun deployNftItem(itemIndex: int, nftItemCode: cell, tonAmount: coins, initParams: Cell<NftItemInitAtDeployment>) {
     val deployMsg = createMessage({
         bounce: true,
-        dest: {
-            stateInit: {
-                code: nftItemCode,
-                data: NftItemStorageUninitialized.generateEmptyData(itemIndex, contract.getAddress())
-            }
-        },
+        dest: calcDeployedNftItem(itemIndex, contract.getAddress(), nftItemCode),
         value: tonAmount,
         body: initParams,
     });
@@ -138,8 +121,8 @@ get get_collection_data(): (int, cell, address) {
 
 get get_nft_address_by_index(itemIndex: int): address {
     val storage = lazy NftCollectionStorage.load();
-    val addrBuilt = buildAddressOfNftItem(itemIndex, contract.getAddress(), storage.nftItemCode);
-    return address.fromValidBuilder(addrBuilt);
+    val nftDeployed = calcDeployedNftItem(itemIndex, contract.getAddress(), storage.nftItemCode);
+    return address.fromValidBuilder(nftDeployed.buildAddress());
 }
 
 get royalty_params(): RoyaltyParams {

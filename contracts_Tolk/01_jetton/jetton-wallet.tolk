@@ -132,12 +132,7 @@ fun onInternalMessage(myBalance: int, msgValue: int, inMsgFull: cell, inMsgBody:
 
             val deployMsg = createMessage({
                 bounce: true,
-                dest: {
-                    stateInit: {
-                        code: contract.getCode(),   // we're deploying the same wallet as current
-                        data: WalletStorage.generateEmptyData(msg.toOwnerAddress, storage.minterAddress),
-                    }
-                },
+                dest: calcDeployedJettonWallet(msg.toOwnerAddress, storage.minterAddress, contract.getCode()),
                 value: 0,
                 body: InternalTransfer {
                     queryId: msg.queryId,

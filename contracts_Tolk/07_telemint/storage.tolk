@@ -1,3 +1,4 @@
+import "common"
 
 // encoded as TL/B `len: (## 8) data: (bits (len*8))`
 type TelegramString = slice;
@@ -79,11 +80,18 @@ struct LastBidInfo {
     bidTimestamp: uint32;
 }
 
-fun ItemStorageUninitialized.generateEmptyData(index: int, collectionAddress: address) {
-    val emptyItemStorage: ItemStorageUninitialized = {
+fun calcDeployedTeleItem(index: int, collectionAddress: address, nftItemCode: cell): AutoDeployAddress {
+    val emptyNftItemStorage: ItemStorageUninitialized = {
         config: ItemConfig { index, collectionAddress }.toCell(),
     };
-    return emptyItemStorage.toCell()
+
+    return {
+        workchain: MY_WORKCHAIN,
+        stateInit: {
+            code: nftItemCode,
+            data: emptyNftItemStorage.toCell()
+        }
+    }
 }
 
 fun Auction.createStartingFromNow(config: Cell<AuctionConfig>, minBid: coins, duration: int): Auction {
