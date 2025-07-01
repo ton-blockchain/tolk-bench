@@ -21,6 +21,7 @@ import { TransactionDescriptionGeneric, TransactionComputeVm } from '@ton/core';
 import { buildBlockchainLibraries, LibraryDeployer } from '../../wrappers/05_wallet-v5/library-deployer';
 import { default as config } from './config';
 import { ActionSetCode, ActionSetData } from './test-only-actions';
+import { ErrorsV5 } from '../../wrappers/05_wallet-v5/Errors'
 import { myCompile } from "../my-compile";
 
 const WALLET_ID = new WalletId({ networkGlobalId: -239, workChain: -1, subwalletNumber: 0 });
@@ -403,7 +404,8 @@ describe(numericFolder + ' external', () => {
                 (receipt.transactions[0].description as TransactionDescriptionGeneric)
                     .computePhase as TransactionComputeVm
             ).exitCode
-        ).toEqual(9);
+        // ).toEqual(9);
+        ).toEqual(ErrorsV5.invalid_c5);     // differs from FunC implementation (now it's more correct)
     });
 
     it('Should fail adding existing extension', async () => {

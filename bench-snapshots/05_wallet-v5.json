@@ -63,5 +63,18 @@
       "wallet_v5 bits": 5543,
       "wallet_v5 cells": 18
     }
+  },
+  {
+    "commitDesc": "optimize and improve verifyC5Actions",
+    "gas": {
+      "EXTERNAL transfer": 4388,
+      "INTERNAL transfer": 5262,
+      "ADD extension": 5420,
+      "EXTENSION transfer": 3601
+    },
+    "codeSize": {
+      "wallet_v5 bits": 5423,
+      "wallet_v5 cells": 18
+    }
   }
 ]

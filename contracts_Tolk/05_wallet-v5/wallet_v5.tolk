@@ -1,5 +1,7 @@
 import "@stdlib/tvm-dicts"
 import "@stdlib/gas-payments"
+import "errors"
+import "c5-register-validation"
 
 
 type ExtensionsDict = dict;
@@ -34,24 +36,6 @@ fun ExtensionsDict.tryDelete(mutate self, addrHash: uint256) {
     return self.uDictDelete(SIZE_ADDRESS_HASH, addrHash);
 }
 
-
-const ERROR_SIGNATURE_DISABLED = 132;
-const ERROR_INVALID_SEQNO = 133;
-const ERROR_INVALID_WALLET_ID = 134;
-const ERROR_INVALID_SIGNATURE = 135;
-const ERROR_EXPIRED = 136;
-const ERROR_EXTERNAL_SEND_MESSAGE_MUST_HAVE_IGNORE_ERRORS_SEND_MODE = 137;
-const ERROR_INVALID_MESSAGE_OPERATION = 138;
-const ERROR_ADD_EXTENSION = 139;
-const ERROR_REMOVE_EXTENSION = 140;
-const ERROR_UNSUPPORTED_ACTION = 141;
-const ERROR_DISABLE_SIGNATURE_WHEN_EXTENSIONS_IS_EMPTY = 142;
-const ERROR_THIS_SIGNATURE_MODE_ALREADY_SET = 143;
-const ERROR_REMOVE_LAST_EXTENSION_WHEN_SIGNATURE_DISABLED = 144;
-const ERROR_EXTENSION_WRONG_WORKCHAIN = 145;
-const ERROR_ONLY_EXTENSION_CAN_CHANGE_SIGNATURE_MODE = 146;
-const ERROR_INVALID_C5 = 147;
-
 const SIZE_BOOL = 1;
 const SIZE_SEQNO = 32;
 const SIZE_WALLET_ID = 32;
@@ -66,60 +50,6 @@ const SIZE_QUERY_ID = 64;
 const `prefix::signed_external` = 0x7369676E;
 const `prefix::signed_internal` = 0x73696E74;
 const `prefix::extension_action` = 0x6578746E;
-
-/// returns the number of trailing zeroes in slice s.
-@pure
-fun countTrailingZeroes(s: slice): int
-    asm "SDCNTTRAIL0";
-
-// `action_send_msg` has 0x0ec3c86d prefix
-// https://github.com/ton-blockchain/ton/blob/5c392e0f2d946877bb79a09ed35068f7b0bd333a/crypto/block/block.tlb#L380
-fun slice.enforceAndRemoveActionSendMsgPrefix(self): slice
-    asm "x{0ec3c86d} SDBEGINS";
-
-/// put raw list of OutActions to C5 register.
-/// OutList TLB-schema - https://github.com/ton-blockchain/ton/blob/5c392e0f2d946877bb79a09ed35068f7b0bd333a/crypto/block/block.tlb#L378
-/// C5 register - https://docs.ton.org/tvm.pdf, page 11
-fun setC5Actions(actionList: cell): void
-    asm "c5 POP";
-
-/// transforms an ordinary or exotic cell into a Slice, as if it were an ordinary cell. A flag is returned indicating whether c is exotic. If that be the case, its type can later be deserialized from the first eight bits of s.
-@pure
-fun cell.beginParseRaw(self): (slice, int)
-    asm "XCTOS";
-
-@inline
-fun cell.verifyC5Actions(self, isExternal: bool): cell {
-  // XCTOS doesn't automatically load exotic cells (unlike CTOS `begin_parse`).
-  // we use it in `verify_c5_actions` because during action phase processing exotic cells in c5 won't be unfolded too.
-  // exotic cell starts with 0x02, 0x03 or 0x04 so it will not pass action_send_msg prefix check
-  var (cs: slice, _) = self.beginParseRaw();
-
-  var count: int = 0;
-
-  while (!cs.isEnd()) {
-    // only `action_send_msg` is allowed; `action_set_code`, `action_reserve_currency` or `action_change_library` are not.
-    cs = cs.enforceAndRemoveActionSendMsgPrefix();
-
-    assert(cs.remainingBitsCount() == 8) throw ERROR_INVALID_C5; // send_mode
-    assert(cs.remainingRefsCount() == 2) throw ERROR_INVALID_C5; // next-action-ref and MessageRelaxed ref
-
-    // enforce that send_mode has +2 bit (ignore errors) set for external message.
-    // if such send_mode is not set and sending fails at the action phase (for example due to insufficient balance) then the seqno will not be increased and the external message will be processed again and again.
-
-    // action_send_msg#0ec3c86d mode:(## 8) out_msg:^(MessageRelaxed Any) = OutAction;
-    // https://github.com/ton-blockchain/ton/blob/5c392e0f2d946877bb79a09ed35068f7b0bd333a/crypto/block/block.tlb#L380
-    // load 7 bits and make sure that they end with 1
-    assert(!(isExternal & (countTrailingZeroes(cs.preloadBits(7)) > 0))) throw ERROR_EXTERNAL_SEND_MESSAGE_MUST_HAVE_IGNORE_ERRORS_SEND_MODE;
-
-    (cs, _) = cs.preloadRef().beginParseRaw();
-    count += 1;
-  }
-  assert(count <= 255) throw ERROR_INVALID_C5;
-  assert(cs.remainingRefsCount() == 0) throw ERROR_INVALID_C5;
-
-  return self;
-}
 
 struct(0x02) AddExtensionExtraAction {
     addr: address;
@@ -216,11 +146,8 @@ fun processSignedRequest(inMsgBody: slice, isExternal: bool) {
 
   var isSignatureValid = isSignatureValid(signedSlice.hash(), signature, storage.publicKey);
   if (!isSignatureValid) {
-    if (isExternal) {
-      throw ERROR_INVALID_SIGNATURE;
-    } else {
-      return;
-    }
+    assert (!isExternal) throw ERROR_INVALID_SIGNATURE;
+    return;
   }
 
   assert (storage.isSignatureAllowed | (storage.extensions == null)) throw ERROR_SIGNATURE_DISABLED;

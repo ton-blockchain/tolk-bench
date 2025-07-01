@@ -1106,7 +1106,8 @@ describe(numericFolder + ' external', () => {
                             op: Opcodes.auth_signed,
                             outMessagesCount: 0,
                             success: true, // Because of commit call
-                            exitCode: 9
+                            // exitCode: 9
+                            exitCode: ErrorsV5.invalid_c5   // differs from FunC implementation (now it's more correct)
                         });
                         expect(await wallet.getSeqno()).toEqual(Number(args.seqno) + 1);
                     },
@@ -1425,7 +1426,8 @@ describe(numericFolder + ' external', () => {
                             outMessagesCount: 1, // bounce
                             aborted: true,
                             success: false, // No commit anymore
-                            exitCode: 9
+                            // exitCode: 9
+                            exitCode: ErrorsV5.invalid_c5   // differs from FunC implementation (now it's more correct)
                         });
                         expect(await wallet.getSeqno()).toEqual(Number(args.seqno)); // On internal seqno is not commited
                     },
@@ -2259,7 +2261,8 @@ describe(numericFolder + ' external', () => {
                             outMessagesCount: 1, // bounce
                             aborted: true,
                             success: false, // No commit anymore
-                            exitCode: 9
+                            // exitCode: 9
+                            exitCode: ErrorsV5.invalid_c5   // differs from FunC implementation (now it's more correct)
                         });
                         expect(await wallet.getSeqno()).toEqual(Number(args.seqno)); // On internal seqno is not commited
                     },
