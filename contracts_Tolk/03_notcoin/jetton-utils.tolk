@@ -2,6 +2,7 @@ import "gas"
 import "errors"
 import "messages"
 
+
 fun calcDeployedJettonWallet(ownerAddress: address, minterAddress: address, jettonWalletCode: cell): AutoDeployAddress {
     val emptyWalletStorage: WalletStorage = {
         status: 0,

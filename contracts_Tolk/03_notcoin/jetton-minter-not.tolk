@@ -1,14 +1,10 @@
-// Jetton minter smart contract
-
-tolk 0.99
-
 import "@stdlib/gas-payments"
 import "@stdlib/tvm-dicts"
-
 import "errors"
-import "jetton-utils.tolk"
-import "gas.tolk"
-import "messages.tolk"
+import "jetton-utils"
+import "gas"
+import "messages"
+
 
 fun MinterStorage.load() {
     return MinterStorage.fromCell(contract.getData())
@@ -158,7 +154,7 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
 
         ChangeMinterMetadataUri => {
             assert(senderAddress == storage.adminAddress) throw ERROR_NOT_OWNER;
-            storage.metadataUrl = beginCell().storeSlice(msg.newMetadataUrl).endCell();
+            storage.metadataUri = msg.newMetadataUri.toCell();
             storage.save();
         }
 
@@ -176,22 +172,43 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
     }
 }
 
-@inline
-fun buildContentCell(metadataUri: slice): cell {
-    var contentDict: dict = createEmptyDict();
-    contentDict.setTokenSnakeMetadataEntry(stringSha256("uri"), metadataUri);
-    contentDict.setTokenSnakeMetadataEntry(stringSha256("decimals"), "9");
-    return createTokenOnchainMetadata(contentDict);
+
+
+struct JettonDataReply {
+    totalSupply: int;
+    mintable: bool;
+    adminAddress: address;
+    jettonContent: Cell<OnchainMetadataReply>;
+    jettonWalletCode: cell;
 }
 
-get get_jetton_data(): (int, bool, address, cell, cell) {
+struct (0x00) OnchainMetadataReply {
+    contentDict: dict;      // map from sha256(key) to Cell<SnakeDataReply>
+}
+
+struct (0x00) SnakeDataReply {
+    string: SnakeString;
+}
+
+get get_jetton_data(): JettonDataReply {
     val storage = lazy MinterStorage.load();
-    return (storage.totalSupply, true, storage.adminAddress, buildContentCell(storage.metadataUrl.beginParse()), storage.jettonWalletCode);
+    var metadata: OnchainMetadataReply = {
+        contentDict: createEmptyDict()
+    };
+    metadata.contentDict.setMetadataEntry(stringSha256("uri"), storage.metadataUri.load());
+    metadata.contentDict.setMetadataEntry(stringSha256("decimals"), "9");
+
+    return {
+        totalSupply: storage.totalSupply,
+        mintable: true,
+        adminAddress: storage.adminAddress,
+        jettonContent: metadata.toCell(),
+        jettonWalletCode: storage.jettonWalletCode,
+    }
 }
 
 get get_wallet_address(ownerAddress: address): address {
     val storage = lazy MinterStorage.load();
-    // todo here, in get method, gas comsumption is not important; if to construct StateInit, it will take less bytecode
     val addrBuilt = buildAddressOfJettonWallet(ownerAddress, contract.getAddress(), storage.jettonWalletCode);
     return address.fromValidBuilder(addrBuilt);
 }
@@ -201,16 +218,6 @@ get get_next_admin_address(): address {
     return storage.nextAdminAddress;
 }
 
-
-// Key is sha256 hash of string. Value is data encoded as described in "Data serialization" paragraph.
-// Snake format - must be prefixed with 0x00 byte
-fun dict.setTokenSnakeMetadataEntry(mutate self, key: int, value: slice): void {
-    self.uDictSetRef(256, key, beginCell().storeUint(0, 8).storeSlice(value).endCell());
-    return;
-}
-
-// On-chain content layout The first byte is 0x00 and the rest is key/value dictionary.
-@inline
-fun createTokenOnchainMetadata(contentDict: dict): cell {
-    return beginCell().storeUint(0, 8).storeDict(contentDict).endCell();
+fun dict.setMetadataEntry(mutate self, key: int, string: SnakeString) {
+    self.uDictSetRef(256, key, SnakeDataReply { string }.toCell());
 }

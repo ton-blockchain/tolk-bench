@@ -1,13 +1,9 @@
-// Jetton Wallet Smart Contract
-
-tolk 0.99
-
 import "@stdlib/gas-payments"
-
 import "errors"
-import "jetton-utils.tolk"
-import "gas.tolk"
-import "messages.tolk"
+import "jetton-utils"
+import "gas"
+import "messages"
+
 
 fun WalletStorage.load() {
     return WalletStorage.fromCell(contract.getData())
@@ -149,9 +145,24 @@ fun onInternalMessage(myTonBalance: int, msgValue: int, inMsgFull: cell, inMsgBo
     }
 }
 
-get get_wallet_data(): (int, address, address, cell) {
+
+
+struct JettonWalletDataReply {
+    balance: coins;
+    ownerAddress: address;
+    minterAddress: address;
+    jettonWalletCode: cell;
+}
+
+get get_wallet_data(): JettonWalletDataReply {
     var storage = lazy WalletStorage.load();
-    return (storage.balance, storage.ownerAddress, storage.minterAddress, contract.getCode());
+
+    return {
+        balance: storage.balance,
+        ownerAddress: storage.ownerAddress,
+        minterAddress: storage.minterAddress,
+        jettonWalletCode: contract.getCode(),
+    }
 }
 
 get get_status(): int {
