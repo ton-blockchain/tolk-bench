@@ -4,6 +4,9 @@ import "errors"
 import "c5-register-validation"
 
 
+const SIZE_SIGNATURE = 512;
+const SIZE_ADDRESS_HASH = 256;
+
 type ExtensionsDict = dict;
 
 struct Storage {
@@ -36,30 +39,19 @@ fun ExtensionsDict.tryDelete(mutate self, addrHash: uint256) {
     return self.uDictDelete(SIZE_ADDRESS_HASH, addrHash);
 }
 
-const SIZE_BOOL = 1;
-const SIZE_SEQNO = 32;
-const SIZE_WALLET_ID = 32;
-const SIZE_PUBLIC_KEY = 256;
-const SIZE_VALID_UNTIL = 32;
-const SIZE_MESSAGE_FLAGS = 4;
-const SIZE_SIGNATURE = 512;
-const SIZE_MESSAGE_OPERATION_PREFIX = 32;
-const SIZE_ADDRESS_HASH = 256;
-const SIZE_QUERY_ID = 64;
 
-const `prefix::signed_external` = 0x7369676E;
-const `prefix::signed_internal` = 0x73696E74;
-const `prefix::extension_action` = 0x6578746E;
+// -----------------
+// handle extra actions
 
-struct(0x02) AddExtensionExtraAction {
+struct (0x02) AddExtensionExtraAction {
     addr: address;
 }
 
-struct(0x03) RemoveExtensionExtraAction {
+struct (0x03) RemoveExtensionExtraAction {
     addr: address;
 }
 
-struct(0x04) SetSignatureAllowedExtraAction{
+struct (0x04) SetSignatureAllowedExtraAction {
     allowSignature: bool;
 }
 
@@ -69,21 +61,21 @@ type ExtraAction =
     SetSignatureAllowedExtraAction
 ;
 
-@inline_ref
-fun processActions(cs: slice, isExternal: bool, isExtension: bool) {
-    var c5Actions = cs.loadMaybeRef();
-    if (c5Actions != null) {
-        // Simply set the C5 register with all pre-computed actions after verification:
-        setC5Actions(c5Actions.verifyC5Actions(isExternal));
-    }
-    val hasOtherActions = cs.loadBool();
-    if (!hasOtherActions) {
-        return;
-    }
+// "extra actions" are represented in a snake format: "data".ref("data.ref("data"...))
+type SnakedExtraActions = RemainingBitsAndRefs;
 
-    // Loop extended actions
+fun SnakedExtraActions.hasNext(self) {
+    return self.remainingRefsCount()
+}
+
+fun SnakedExtraActions.getNext(self): SnakedExtraActions {
+    return self.preloadRef().beginParse()
+}
+
+@inline_ref
+fun processExtraActions(extraActions: SnakedExtraActions, isExtension: bool) {
     while (true) {
-        val action = lazy ExtraAction.fromSlice(cs);
+        val action = lazy ExtraAction.fromSlice(extraActions);
         match (action) {
             AddExtensionExtraAction => {
                 var (extensionWorkchain, extensionAddrHash) = action.addr.getWorkchainAndHash();
@@ -124,108 +116,147 @@ fun processActions(cs: slice, isExternal: bool, isExtension: bool) {
 
             else => throw ERROR_UNSUPPORTED_ACTION
         }
-        if (!cs.remainingRefsCount()) {
+        if (!extraActions.hasNext()) {
             return;
         }
-        cs = cs.preloadRef().beginParse();
+        extraActions = extraActions.getNext();
     }
 }
 
-// ------------------------------------------------------------------------------------------------
-
-@inline
-fun processSignedRequest(inMsgBody: slice, isExternal: bool) {
-  var signature: slice = inMsgBody.getLastBits(SIZE_SIGNATURE);
-  var signedSlice: slice = inMsgBody.removeLastBits(SIZE_SIGNATURE);
-
-  var cs: slice = signedSlice;
-  cs.skipBits(SIZE_MESSAGE_OPERATION_PREFIX); // skip signed_internal or signed_external prefix
-  var (walletId: int, validUntil: int, seqno: int) = (cs.loadUint(SIZE_WALLET_ID), cs.loadUint(SIZE_VALID_UNTIL), cs.loadUint(SIZE_SEQNO));
-
-  var storage = lazy Storage.load();
-
-  var isSignatureValid = isSignatureValid(signedSlice.hash(), signature, storage.publicKey);
-  if (!isSignatureValid) {
-    assert (!isExternal) throw ERROR_INVALID_SIGNATURE;
-    return;
-  }
-
-  assert (storage.isSignatureAllowed | (storage.extensions == null)) throw ERROR_SIGNATURE_DISABLED;
-  assert (seqno == storage.seqno) throw ERROR_INVALID_SEQNO;
-  assert (walletId == storage.subwalletId) throw ERROR_INVALID_WALLET_ID;
-  assert (validUntil > blockchain.now()) throw ERROR_EXPIRED;
-
-  if (isExternal) {
-    acceptExternalMessage();
-  }
-
-  // Store and commit the seqno increment to prevent replays even if the subsequent requests fail.
-  storage.isSignatureAllowed = true;
-  storage.seqno += 1;
-  storage.save();
-
-  if (isExternal) {
-    commitContractDataAndActions();
-  }
-
-  processActions(cs, isExternal, false);
+fun processActions(outActions: OutActionsCell?, hasExtraActions: bool, extraActions: SnakedExtraActions, isExternal: bool, isExtension: bool) {
+    if (outActions != null) {
+        // Simply set the C5 register with all pre-computed actions after verification:
+        setTvmRegisterC5(outActions.verifyC5Actions(isExternal));
+    }
+    if (hasExtraActions) {
+        processExtraActions(extraActions, isExtension);
+    }
 }
 
-@inline
+
+// -----------------
+// handle incoming messages (internal and external)
+
+struct (0x6578746E) ExtensionActionRequest {
+    queryId: uint64;
+    outActions: OutActionsCell?;
+    hasExtraActions: bool;
+    extraActions: SnakedExtraActions;
+}
+
+struct (0x73696E74) InternalSignedRequest {
+    walletId: uint32;
+    validUntil: uint32;
+    seqno: uint32;
+    outActions: OutActionsCell?;
+    hasExtraActions: bool;
+    extraActions: SnakedExtraActions;
+    // ends with a signature (512 bits), but it's parsed and compared separately
+}
+
+struct (0x7369676E) ExternalSignedRequest {
+    walletId: uint32;
+    validUntil: uint32;
+    seqno: uint32;
+    outActions: OutActionsCell?;
+    hasExtraActions: bool;
+    extraActions: SnakedExtraActions;
+    // ends with a signature (512 bits), but it's parsed and compared separately
+}
+
+type AllowedMessageToWallet = ExtensionActionRequest | InternalSignedRequest;
+
+
 fun onExternalMessage(inMsgBody: slice) {
-  assert(inMsgBody.preloadUint(SIZE_MESSAGE_OPERATION_PREFIX) == `prefix::signed_external`) throw ERROR_INVALID_MESSAGE_OPERATION;
-  processSignedRequest(inMsgBody, true);
+    var signature = inMsgBody.getLastBits(SIZE_SIGNATURE);
+    var signedSlice = inMsgBody.removeLastBits(SIZE_SIGNATURE);
+
+    var msg = ExternalSignedRequest.fromSlice(signedSlice, {
+        throwIfOpcodeDoesNotMatch: ERROR_INVALID_MESSAGE_OPERATION,
+    });
+
+    var storage = lazy Storage.load();
+
+    assert (isSignatureValid(signedSlice.hash(), signature, storage.publicKey)) throw ERROR_INVALID_SIGNATURE;
+    assert (storage.isSignatureAllowed | (storage.extensions == null)) throw ERROR_SIGNATURE_DISABLED;
+    assert (msg.seqno == storage.seqno) throw ERROR_INVALID_SEQNO;
+    assert (msg.walletId == storage.subwalletId) throw ERROR_INVALID_WALLET_ID;
+    assert (msg.validUntil > blockchain.now()) throw ERROR_EXPIRED;
+
+    acceptExternalMessage();
+
+    // Store and commit the seqno increment to prevent replays even if the subsequent requests fail.
+    storage.isSignatureAllowed = true;
+    storage.seqno += 1;
+    storage.save();
+
+    commitContractDataAndActions();
+    processActions(msg.outActions, msg.hasExtraActions, msg.extraActions, true, false);
 }
 
-// ------------------------------------------------------------------------------------------------
 
-@inline
 fun onInternalMessage(inMsgFull: cell, inMsgBody: slice) {
-  if (inMsgBody.remainingBitsCount() < SIZE_MESSAGE_OPERATION_PREFIX) {
-    return;
-  }
-  var op: int = inMsgBody.preloadUint(SIZE_MESSAGE_OPERATION_PREFIX);
-  if ((op != `prefix::extension_action`) & (op != `prefix::signed_internal`)) {
-    return;
-  }
+    val msg = lazy AllowedMessageToWallet.fromSlice(inMsgBody);
 
-  // bounded messages has 0xffffff prefix and skipped by op check
+    match (msg) {
+        ExtensionActionRequest => {
+            var inMsgFullSlice: slice = inMsgFull.beginParse();
+            inMsgFullSlice.loadMessageFlags();
+            val senderAddress = inMsgFullSlice.loadAddress();
 
-  if (op == `prefix::extension_action`) {
-    inMsgBody.skipBits(SIZE_MESSAGE_OPERATION_PREFIX);
+            var (senderWorkchain, senderAddrHash) = senderAddress.getWorkchainAndHash();
+            var myWorkchain = contract.getAddress().getWorkchain();
+            if (myWorkchain != senderWorkchain) {
+                return;
+            }
 
-    var inMsgFullSlice: slice = inMsgFull.beginParse();
-    inMsgFullSlice.skipBits(SIZE_MESSAGE_FLAGS);
-    // Authenticate extension by its address.
-    var (senderWorkchain: int, senderAddrHash: int) = inMsgFullSlice.loadAddress().getWorkchainAndHash();
-    var myWorkchain = contract.getAddress().getWorkchain();
-    if (myWorkchain != senderWorkchain) {
-      return;
+            val storage = lazy Storage.load();
+            if (!storage.extensions.exists(senderAddrHash)) {
+                // Note that some random contract may have deposited funds with this prefix,
+                // so we accept the funds silently instead of throwing an error (wallet v4 does the same).
+                return;
+            }
+
+            processActions(msg.outActions, msg.hasExtraActions, msg.extraActions, false, true);
+        }
+
+        InternalSignedRequest => {
+            val bodyLongEnough = inMsgBody.remainingBitsCount() >= SIZE_SIGNATURE + 128;
+            if (!bodyLongEnough) {
+                return;     // don't try to parse it (it will fail), just ignore
+            }
+
+            var signature = inMsgBody.getLastBits(SIZE_SIGNATURE);
+            var signedSlice = inMsgBody.removeLastBits(SIZE_SIGNATURE);
+
+            var storage = lazy Storage.load();
+            if (!isSignatureValid(signedSlice.hash(), signature, storage.publicKey)) {
+                return;
+            }
+
+            assert (storage.isSignatureAllowed | (storage.extensions == null)) throw ERROR_SIGNATURE_DISABLED;
+            assert (msg.seqno == storage.seqno) throw ERROR_INVALID_SEQNO;
+            assert (msg.walletId == storage.subwalletId) throw ERROR_INVALID_WALLET_ID;
+            assert (msg.validUntil > blockchain.now()) throw ERROR_EXPIRED;
+
+            // Store and commit the seqno increment to prevent replays even if the subsequent requests fail.
+            storage.isSignatureAllowed = true;
+            storage.seqno += 1;
+            storage.save();
+
+            processActions(msg.outActions, msg.hasExtraActions, msg.extraActions, false, false);
+        }
+
+        else => {
+            // if opcode is strange or body is empty at all (for instance, bounced messages)
+            // just ignore, do not throw
+        }
     }
-
-      val storage = lazy Storage.load();
-
-    // Note that some random contract may have deposited funds with this prefix,
-    // so we accept the funds silently instead of throwing an error (wallet v4 does the same).
-    if (!storage.extensions.exists(senderAddrHash)) {
-      return;
-    }
-
-    inMsgBody.skipBits(SIZE_QUERY_ID); // skip query_id
-
-    processActions(inMsgBody, false, true);
-    return;
-
-  }
-
-  // Additional check to make sure that there are enough bits for reading before signature check
-  if (inMsgBody.remainingBitsCount() < SIZE_MESSAGE_OPERATION_PREFIX + SIZE_WALLET_ID + SIZE_VALID_UNTIL + SIZE_SEQNO + SIZE_SIGNATURE) {
-    return;
-  }
-  processSignedRequest(inMsgBody, false);
 }
 
 
+// -----------------
+// getters of a contract
 
 get is_signature_allowed(): bool {
     val storage = lazy Storage.load();

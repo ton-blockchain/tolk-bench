@@ -76,5 +76,18 @@
       "wallet_v5 bits": 5423,
       "wallet_v5 cells": 18
     }
+  },
+  {
+    "commitDesc": "handle messages with match, optimize code",
+    "gas": {
+      "EXTERNAL transfer": 3917,
+      "INTERNAL transfer": 4564,
+      "ADD extension": 5045,
+      "EXTENSION transfer": 2969
+    },
+    "codeSize": {
+      "wallet_v5 bits": 5951,
+      "wallet_v5 cells": 20
+    }
   }
 ]

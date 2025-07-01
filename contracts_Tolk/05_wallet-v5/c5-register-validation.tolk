@@ -6,25 +6,27 @@ import "errors"
 
 /// "OutActionList" is what's pushed to c5
 /// see block.tlb: https://github.com/ton-blockchain/ton/blob/5c392e0f2d946877bb79a09ed35068f7b0bd333a/crypto/block/block.tlb#L378
+type OutActionsCell = cell;
+
 /// For instance, it contains "send message" actions (the only we allow)
 /// see block.tlb: https://github.com/ton-blockchain/ton/blob/5c392e0f2d946877bb79a09ed35068f7b0bd333a/crypto/block/block.tlb#L380
 struct (0x0ec3c86d) OutActionWithSendMessageOnly {
-    prev: cell;
+    prev: OutActionsCell;
     sendMode: uint8;
     outMsg: cell;
 }
 
 /// put a raw list of OutActions to C5 register
-fun setC5Actions(actionList: cell): void
+fun setTvmRegisterC5(actionList: cell): void
     asm "c5 POP";
 
 /// transform an ordinary or exotic cell into a slice, as if it were an ordinary cell
-fun cell.beginParseAllowExotic(self): slice
+fun OutActionsCell.beginParseAllowExotic(self): slice
     asm "XCTOS" "DROP";
 
 
 /// verify a cell containing OutActionList that it contains only "send message" actions
-fun cell.verifyC5Actions(self, isExternal: bool): self {
+fun OutActionsCell.verifyC5Actions(self, isExternal: bool): self {
     var count = 0;
 
     var cs = self.beginParseAllowExotic();
