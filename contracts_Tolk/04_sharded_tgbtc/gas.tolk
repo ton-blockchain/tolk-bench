@@ -1,6 +1,7 @@
 import "@stdlib/gas-payments"
-import "sharding.tolk"
-import "errors.tolk"
+import "sharding"
+import "errors"
+
 
 // Storage costs
 // these constants are used to estimate storage fee (how much we should pay for storing a wallet contract);

@@ -1,5 +1,6 @@
-import "messages.tolk"
-import "sharding.tolk"
+import "messages"
+import "sharding"
+
 
 fun calcDeployedJettonWallet(ownerAddress: address, minterAddress: address, jettonWalletCode: cell): AutoDeployAddress {
     val emptyWalletStorage: WalletStorage = {
