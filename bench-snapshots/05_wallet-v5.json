@@ -50,5 +50,18 @@
       "wallet_v5 bits": 5351,
       "wallet_v5 cells": 19
     }
+  },
+  {
+    "commitDesc": "lazy Storage and lazy match ExtraAction",
+    "gas": {
+      "EXTERNAL transfer": 4591,
+      "INTERNAL transfer": 5517,
+      "ADD extension": 5420,
+      "EXTENSION transfer": 3856
+    },
+    "codeSize": {
+      "wallet_v5 bits": 5543,
+      "wallet_v5 cells": 18
+    }
   }
 ]

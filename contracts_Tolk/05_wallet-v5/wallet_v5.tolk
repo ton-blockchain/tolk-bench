@@ -1,8 +1,38 @@
-tolk 0.99
-
 import "@stdlib/tvm-dicts"
 import "@stdlib/gas-payments"
 
+
+type ExtensionsDict = dict;
+
+struct Storage {
+    isSignatureAllowed: bool;
+    seqno: uint32;
+    subwalletId: uint32;
+    publicKey: uint256;
+    extensions: ExtensionsDict;     // from address hash to true
+}
+
+fun Storage.load() {
+    return Storage.fromCell(contract.getData());
+}
+
+fun Storage.save(self) {
+    contract.setData(self.toCell());
+}
+
+fun ExtensionsDict.exists(self, addrHash: uint256) {
+    var (_, extensionFound) = self.uDictGet(SIZE_ADDRESS_HASH, addrHash);
+    return extensionFound;
+}
+
+fun ExtensionsDict.tryInsert(mutate self, addrHash: uint256) {
+    // todo how to optimize it? need to achieve `b{1} PUSHSLICE`
+    return self.uDictSetBuilderIfNotExists(SIZE_ADDRESS_HASH, addrHash, beginCell().storeBool(true));
+}
+
+fun ExtensionsDict.tryDelete(mutate self, addrHash: uint256) {
+    return self.uDictDelete(SIZE_ADDRESS_HASH, addrHash);
+}
 
 
 const ERROR_SIGNATURE_DISABLED = 132;
@@ -36,13 +66,6 @@ const SIZE_QUERY_ID = 64;
 const `prefix::signed_external` = 0x7369676E;
 const `prefix::signed_internal` = 0x73696E74;
 const `prefix::extension_action` = 0x6578746E;
-
-fun slice.checkAndRemoveAddExtensionPrefix(mutate self): int
-    asm "x{02} SDBEGINSQ";
-fun slice.checkAndRemoveRemoveExtensionPrefix(mutate self): int
-    asm "x{03} SDBEGINSQ";
-fun slice.checkAndRemoveSetSignatureAllowedPrefix(mutate self): int
-    asm "x{04} SDBEGINSQ";
 
 /// returns the number of trailing zeroes in slice s.
 @pure
@@ -98,74 +121,84 @@ fun cell.verifyC5Actions(self, isExternal: bool): cell {
   return self;
 }
 
+struct(0x02) AddExtensionExtraAction {
+    addr: address;
+}
+
+struct(0x03) RemoveExtensionExtraAction {
+    addr: address;
+}
+
+struct(0x04) SetSignatureAllowedExtraAction{
+    allowSignature: bool;
+}
+
+type ExtraAction =
+    AddExtensionExtraAction |
+    RemoveExtensionExtraAction |
+    SetSignatureAllowedExtraAction
+;
+
 @inline_ref
 fun processActions(cs: slice, isExternal: bool, isExtension: bool) {
-  var c5Actions: cell? = cs.loadMaybeRef();
-  if (!(c5Actions == null)) {
-    // Simply set the C5 register with all pre-computed actions after verification:
-    setC5Actions(c5Actions.verifyC5Actions(isExternal));
-  }
-  if (cs.loadInt(1) == 0) { // has_other_actions
-    return;
-  }
-
-  // Loop extended actions until we reach standard actions
-  while (true) {
-    var isAddExtension: int = cs.checkAndRemoveAddExtensionPrefix();
-    var isRemoveExtension: int = isAddExtension ? 0 : cs.checkAndRemoveRemoveExtensionPrefix();
-    // Add/remove extensions
-    if (isAddExtension | isRemoveExtension) {
-      var (extensionWorkchain: int, extensionAddress: int) = cs.loadAddress().getWorkchainAndHash();
-      var myAddressWc = contract.getAddress().getWorkchain();
-
-      assert(myAddressWc == extensionWorkchain) throw ERROR_EXTENSION_WRONG_WORKCHAIN;
-
-      var dataSlice: slice = contract.getData().beginParse();
-      var dataSliceBeforeExtensions: slice = dataSlice.loadBits(SIZE_BOOL + SIZE_SEQNO + SIZE_WALLET_ID + SIZE_PUBLIC_KEY);
-      var extensions: dict = dataSlice.preloadDict();
-
-      // Add extension
-      if (isAddExtension) {
-        var isSuccess = extensions.uDictSetBuilderIfNotExists(SIZE_ADDRESS_HASH, extensionAddress, beginCell().storeInt(-1, 1));
-        assert(isSuccess) throw ERROR_ADD_EXTENSION;
-      } else { // Remove extension
-        var isSuccess = extensions.uDictDelete(SIZE_ADDRESS_HASH, extensionAddress);
-        assert(isSuccess) throw ERROR_REMOVE_EXTENSION;
-        var isSignatureAllowed: int = dataSliceBeforeExtensions.preloadInt(SIZE_BOOL);
-        assert(!(((extensions == null) as int) & (~ isSignatureAllowed))) throw ERROR_REMOVE_LAST_EXTENSION_WHEN_SIGNATURE_DISABLED;
-      }
-
-      contract.setData(beginCell()
-              .storeSlice(dataSliceBeforeExtensions)
-              .storeDict(extensions)
-              .endCell());
-
-    } else if (cs.checkAndRemoveSetSignatureAllowedPrefix()) {
-      assert(isExtension) throw ERROR_ONLY_EXTENSION_CAN_CHANGE_SIGNATURE_MODE;
-      var allowSignature: int = cs.loadInt(1);
-      var dataSlice: slice = contract.getData().beginParse();
-      var isSignatureAllowed: int = dataSlice.loadInt(SIZE_BOOL);
-      assert(!(isSignatureAllowed == allowSignature)) throw ERROR_THIS_SIGNATURE_MODE_ALREADY_SET;
-      isSignatureAllowed = allowSignature;
-
-      var dataTail: slice = dataSlice; // seqno, wallet_id, public_key, extensions
-      if (!allowSignature) { // disallow
-        var isExtensionsNotEmpty: int = dataSlice.skipBits(SIZE_SEQNO + SIZE_WALLET_ID + SIZE_PUBLIC_KEY).preloadInt(1);
-        assert(isExtensionsNotEmpty) throw ERROR_DISABLE_SIGNATURE_WHEN_EXTENSIONS_IS_EMPTY;
-      }
-
-      contract.setData(beginCell()
-        .storeInt(isSignatureAllowed, SIZE_BOOL)
-        .storeSlice(dataTail) // seqno, wallet_id, public_key, extensions
-        .endCell());
-    } else {
-      throw ERROR_UNSUPPORTED_ACTION;
+    var c5Actions = cs.loadMaybeRef();
+    if (c5Actions != null) {
+        // Simply set the C5 register with all pre-computed actions after verification:
+        setC5Actions(c5Actions.verifyC5Actions(isExternal));
     }
-    if (!cs.remainingRefsCount()) {
-      return;
+    val hasOtherActions = cs.loadBool();
+    if (!hasOtherActions) {
+        return;
     }
-    cs = cs.preloadRef().beginParse();
-  }
+
+    // Loop extended actions
+    while (true) {
+        val action = lazy ExtraAction.fromSlice(cs);
+        match (action) {
+            AddExtensionExtraAction => {
+                var (extensionWorkchain, extensionAddrHash) = action.addr.getWorkchainAndHash();
+                var myWorkchain = contract.getAddress().getWorkchain();
+                assert (myWorkchain == extensionWorkchain) throw ERROR_EXTENSION_WRONG_WORKCHAIN;
+
+                var storage = lazy Storage.load();
+                val inserted = storage.extensions.tryInsert(extensionAddrHash);
+                assert (inserted) throw ERROR_ADD_EXTENSION;
+                storage.save();
+            }
+
+            RemoveExtensionExtraAction => {
+                var (extensionWorkchain, extensionAddrHash) = action.addr.getWorkchainAndHash();
+                var myWorkchain = contract.getAddress().getWorkchain();
+                assert (myWorkchain == extensionWorkchain) throw ERROR_EXTENSION_WRONG_WORKCHAIN;
+
+                var storage = lazy Storage.load();
+                val removed = storage.extensions.tryDelete(extensionAddrHash);
+                assert (removed) throw ERROR_REMOVE_EXTENSION;
+                if (!storage.isSignatureAllowed) {
+                    assert (storage.extensions != null) throw ERROR_REMOVE_LAST_EXTENSION_WHEN_SIGNATURE_DISABLED;
+                }
+                storage.save();
+            }
+
+            SetSignatureAllowedExtraAction => {
+                assert (isExtension) throw ERROR_ONLY_EXTENSION_CAN_CHANGE_SIGNATURE_MODE;
+
+                var storage = lazy Storage.load();
+                assert (storage.isSignatureAllowed != action.allowSignature) throw ERROR_THIS_SIGNATURE_MODE_ALREADY_SET;
+                if (!action.allowSignature) {
+                    assert (storage.extensions != null) throw ERROR_DISABLE_SIGNATURE_WHEN_EXTENSIONS_IS_EMPTY;
+                }
+                storage.isSignatureAllowed = action.allowSignature;
+                storage.save();
+            }
+
+            else => throw ERROR_UNSUPPORTED_ACTION
+        }
+        if (!cs.remainingRefsCount()) {
+            return;
+        }
+        cs = cs.preloadRef().beginParse();
+    }
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -179,15 +212,9 @@ fun processSignedRequest(inMsgBody: slice, isExternal: bool) {
   cs.skipBits(SIZE_MESSAGE_OPERATION_PREFIX); // skip signed_internal or signed_external prefix
   var (walletId: int, validUntil: int, seqno: int) = (cs.loadUint(SIZE_WALLET_ID), cs.loadUint(SIZE_VALID_UNTIL), cs.loadUint(SIZE_SEQNO));
 
-  var dataSlice: slice = contract.getData().beginParse();
-  var isSignatureAllowed: int = dataSlice.loadInt(SIZE_BOOL);
-  var storedSeqno: int = dataSlice.loadUint(SIZE_SEQNO);
-  var dataTail: slice = dataSlice; // wallet_id, public_key, extensions
-  var storedWalletId: int = dataSlice.loadUint(SIZE_WALLET_ID);
-  var publicKey: int = dataSlice.loadUint(SIZE_PUBLIC_KEY);
-  var isExtensionsNotEmpty: int = dataSlice.preloadInt(1);
+  var storage = lazy Storage.load();
 
-  var isSignatureValid = isSignatureValid(signedSlice.hash(), signature, publicKey);
+  var isSignatureValid = isSignatureValid(signedSlice.hash(), signature, storage.publicKey);
   if (!isSignatureValid) {
     if (isExternal) {
       throw ERROR_INVALID_SIGNATURE;
@@ -195,22 +222,20 @@ fun processSignedRequest(inMsgBody: slice, isExternal: bool) {
       return;
     }
   }
-  assert(!((~ isSignatureAllowed) & isExtensionsNotEmpty)) throw ERROR_SIGNATURE_DISABLED;
-  assert(seqno == storedSeqno) throw ERROR_INVALID_SEQNO;
-  assert(walletId == storedWalletId) throw ERROR_INVALID_WALLET_ID;
-  assert(!(validUntil <= blockchain.now())) throw ERROR_EXPIRED;
+
+  assert (storage.isSignatureAllowed | (storage.extensions == null)) throw ERROR_SIGNATURE_DISABLED;
+  assert (seqno == storage.seqno) throw ERROR_INVALID_SEQNO;
+  assert (walletId == storage.subwalletId) throw ERROR_INVALID_WALLET_ID;
+  assert (validUntil > blockchain.now()) throw ERROR_EXPIRED;
 
   if (isExternal) {
     acceptExternalMessage();
   }
 
   // Store and commit the seqno increment to prevent replays even if the subsequent requests fail.
-  storedSeqno = storedSeqno + 1;
-  contract.setData(beginCell()
-    .storeBool(true) // is_signature_allowed
-    .storeUint(storedSeqno, SIZE_SEQNO)
-    .storeSlice(dataTail) // wallet_id, public_key, extensions
-    .endCell());
+  storage.isSignatureAllowed = true;
+  storage.seqno += 1;
+  storage.save();
 
   if (isExternal) {
     commitContractDataAndActions();
@@ -245,21 +270,17 @@ fun onInternalMessage(inMsgFull: cell, inMsgBody: slice) {
     var inMsgFullSlice: slice = inMsgFull.beginParse();
     inMsgFullSlice.skipBits(SIZE_MESSAGE_FLAGS);
     // Authenticate extension by its address.
-    var (senderAddressWc: int, senderAddressHash: int) = inMsgFullSlice.loadAddress().getWorkchainAndHash();
-    var myAddressWc = contract.getAddress().getWorkchain();
-
-    if (myAddressWc != senderAddressWc) {
+    var (senderWorkchain: int, senderAddrHash: int) = inMsgFullSlice.loadAddress().getWorkchainAndHash();
+    var myWorkchain = contract.getAddress().getWorkchain();
+    if (myWorkchain != senderWorkchain) {
       return;
     }
 
-    var extensions: dict = contract.getData().beginParse()
-      .skipBits(SIZE_BOOL + SIZE_SEQNO + SIZE_WALLET_ID + SIZE_PUBLIC_KEY)
-      .preloadDict();
+      val storage = lazy Storage.load();
 
     // Note that some random contract may have deposited funds with this prefix,
     // so we accept the funds silently instead of throwing an error (wallet v4 does the same).
-    var (_, extensionFound: bool) = extensions.uDictGet(SIZE_ADDRESS_HASH, senderAddressHash);
-    if (!extensionFound) {
+    if (!storage.extensions.exists(senderAddrHash)) {
       return;
     }
 
@@ -277,35 +298,30 @@ fun onInternalMessage(inMsgFull: cell, inMsgBody: slice) {
   processSignedRequest(inMsgBody, false);
 }
 
-// ------------------------------------------------------------------------------------------------
-// Get methods
 
-get is_signature_allowed(): int {
-  return contract.getData().beginParse()
-    .preloadInt(SIZE_BOOL);
+
+get is_signature_allowed(): bool {
+    val storage = lazy Storage.load();
+    return storage.isSignatureAllowed;
 }
 
 get seqno(): int {
-  return contract.getData().beginParse()
-    .skipBits(SIZE_BOOL)
-    .preloadUint(SIZE_SEQNO);
+    val storage = lazy Storage.load();
+    return storage.seqno;
 }
 
 get get_subwallet_id(): int {
-  return contract.getData().beginParse()
-    .skipBits(SIZE_BOOL + SIZE_SEQNO)
-    .preloadUint(SIZE_WALLET_ID);
+    val storage = lazy Storage.load();
+    return storage.subwalletId;
 }
 
 get get_public_key(): int {
-  return contract.getData().beginParse()
-    .skipBits(SIZE_BOOL + SIZE_SEQNO + SIZE_WALLET_ID)
-    .preloadUint(SIZE_PUBLIC_KEY);
+    val storage = lazy Storage.load();
+    return storage.publicKey;
 }
 
 // Returns raw dictionary (or null if empty) where keys are address hashes. Workchains of extensions are same with wallet smart contract workchain
 get get_extensions(): dict {
-  return contract.getData().beginParse()
-    .skipBits(SIZE_BOOL + SIZE_SEQNO + SIZE_WALLET_ID + SIZE_PUBLIC_KEY)
-    .preloadDict();
+    val storage = lazy Storage.load();
+    return storage.extensions;
 }
