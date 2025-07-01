@@ -1,5 +1,6 @@
 import "common"
 
+
 // encoded as TL/B `len: (## 8) data: (bits (len*8))`
 type TelegramString = slice;
 
@@ -30,7 +31,7 @@ struct RoyaltyParams {
     address: address;
 }
 
-struct ItemStorageUninitialized {
+struct ItemStorageNotInitialized {
     config: Cell<ItemConfig>;
 }
 
@@ -81,7 +82,7 @@ struct LastBidInfo {
 }
 
 fun calcDeployedTeleItem(index: int, collectionAddress: address, nftItemCode: cell): AutoDeployAddress {
-    val emptyNftItemStorage: ItemStorageUninitialized = {
+    val emptyNftItemStorage: ItemStorageNotInitialized = {
         config: ItemConfig { index, collectionAddress }.toCell(),
     };
 

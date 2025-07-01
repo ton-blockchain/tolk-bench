@@ -1,8 +1,8 @@
 import "@stdlib/gas-payments"
+import "common"
+import "storage"
+import "messages"
 
-import "common.tolk"
-import "storage.tolk"
-import "messages.tolk"
 
 fun CollectionStorage.load() {
     return CollectionStorage.fromCell(contract.getData())
@@ -12,7 +12,7 @@ fun CollectionStorage.save(self) {
     contract.setData(self.toCell())
 }
 
-fun checkRestrictions(restrictions: OverrideRestrictionsAtDeploy, senderAddress: address) : address {
+fun checkRestrictions(restrictions: OverrideRestrictionsAtDeploy, senderAddress: address): address {
     if (restrictions.forceSenderAddress != null) {
         assert(senderAddress == restrictions.forceSenderAddress) throw ERR_INVALID_SENDER_ADDRESS;
     }
@@ -58,7 +58,7 @@ fun deployItem(senderAddress: address, bidAmount: coins, nftItemCode: cell, para
     deployMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-type AllowedMessageForCollection = TopUp | AskToDeployItem;
+type AllowedMessageToCollection = TopUp | AskToDeployItem;
 
 fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
     var cs: slice = inMsgFull.beginParse();
@@ -72,7 +72,7 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
 
     assert(!inMsgBody.isEnd()) throw ERR_WRONG_TOPUP_COMMENT;
 
-    val msg = lazy AllowedMessageForCollection.fromSlice(inMsgBody);
+    val msg = lazy AllowedMessageToCollection.fromSlice(inMsgBody);
 
     match (msg) {
         TopUp => {
@@ -107,19 +107,30 @@ fun onExternalMessage(inMsg: slice) {
     storage.save();
 }
 
-// Get methods
 
-get get_collection_data() : (bool, cell, address) {
-    val storage = lazy CollectionStorage.load();
-    return (true, storage.content, createAddressNone());
+
+struct CollectionDataReply {
+    nextItemIndex: int;
+    collectionMetadata: cell;
+    ownerAddress: address;
 }
 
-get get_nft_address_by_index(index: int) : address {
+get get_collection_data(): CollectionDataReply {
+    val storage = lazy CollectionStorage.load();
+
+    return {
+        nextItemIndex: -1,
+        collectionMetadata: storage.content,
+        ownerAddress: createAddressNone(),
+    }
+}
+
+get get_nft_address_by_index(index: int): address {
     val storage = lazy CollectionStorage.load();
     val teleitemDeployed = calcDeployedTeleItem(index, contract.getAddress(), storage.nftItemCode);
     return address.fromValidBuilder(teleitemDeployed.buildAddress());
 }
 
-get get_nft_content(index: int, individualNftContent: cell) : cell {
+get get_nft_content(index: int, individualNftContent: cell): cell {
     return individualNftContent;
 }

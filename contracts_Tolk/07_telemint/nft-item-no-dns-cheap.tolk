@@ -1,34 +1,34 @@
 import "@stdlib/gas-payments"
+import "common"
+import "storage"
+import "messages"
 
-import "common.tolk"
-import "storage.tolk"
-import "messages.tolk"
 
-// actual storage of NFT item is tricky: it's either inited or not;
+// actual storage of an NFT item is tricky: it's either initialized or not;
 // after NFT has been inited, it's represented as `ItemStorage`;
-// before initialization, it has only cell ItemConfig: `ItemStorageUninitialized`;
+// before initialization, it has only cell ItemConfig: `ItemStorageNotInitialized`;
 // hence, we start parsing it, then we detect, whether it's inited or not
-struct ItemStorageEitherInitedOrNot {
+struct ItemStorageMaybeNotInitialized {
     contractData: slice;
 }
 
-// how do we detect whether it's inited or not?
+// how do we detect whether it's initialized or not?
 // the answer: when "inited", we store `ownerAddress` and other fields,
-// so, we have some data bits, and for uninited, we have only 1 ref (see ItemStorageUninitialized)
-fun ItemStorageEitherInitedOrNot.isInited(self) {
+// so, we have some data bits, and for uninited, we have only 1 ref (see ItemStorageNotInitialized)
+fun ItemStorageMaybeNotInitialized.isInitialized(self) {
     val hasData = self.contractData.remainingBitsCount();
     return hasData
 }
 
-fun ItemStorageEitherInitedOrNot.parseAsUninited(self) {
-    return ItemStorageUninitialized.fromSlice(self.contractData)
+fun ItemStorageMaybeNotInitialized.parseNotInitialized(self) {
+    return ItemStorageNotInitialized.fromSlice(self.contractData)
 }
 
-fun ItemStorageEitherInitedOrNot.parseAsInited(self) {
+fun ItemStorageMaybeNotInitialized.parseInitialized(self) {
     return ItemStorage.fromSlice(self.contractData)
 }
 
-fun startLoadingItemStorage(): ItemStorageEitherInitedOrNot {
+fun startLoadingItemStorage(): ItemStorageMaybeNotInitialized {
     return {
         contractData: contract.getData().beginParse()
     }
@@ -146,7 +146,7 @@ fun Auction.processNewBid(mutate self, mutate myBalance: coins, newBidAddress: a
     self.endTime = newEndTime;
 }
 
-fun initializeItemOnDeployingByCollection(uninitedSt: ItemStorageUninitialized, myBalance: int, msg: TelemintItemDeploy): ItemStorage {
+fun initializeItemOnDeployingByCollection(uninitedSt: ItemStorageNotInitialized, myBalance: int, msg: TelemintItemDeploy): ItemStorage {
     var ownerAddress = createAddressNone();
     var auctionForStorage: Cell<Auction>? = null;
 
@@ -199,8 +199,8 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
     var fwdFee: int = mulDivFloor(cs.loadCoins(), 3, 2); // we use message fwd_:fee for estimation of forward_payload costs
 
     var loadingStorage = startLoadingItemStorage();
-    if (!loadingStorage.isInited()) {
-        val uninitedSt = loadingStorage.parseAsUninited();
+    if (!loadingStorage.isInitialized()) {
+        val uninitedSt = loadingStorage.parseNotInitialized();
         val itemConfig = lazy uninitedSt.config.load();
         assert (senderAddress == itemConfig.collectionAddress) throw ERR_UNINITED;
 
@@ -213,7 +213,7 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
         return;
     }
 
-    var state = loadingStorage.parseAsInited();
+    var state = loadingStorage.parseInitialized();
 
     // since the last accepted message, current auction might have expired
     if (state.auction != null) {
@@ -236,7 +236,6 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
 
     match (msg) {
         MakeNewStakeOrTopUp => {
-            // todo make a separate struct with opcode "00000000#topup"? (now the compiler doesn't allow > 64 bits)
             var isTopup = msg.comment.bitsEqual("#topup") & (msg.comment.remainingRefsCount() == 0);
             if (isTopup) {
                 return;
@@ -414,53 +413,99 @@ fun onExternalMessage(inMsg: slice) {
     }
 }
 
-//
-//  GET Methods
-//
 
-get get_nft_data(): (bool, int, address, address, cell?) {
+
+struct NftDataReply {
+    isInitialized: bool;
+    itemIndex: int;
+    collectionAddress: address;
+    ownerAddress: address? = null;
+    content: cell? = null;
+}
+
+struct AuctionConfigReply {
+    benificiaryAddress: address?;
+    minBid: coins = 0;
+    maxBid: coins = 0;
+    minBidStep: uint8 = 0;
+    minExtendTime: uint32 = 0;
+    duration: uint32 = 0;
+}
+
+struct AuctionStateReply {
+    bidderAddress: address? = null;
+    bidAmount: coins = 0;
+    bidTimestamp: int = 0;
+    minBid: coins;
+    endTime: int;
+}
+
+get get_nft_data(): NftDataReply {
     var loadingStorage = startLoadingItemStorage();
-    if (!loadingStorage.isInited()) {
-        val uninitedSt = loadingStorage.parseAsUninited();
+    if (!loadingStorage.isInitialized()) {
+        val uninitedSt = loadingStorage.parseNotInitialized();
         val itemConfig = lazy uninitedSt.config.load();
-        return (false, itemConfig.index, itemConfig.collectionAddress, createAddressNone(), null);
-    } else {
-        val storage = loadingStorage.parseAsInited();
-        val itemConfig = lazy storage.config.load();
-        return (true, itemConfig.index, itemConfig.collectionAddress, storage.ownerAddress, storage.content);
+        return {
+            isInitialized: false,
+            itemIndex: itemConfig.index,
+            collectionAddress: itemConfig.collectionAddress,
+        }
+    }
+
+    val storage = loadingStorage.parseInitialized();
+    val itemConfig = lazy storage.config.load();
+    return {
+        isInitialized: true,
+        itemIndex: itemConfig.index,
+        collectionAddress: itemConfig.collectionAddress,
+        ownerAddress: storage.ownerAddress,
+        content: storage.content,
     }
 }
 
-get get_telemint_token_name(): slice {
+get get_telemint_token_name(): TelegramString {
     val storage = lazy ItemStorage.load();
     val itemContent = lazy storage.content.load();
     val tokenInfo = lazy itemContent.tokenInfo.load();
-    return tokenInfo.tokenName as slice;
+    return tokenInfo.tokenName;
 }
 
-get get_telemint_auction_state(): (address?, int, int, int, int) {
+get get_telemint_auction_state(): AuctionStateReply {
     val storage = lazy ItemStorage.load();
     assert (storage.auction != null) throw ERR_NO_AUCTION;
 
     val auction = storage.auction.load();
-    var (bidderAddress: address?, bid: int, bidTs: int) = (null, 0, 0);
+    var reply: AuctionStateReply = {
+        minBid: auction.minBid,
+        endTime: auction.endTime,
+    };
     if (auction.lastBid != null) {
         val lastBid = auction.lastBid.load();
-        (bidderAddress, bid, bidTs) = (lastBid.bidderAddress, lastBid.bidAmount, lastBid.bidTimestamp);
+        reply.bidderAddress = lastBid.bidderAddress;
+        reply.bidAmount = lastBid.bidAmount;
+        reply.bidTimestamp = lastBid.bidTimestamp;
     }
-    return (bidderAddress, bid, bidTs, auction.minBid, auction.endTime);
+    return reply;
 }
 
-get get_telemint_auction_config(): (address?, int, int, int, int, int) {
+get get_telemint_auction_config(): AuctionConfigReply {
     val storage = lazy ItemStorage.load();
     if (storage.auction == null) {
-        // Do not throw error, so it is easy to check if get_telemint_auction_config method exists
-        return (null, 0, 0, 0, 0, 0);
+        return {
+            benificiaryAddress: null,
+        }
     }
 
     val auction = lazy storage.auction.load();
     val c = lazy auction.config.load();
-    return (c.benificiaryAddress, c.minBid, c.maxBid, c.minBidStep, c.minExtendTime, c.duration);
+    return {
+        benificiaryAddress: c.benificiaryAddress,
+        minBid: c.minBid,
+        maxBid: c.maxBid,
+        minBidStep: c.minBidStep,
+        minExtendTime: c.minExtendTime,
+        duration: c.duration,
+    }
 }
 
 get royalty_params(): RoyaltyParams {

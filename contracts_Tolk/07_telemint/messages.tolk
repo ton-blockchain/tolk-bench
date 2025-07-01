@@ -1,6 +1,6 @@
-import "storage.tolk"
+import "storage"
 
-// todo + "#topup"
+
 struct (0x00000000) TopUp {
     comment: RemainingBitsAndRefs;
 }
