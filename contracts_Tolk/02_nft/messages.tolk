@@ -1,8 +1,9 @@
-import "storage.tolk"
+import "storage"
+
 
 struct NftItemInitAtDeployment {
     ownerAddress: address;
-    content: cell;
+    content: Cell<SnakeString>;
 }
 
 struct (0x693d3950) RequestRoyaltyParams {

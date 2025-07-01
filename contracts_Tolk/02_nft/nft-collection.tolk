@@ -1,9 +1,7 @@
 import "@stdlib/tvm-dicts"
+import "storage"
+import "messages"
 
-import "storage.tolk"
-import "messages.tolk"
-
-// NFT collection smart contract
 
 fun NftCollectionStorage.load() {
     return NftCollectionStorage.fromCell(contract.getData())
@@ -111,12 +109,27 @@ fun onInternalMessage(inMsgFull: cell, inMsgBody: slice) {
     }
 }
 
-// Get methods
 
-get get_collection_data(): (int, cell, address) {
+
+struct CollectionDataReply {
+    nextItemIndex: int;
+    collectionMetadata: cell;
+    ownerAddress: address;
+}
+
+struct (0x01) OffchainMetadataReply {
+    string: builder;        // builder with valid SnakeString
+}
+
+get get_collection_data(): CollectionDataReply {
     val storage = lazy NftCollectionStorage.load();
-    var cs: slice = storage.content.beginParse();    // todo what is this ref?
-    return (storage.nextItemIndex, cs.loadRef(), storage.ownerAddress);
+    val content = lazy storage.content.load();
+
+    return {
+        nextItemIndex: storage.nextItemIndex,
+        collectionMetadata: content.collectionMetadata,
+        ownerAddress: storage.ownerAddress,
+    }
 }
 
 get get_nft_address_by_index(itemIndex: int): address {
@@ -130,14 +143,18 @@ get royalty_params(): RoyaltyParams {
     return storage.royaltyParams.load();
 }
 
-get get_nft_content(index: int, individualNftContent: cell): cell {
+get get_nft_content(index: int, individualNftContent: Cell<SnakeString>): Cell<OffchainMetadataReply> {
     val storage = lazy NftCollectionStorage.load();
-    var cs: slice = storage.content.beginParse();       // todo what's the format?
-    cs.loadRef();
-    var commonContent: slice = cs.loadRef().beginParse();
-    return (beginCell()
-        .storeUint(1, 8) // offchain tag
-        .storeSlice(commonContent)
-        .storeRef(individualNftContent)
-        .endCell());
+    val content = lazy storage.content.load();
+
+    // construct a responce from "common content" and "individual content";
+    // for example:
+    // common content = "https://site.org/my-collection/"
+    // individual nft = "my-picture-123.png"  (probably, a long string, snake-encoded)
+    // result         = concatenation
+    return OffchainMetadataReply {
+        string: beginCell()
+            .storeSlice(content.commonContent.load())   // assume it's short (no refs)
+            .storeRef(individualNftContent)             // so, it's the first ref (snake encoding)
+    }.toCell()
 }

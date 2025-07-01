@@ -1,38 +1,35 @@
-import "@stdlib/gas-payments.tolk"
-import "storage.tolk"
-import "messages.tolk"
+import "@stdlib/gas-payments"
+import "storage"
+import "messages"
 
-//
-//  TON NFT Item Smart Contract
-//
 
 const MIN_TONS_FOR_STORAGE = ton("0.05");
 
-// actual storage of NFT item is tricky: it's either inited or not;
+// actual storage of an NFT item is tricky: it's either initialized or not;
 // after NFT has been inited, it's represented as `NftItemStorage`;
-// before initialization, it has only index and collectionAddress: `NftItemStorageUninitialized`;
+// before initialization, it has only index and collectionAddress: `NftItemStorageNotInitialized`;
 // hence, we start parsing it, that then we detect, whether it's inited or not
-struct NftItemStorageEitherInitedOrNot {
+struct NftItemStorageMaybeNotInitialized {
     contractData: slice;
 }
 
-// how do we detect whether it's inited or not?
+// how do we detect whether it's initialized or not?
 // the answer: when "inited", we store `content` (cell),
 // so, we have a ref, and for uninited, we don't have a ref
-fun NftItemStorageEitherInitedOrNot.isInited(self) {
+fun NftItemStorageMaybeNotInitialized.isInitialized(self) {
     val hasContent = self.contractData.remainingRefsCount();
     return hasContent
 }
 
-fun NftItemStorageEitherInitedOrNot.parseAsUninited(self) {
-    return NftItemStorageUninitialized.fromSlice(self.contractData)
+fun NftItemStorageMaybeNotInitialized.parseNotInitialized(self) {
+    return NftItemStorageNotInitialized.fromSlice(self.contractData)
 }
 
-fun NftItemStorageEitherInitedOrNot.parseAsInited(self) {
+fun NftItemStorageMaybeNotInitialized.parseInitialized(self) {
     return NftItemStorage.fromSlice(self.contractData)
 }
 
-fun startLoadingNftItemStorage(): NftItemStorageEitherInitedOrNot {
+fun startLoadingNftItemStorage(): NftItemStorageMaybeNotInitialized {
     return {
         contractData: contract.getData().beginParse()
     }
@@ -64,8 +61,8 @@ fun onInternalMessage(myBalance: int, msgValue: int, inMsgFull: cell, inMsgBody:
     var senderAddress = cs.loadAddress();
 
     var loadingStorage = startLoadingNftItemStorage();
-    if (!loadingStorage.isInited()) {
-        val uninitedSt = loadingStorage.parseAsUninited();
+    if (!loadingStorage.isInitialized()) {
+        val uninitedSt = loadingStorage.parseNotInitialized();
         assert(uninitedSt.collectionAddress == senderAddress) throw 405;
 
         // using a message from collection, convert "uninitialized" to "initialized" state
@@ -81,7 +78,7 @@ fun onInternalMessage(myBalance: int, msgValue: int, inMsgFull: cell, inMsgBody:
     }
 
     // todo load once or lazily in every branch?
-    var storage = loadingStorage.parseAsInited();
+    var storage = loadingStorage.parseInitialized();
 
     cs.loadAddress(); // skip dst
     cs.loadCoins(); // skip value
@@ -165,17 +162,33 @@ fun onInternalMessage(myBalance: int, msgValue: int, inMsgFull: cell, inMsgBody:
     }
 }
 
-//
-//  GET Methods
-//
 
-get get_nft_data(): (bool, int, address, address?, cell?) {
+
+struct NftDataReply {
+    isInitialized: bool;
+    itemIndex: int;
+    collectionAddress: address;
+    ownerAddress: address? = null;
+    content: Cell<SnakeString>? = null;
+}
+
+get get_nft_data(): NftDataReply {
     var loadingStorage = startLoadingNftItemStorage();
-    if (!loadingStorage.isInited()) {
-        val uninitedSt = loadingStorage.parseAsUninited();
-        return (false, uninitedSt.index, uninitedSt.collectionAddress, null, null);
-    } else {
-        val storage = loadingStorage.parseAsInited();
-        return (true, storage.index, storage.collectionAddress, storage.ownerAddress, storage.content);
+    if (!loadingStorage.isInitialized()) {
+        val uninitedSt = loadingStorage.parseNotInitialized();
+        return {
+            isInitialized: false,
+            itemIndex: uninitedSt.index,
+            collectionAddress: uninitedSt.collectionAddress,
+        }
+    }
+
+    val storage = loadingStorage.parseInitialized();
+    return {
+        isInitialized: true,
+        itemIndex: storage.index,
+        collectionAddress: storage.collectionAddress,
+        ownerAddress: storage.ownerAddress,
+        content: storage.content,
     }
 }
