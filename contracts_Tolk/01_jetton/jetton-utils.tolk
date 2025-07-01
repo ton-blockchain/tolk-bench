@@ -1,4 +1,5 @@
-import "messages.tolk"
+import "messages"
+
 
 fun calcDeployedJettonWallet(ownerAddress: address, minterAddress: address, jettonWalletCode: cell): AutoDeployAddress {
     val emptyWalletStorage: WalletStorage = {

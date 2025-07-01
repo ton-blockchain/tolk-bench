@@ -1,11 +1,8 @@
-// Jetton Wallet Smart Contract
-
-tolk 0.99
-
 import "@stdlib/gas-payments"
-import "errors.tolk"
-import "jetton-utils.tolk"
-import "messages.tolk"
+import "errors"
+import "jetton-utils"
+import "messages"
+
 
 const MIN_TONS_FOR_STORAGE = ton("0.01");
 // Note that 2 * gas_consumptions is expected to be able to cover fees on both wallets (sender and receiver)
@@ -173,7 +170,22 @@ fun onInternalMessage(myBalance: int, msgValue: int, inMsgFull: cell, inMsgBody:
     }
 }
 
-get get_wallet_data(): (coins, address, address, cell) {
+
+
+struct JettonWalletDataReply {
+    balance: coins;
+    ownerAddress: address;
+    minterAddress: address;
+    jettonWalletCode: cell;
+}
+
+get get_wallet_data(): JettonWalletDataReply {
     val storage = lazy WalletStorage.load();
-    return (storage.balance, storage.ownerAddress, storage.minterAddress, contract.getCode())
+
+    return {
+        balance: storage.balance,
+        ownerAddress: storage.ownerAddress,
+        minterAddress: storage.minterAddress,
+        jettonWalletCode: contract.getCode(),
+    }
 }

@@ -1,11 +1,8 @@
-// Jettons discoverable smart contract
-
-tolk 0.99
-
 import "@stdlib/gas-payments"
-import "errors.tolk"
-import "jetton-utils.tolk"
-import "messages.tolk"
+import "errors"
+import "jetton-utils"
+import "messages"
+
 
 // 6905(computational_gas_price) * 1000(cur_gas_price) = 6905000
 // ceil(6905000) = 10000000 ~= 0.01 TON
@@ -135,9 +132,26 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
     }
 }
 
-get get_jetton_data(): (int, bool, address, cell, cell) {
+
+
+struct JettonDataReply {
+    totalSupply: int;
+    mintable: bool;
+    adminAddress: address;
+    jettonContent: cell;
+    jettonWalletCode: cell;
+}
+
+get get_jetton_data(): JettonDataReply {
     val storage = lazy MinterStorage.load();
-    return (storage.totalSupply, true, storage.adminAddress, storage.content, storage.jettonWalletCode);
+
+    return {
+        totalSupply: storage.totalSupply,
+        mintable: true,
+        adminAddress: storage.adminAddress,
+        jettonContent: storage.content,
+        jettonWalletCode: storage.jettonWalletCode,
+    }
 }
 
 get get_wallet_address(ownerAddress: address): address {
