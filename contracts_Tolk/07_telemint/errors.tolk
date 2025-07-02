@@ -1,8 +1,3 @@
-import "storage"
-
-
-const MIN_TONS_FOR_STORAGE = ton("0.03");
-const MINTING_PRICE_UPPER_BOUND = ton("0.03");
 
 const ERR_INVALID_LENGTH = 201;
 const ERR_INVALID_SIGNATURE = 202;
@@ -30,14 +25,3 @@ const ERR_INCORRECT_WORKCHAIN = 333;
 const ERR_NO_FIRST_ZERO_BYTE = 413;
 const ERR_BAD_SUBDOMAIN_LENGTH = 70;
 const ERR_INVALID_SENDER_ADDRESS = 224;
-
-const MY_WORKCHAIN = 0;
-
-fun AuctionConfig.isInvalid(self) {
-    return
-        (self.minBid < MIN_TONS_FOR_STORAGE + MINTING_PRICE_UPPER_BOUND) |
-        ((self.maxBid != 0) & (self.maxBid < self.minBid)) |
-        (self.minBidStep <= 0) |
-        (self.minExtendTime > 60 * 60 * 24 * 7) |
-        (self.duration > 60 * 60 * 24 * 365);
-}

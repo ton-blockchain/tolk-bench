@@ -1,18 +1,12 @@
 import "storage"
 
-
 struct (0x00000000) TopUp {
-    comment: RemainingBitsAndRefs;
+    comment: RemainingBitsAndRefs;  // should be "#topup"
 }
 
 struct (0x4637289b) AskToDeployItem {
     signature: bits512;
     signedData: RemainingBitsAndRefs;
-}
-
-struct OverrideRestrictionsAtDeploy {
-    forceSenderAddress: address?;
-    rewriteSenderAddress: address?;
 }
 
 struct SignedDataAtDeploy {
@@ -24,6 +18,11 @@ struct SignedDataAtDeploy {
     auctionConfig: Cell<AuctionConfig>;
     royalty: Cell<RoyaltyParams>?;
     restrictions: Cell<OverrideRestrictionsAtDeploy>?;
+}
+
+struct OverrideRestrictionsAtDeploy {
+    forceSenderAddress: address?;
+    rewriteSenderAddress: address?;
 }
 
 struct (0x299a3e15) TelemintItemDeploy {

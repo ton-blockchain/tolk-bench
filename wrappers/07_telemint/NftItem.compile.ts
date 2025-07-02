@@ -4,7 +4,7 @@ export const compile: CompilerConfig = {
     // lang: 'func',
     // targets: ['nft-item-no-dns-cheap.fc']
     lang: 'tolk',
-    entrypoint: 'nft-item-no-dns-cheap.tolk',
+    entrypoint: 'telemint-item-contract.tolk',
     withSrcLineComments: true,
     withStackComments: true,
 }

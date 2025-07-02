@@ -1,5 +1,4 @@
-import "common"
-
+import "fees-management"
 
 // encoded as TL/B `len: (## 8) data: (bits (len*8))`
 type TelegramString = slice;
@@ -31,6 +30,15 @@ struct RoyaltyParams {
     address: address;
 }
 
+fun CollectionStorage.load() {
+    return CollectionStorage.fromCell(contract.getData())
+}
+
+fun CollectionStorage.save(self) {
+    contract.setData(self.toCell())
+}
+
+
 struct ItemStorageNotInitialized {
     config: Cell<ItemConfig>;
 }
@@ -42,6 +50,45 @@ struct ItemStorage {
     auction: Cell<Auction>?;
     royaltyParams: Cell<RoyaltyParams>;
 }
+
+// actual storage of an NFT item is tricky: it's either initialized or not;
+// after NFT has been inited, it's represented as `ItemStorage`;
+// before initialization, it has only cell ItemConfig: `ItemStorageNotInitialized`;
+// hence, we start parsing it, then we detect, whether it's inited or not
+struct ItemStorageMaybeNotInitialized {
+    contractData: slice;
+}
+
+// how do we detect whether it's initialized or not?
+// the answer: when "inited", we store `ownerAddress` and other fields,
+// so, we have some data bits, and for uninited, we have only 1 ref (see ItemStorageNotInitialized)
+fun ItemStorageMaybeNotInitialized.isInitialized(self) {
+    val hasData = self.contractData.remainingBitsCount();
+    return hasData
+}
+
+fun ItemStorageMaybeNotInitialized.parseNotInitialized(self) {
+    return ItemStorageNotInitialized.fromSlice(self.contractData)
+}
+
+fun ItemStorageMaybeNotInitialized.parseInitialized(self) {
+    return ItemStorage.fromSlice(self.contractData)
+}
+
+fun startLoadingItemStorage(): ItemStorageMaybeNotInitialized {
+    return {
+        contractData: contract.getData().beginParse()
+    }
+}
+
+fun ItemStorage.load() {
+    return ItemStorage.fromCell(contract.getData())
+}
+
+fun ItemStorage.save(self) {
+    contract.setData(self.toCell())
+}
+
 
 struct ItemConfig {
     index: uint256;
@@ -102,4 +149,13 @@ fun Auction.createStartingFromNow(config: Cell<AuctionConfig>, minBid: coins, du
         minBid: minBid,
         endTime: blockchain.now() + duration
     }
+}
+
+fun AuctionConfig.isInvalid(self) {
+    return
+        (self.minBid < MIN_TONS_FOR_STORAGE + MINTING_PRICE_UPPER_BOUND) |
+        ((self.maxBid != 0) & (self.maxBid < self.minBid)) |
+        (self.minBidStep <= 0) |
+        (self.minExtendTime > 60 * 60 * 24 * 7) |
+        (self.duration > 60 * 60 * 24 * 365);
 }

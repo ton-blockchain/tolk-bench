@@ -1,46 +1,8 @@
 import "@stdlib/gas-payments"
-import "common"
+import "errors"
+import "fees-management"
 import "storage"
 import "messages"
-
-
-// actual storage of an NFT item is tricky: it's either initialized or not;
-// after NFT has been inited, it's represented as `ItemStorage`;
-// before initialization, it has only cell ItemConfig: `ItemStorageNotInitialized`;
-// hence, we start parsing it, then we detect, whether it's inited or not
-struct ItemStorageMaybeNotInitialized {
-    contractData: slice;
-}
-
-// how do we detect whether it's initialized or not?
-// the answer: when "inited", we store `ownerAddress` and other fields,
-// so, we have some data bits, and for uninited, we have only 1 ref (see ItemStorageNotInitialized)
-fun ItemStorageMaybeNotInitialized.isInitialized(self) {
-    val hasData = self.contractData.remainingBitsCount();
-    return hasData
-}
-
-fun ItemStorageMaybeNotInitialized.parseNotInitialized(self) {
-    return ItemStorageNotInitialized.fromSlice(self.contractData)
-}
-
-fun ItemStorageMaybeNotInitialized.parseInitialized(self) {
-    return ItemStorage.fromSlice(self.contractData)
-}
-
-fun startLoadingItemStorage(): ItemStorageMaybeNotInitialized {
-    return {
-        contractData: contract.getData().beginParse()
-    }
-}
-
-fun ItemStorage.load() {
-    return ItemStorage.fromCell(contract.getData())
-}
-
-fun ItemStorage.save(self) {
-    contract.setData(self.toCell())
-}
 
 fun sendMoney(myBalance: int, address: address, value: int): int {
     var amountToSend: int = min(myBalance - MIN_TONS_FOR_STORAGE, value);
@@ -109,7 +71,7 @@ fun Auction.calcNewOwnerOnExpire(self, mutate myBalance: int, oldOwner: address,
 
 @inline
 fun Auction.processNewBid(mutate self, mutate myBalance: coins, newBidAddress: address, newBid: int) {
-    assert(newBid >= self.minBid) throw ERR_TOO_SMALL_STAKE;
+    assert (newBid >= self.minBid) throw ERR_TOO_SMALL_STAKE;
     val auctionConfig = lazy self.config.load();
 
     var newEndTime: int = max(self.endTime, blockchain.now() + auctionConfig.minExtendTime);
@@ -244,7 +206,7 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
             if (state.auction == null) {
                 // only owner can fill-up balance, prevent coins lost right after the auction
                 // if owner send bid right after auction he can restore it by transfer response message
-                assert(senderAddress == state.ownerAddress) throw ERR_FORBIDDEN_TOPUP;
+                assert (senderAddress == state.ownerAddress) throw ERR_FORBIDDEN_TOPUP;
                 return;
             }
             var auction = state.auction.load();
@@ -344,7 +306,7 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
             }
             var needResponse = msg.sendExcessesTo.isInternal();
             if (needResponse) {
-                assert(msg.sendExcessesTo.getWorkchain() == MY_WORKCHAIN) throw ERR_INCORRECT_WORKCHAIN;
+                assert (msg.sendExcessesTo.getWorkchain() == MY_WORKCHAIN) throw ERR_INCORRECT_WORKCHAIN;
                 restAmount -= fwdFee;
             }
 

@@ -1,20 +1,11 @@
 import "@stdlib/gas-payments"
-import "common"
+import "errors"
 import "storage"
 import "messages"
 
-
-fun CollectionStorage.load() {
-    return CollectionStorage.fromCell(contract.getData())
-}
-
-fun CollectionStorage.save(self) {
-    contract.setData(self.toCell())
-}
-
 fun checkRestrictions(restrictions: OverrideRestrictionsAtDeploy, senderAddress: address): address {
     if (restrictions.forceSenderAddress != null) {
-        assert(senderAddress == restrictions.forceSenderAddress) throw ERR_INVALID_SENDER_ADDRESS;
+        assert (senderAddress == restrictions.forceSenderAddress) throw ERR_INVALID_SENDER_ADDRESS;
     }
     if (restrictions.rewriteSenderAddress != null) {
         senderAddress = restrictions.rewriteSenderAddress;
@@ -28,7 +19,7 @@ fun deployItem(senderAddress: address, bidAmount: coins, nftItemCode: cell, para
     }
 
     val auctionConfig = lazy params.auctionConfig.load();
-    assert(bidAmount >= auctionConfig.minBid) throw ERR_NOT_ENOUGH_FUNDS;
+    assert (bidAmount >= auctionConfig.minBid) throw ERR_NOT_ENOUGH_FUNDS;
     if (auctionConfig.isInvalid()) {
         val returnBidMsg = createMessage({
             bounce: false,
@@ -70,7 +61,7 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
     }
     var senderAddress = cs.loadAddress();
 
-    assert(!inMsgBody.isEnd()) throw ERR_WRONG_TOPUP_COMMENT;
+    assert (!inMsgBody.isEnd()) throw ERR_WRONG_TOPUP_COMMENT;
 
     val msg = lazy AllowedMessageToCollection.fromSlice(inMsgBody);
 
@@ -78,19 +69,19 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
         TopUp => {
             // NB: it is not possible to recover any money transferred to this account
             // so we return back all transfers except ones with comment #topup in it
-            assert(msg.comment.bitsEqual("#topup") & (msg.comment.remainingRefsCount() == 0)) throw ERR_WRONG_TOPUP_COMMENT;
+            assert (msg.comment.bitsEqual("#topup") & (msg.comment.remainingRefsCount() == 0)) throw ERR_WRONG_TOPUP_COMMENT;
         }
 
         AskToDeployItem => {
             val storage = lazy CollectionStorage.load();
             val hash = msg.signedData.hash();
-            assert(isSignatureValid(hash, msg.signature as slice, storage.publicKey)) throw ERR_INVALID_SIGNATURE;
+            assert (isSignatureValid(hash, msg.signature as slice, storage.publicKey)) throw ERR_INVALID_SIGNATURE;
 
             val input = lazy SignedDataAtDeploy.fromSlice(msg.signedData);
-            assert(storage.subwalletId == input.subwalletId) throw ERR_WRONG_SUBWALLET_ID;
+            assert (storage.subwalletId == input.subwalletId) throw ERR_WRONG_SUBWALLET_ID;
             var now = blockchain.now();
-            assert(input.validSince < now) throw ERR_NOT_YET_VALID_SIGNATURE;
-            assert(now < input.validTill) throw ERR_EXPIRED_SIGNATURE;
+            assert (input.validSince < now) throw ERR_NOT_YET_VALID_SIGNATURE;
+            assert (now < input.validTill) throw ERR_EXPIRED_SIGNATURE;
 
             deployItem(senderAddress, msgValue, storage.nftItemCode, input, storage.fullDomain.load(), storage.royaltyParams);
         }
@@ -101,7 +92,7 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
 
 fun onExternalMessage(inMsg: slice) {
     var storage = lazy CollectionStorage.load();
-    assert(!storage.isCollectionInitialized) throw ERR_FORBIDDEN_TOUCH;
+    assert (!storage.isCollectionInitialized) throw ERR_FORBIDDEN_TOUCH;
     acceptExternalMessage();
     storage.isCollectionInitialized = true;
     storage.save();

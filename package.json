@@ -12,8 +12,8 @@
         "clear": "rm -f bench-snapshots/*.last.json",
         "test all": "npm run clear && jest",
         "bench all": "npm run clear && jest -t bench",
-        "test exact": "npm run clear && jest 06",
-        "bench exact": "npm run clear && jest 06 -t bench",
+        "test exact": "npm run clear && jest 07",
+        "bench exact": "npm run clear && jest 07 -t bench",
         "save": "node tests/bench-cli.js save",
         "show": "node tests/bench-cli.js show"
     },
