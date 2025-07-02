@@ -1,12 +1,10 @@
-import "gas"
-import "errors"
-import "messages"
-
+import "fees-management"
+import "storage"
 
 fun calcDeployedJettonWallet(ownerAddress: address, minterAddress: address, jettonWalletCode: cell): AutoDeployAddress {
     val emptyWalletStorage: WalletStorage = {
         status: 0,
-        balance: 0,
+        jettonBalance: 0,
         ownerAddress,
         minterAddress,
     };
@@ -28,15 +26,6 @@ fun buildAddressOfJettonWallet(ownerAddress: address, minterAddress: address, je
 fun address.isAddressOfJettonWallet(self, ownerAddress: address, minterAddress: address, jettonWalletCode: cell) {
     val jwDeployed = calcDeployedJettonWallet(ownerAddress, minterAddress, jettonWalletCode);
     return jwDeployed.addressMatches(self)
-}
-
-fun ForwardPayloadRemainder.checkIsCorrectTLBEither(self) {
-    // self is TL/B `(Either Cell ^Cell)`; we want to test, that if ^Cell, no other data exists in a slice
-    var mutableCopy = self;
-    if (mutableCopy.loadMaybeRef() != null) {
-        mutableCopy.assertEnd();
-    }
-    // else forward_payload in slice - arbitrary bits and refs
 }
 
 // todo del after TVM 11

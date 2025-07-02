@@ -2,33 +2,11 @@ import "@stdlib/gas-payments"
 import "@stdlib/tvm-dicts"
 import "errors"
 import "jetton-utils"
-import "gas"
+import "fees-management"
+import "storage"
 import "messages"
 
-
-fun MinterStorage.load() {
-    return MinterStorage.fromCell(contract.getData())
-}
-
-fun MinterStorage.save(self) {
-    contract.setData(self.toCell())
-}
-
-// todo inline or inline_ref?
-fun onBounce(inMsgBody: slice) {
-    inMsgBody.skipBouncedPrefix();
-    // process only mint bounces
-    if (inMsgBody.loadMessageOp() == InternalTransfer.getDeclaredPackPrefix()) {
-        inMsgBody.skipMessageQueryId();
-        var jettonAmount: int = inMsgBody.loadCoins();
-        var storage = lazy MinterStorage.load();
-        storage.totalSupply -= jettonAmount;
-        storage.save();
-    }
-}
-
-
-type AllowedMinterMessage =
+type AllowedMessageToMinter =
     MintNewJettons |
     BurnNotificationForMinter |
     RequestWalletAddress |
@@ -39,6 +17,19 @@ type AllowedMinterMessage =
     UpgradeMinterCode |
     TopUpTons |
 ;
+
+// todo inline or inline_ref?
+fun onBounce(inMsgBody: slice) {
+    inMsgBody.skipBouncedPrefix();
+    // process only mint bounces
+    if (inMsgBody.loadMessageOp() == InternalTransferStep.getDeclaredPackPrefix()) {
+        inMsgBody.skipMessageQueryId();
+        var jettonAmount: int = inMsgBody.loadCoins();
+        var storage = lazy MinterStorage.load();
+        storage.totalSupply -= jettonAmount;
+        storage.save();
+    }
+}
 
 fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
     var inMsgFullSlice: slice = inMsgFull.beginParse();
@@ -55,11 +46,11 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
     // todo load storage once or lazily in each branch?
     var storage = MinterStorage.load();
 
-    val msg = lazy AllowedMinterMessage.fromSlice(inMsgBody);
+    val msg = lazy AllowedMessageToMinter.fromSlice(inMsgBody);
 
     match (msg) {
         BurnNotificationForMinter => {
-            assert(senderAddress.isAddressOfJettonWallet(msg.fromOwnerAddress, contract.getAddress(), storage.jettonWalletCode)) throw ERROR_NOT_VALID_WALLET;
+            assert (senderAddress.isAddressOfJettonWallet(msg.burnInitiator, contract.getAddress(), storage.jettonWalletCode)) throw ERROR_NOT_VALID_WALLET;
             storage.totalSupply -= msg.jettonAmount;
             storage.save();
 
@@ -79,7 +70,7 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
         }
 
         RequestWalletAddress => {
-            var includedAddress: Cell<address>? = msg.isIncludeAddress
+            var ownerAddress: Cell<address>? = msg.includeOwnerAddress
                 ? msg.ownerAddress.toCell()
                 : null;
 
@@ -97,8 +88,8 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
                 body: UnsafeBodyNoRef {     // tell the compiler that `builder` (walletAddress) is small and safe to inline
                     forceInline: ResponseWalletAddress {
                         queryId: msg.queryId,
-                        walletAddress,
-                        includedAddress,
+                        jettonWalletAddress: walletAddress,
+                        ownerAddress: ownerAddress,
                     }
                 }
             });
@@ -106,8 +97,8 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
         }
 
         MintNewJettons => {
-            assert(senderAddress == storage.adminAddress) throw ERROR_NOT_OWNER;
-            assert(msg.toOwnerAddress.getWorkchain() == MY_WORKCHAIN) throw ERROR_WRONG_WORKCHAIN;
+            assert (senderAddress == storage.adminAddress) throw ERROR_NOT_OWNER;
+            assert (msg.mintRecipient.getWorkchain() == MY_WORKCHAIN) throw ERROR_WRONG_WORKCHAIN;
 
             val internalTransferMsg = lazy msg.internalTransferMsg.load({
                 throwIfOpcodeDoesNotMatch: ERROR_INVALID_OP
@@ -125,7 +116,7 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
 
             val deployMsg = createMessage({
                 bounce: true,
-                dest: calcDeployedJettonWallet(msg.toOwnerAddress, contract.getAddress(), storage.jettonWalletCode),
+                dest: calcDeployedJettonWallet(msg.mintRecipient, contract.getAddress(), storage.jettonWalletCode),
                 value: msg.tonAmount,
                 body: msg.internalTransferMsg,
             });
@@ -133,33 +124,33 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
         }
 
         ChangeMinterAdmin => {
-            assert(senderAddress == storage.adminAddress) throw ERROR_NOT_OWNER;
+            assert (senderAddress == storage.adminAddress) throw ERROR_NOT_OWNER;
             storage.nextAdminAddress = msg.newAdminAddress;
             storage.save();
         }
 
         ClaimMinterAdmin => {
-            assert(senderAddress == storage.nextAdminAddress) throw ERROR_NOT_OWNER;
+            assert (senderAddress == storage.nextAdminAddress) throw ERROR_NOT_OWNER;
             storage.adminAddress = storage.nextAdminAddress;
             storage.nextAdminAddress = createAddressNone();
             storage.save();
         }
 
         DropMinterAdmin => {
-            assert(senderAddress == storage.adminAddress) throw ERROR_NOT_OWNER;
+            assert (senderAddress == storage.adminAddress) throw ERROR_NOT_OWNER;
             storage.adminAddress = createAddressNone();
             storage.nextAdminAddress = createAddressNone();
             storage.save();
         }
 
         ChangeMinterMetadataUri => {
-            assert(senderAddress == storage.adminAddress) throw ERROR_NOT_OWNER;
+            assert (senderAddress == storage.adminAddress) throw ERROR_NOT_OWNER;
             storage.metadataUri = msg.newMetadataUri.toCell();
             storage.save();
         }
 
         UpgradeMinterCode => {
-            assert(senderAddress == storage.adminAddress) throw ERROR_NOT_OWNER;
+            assert (senderAddress == storage.adminAddress) throw ERROR_NOT_OWNER;
             contract.setData(msg.newData);
             contract.setCodePostponed(msg.newCode);
         }

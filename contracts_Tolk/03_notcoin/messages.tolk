@@ -1,62 +1,28 @@
-// SnakeString describes a (potentially long) string inside a cell;
-// short strings are stored as-is, like "my-picture.png";
-// long strings are nested refs, like "xxxx".ref("yyyy".ref("zzzz"))
-type SnakeString = slice;
-
-fun SnakeString.unpackFromSlice(mutate s: slice) {
-    // obviously, SnakeString can be only the last: it's just "the remainder";
-    // for correctness, it's better to validate it has no more refs:
-    // assert (s.remainingRefsCount() <= 1) throw 5;
-    // but since here we're matching the original FunC implementation, leave no checks
-    val snakeRemainder = s;
-    s = createEmptySlice();     // no more left to read
-    return snakeRemainder
-}
-
-fun SnakeString.packToBuilder(self, mutate b: builder) {
-    b.storeSlice(self)
-}
-
-
-struct WalletStorage {
-    status: uint4;
-    balance: coins;     // todo rename? balanceInJettons?
-    ownerAddress: address;
-    minterAddress: address;
-}
-
-struct MinterStorage {
-    totalSupply: coins;
-    adminAddress: address;
-    nextAdminAddress: address;
-    jettonWalletCode: cell;
-    metadataUri: Cell<SnakeString>;
-}
-
+import "storage"
 
 type ForwardPayloadRemainder = RemainingBitsAndRefs;
 
 struct (0x0f8a7ea5) AskToTransfer {
     queryId: uint64;
     jettonAmount: coins;
-    toOwnerAddress: address;
+    transferRecipient: address;
     sendExcessesTo: address;
     customPayload: cell?;
     forwardTonAmount: coins;
     forwardPayload: ForwardPayloadRemainder;
 }
 
-struct (0x7362d09c) TransferNotificationForOwner {
+struct (0x7362d09c) TransferNotificationForRecipient {
     queryId: uint64;
     jettonAmount: coins;
-    fromAddress: address;       // todo what is this address?
+    transferInitiator: address;
     forwardPayload: ForwardPayloadRemainder;
 }
 
-struct (0x178d4519) InternalTransfer {
+struct (0x178d4519) InternalTransferStep {
     queryId: uint64;
     jettonAmount: coins;
-    ownerAddress: address;      // todo fromOwnerAddress?
+    transferInitiator: address;
     sendExcessesTo: address;
     forwardTonAmount: coins;
     forwardPayload: ForwardPayloadRemainder;
@@ -76,28 +42,27 @@ struct (0x595f07bc) AskToBurn {
 struct (0x7bdd97de) BurnNotificationForMinter {
     queryId: uint64;
     jettonAmount: coins;
-    fromOwnerAddress: address;
+    burnInitiator: address;
     sendExcessesTo: address;
 }
 
 struct (0x2c76b973) RequestWalletAddress {
     queryId: uint64;
     ownerAddress: address;
-    isIncludeAddress: bool;
+    includeOwnerAddress: bool;
 }
 
 struct (0xd1735400) ResponseWalletAddress {
     queryId: uint64;
-    walletAddress: builder;
-    includedAddress: Cell<address>?;
+    jettonWalletAddress: builder;
+    ownerAddress: Cell<address>?;
 }
 
 struct (0x00000015) MintNewJettons {
     queryId: uint64;
-    toOwnerAddress: address;
+    mintRecipient: address;
     tonAmount: coins;
-    jettonAmount: coins;    // todo unused, what does it mean?
-    internalTransferMsg: Cell<InternalTransfer>;
+    internalTransferMsg: Cell<InternalTransferStep>;
 }
 
 struct (0x6501f354) ChangeMinterAdmin {
@@ -126,3 +91,14 @@ struct (0xcb862902) ChangeMinterMetadataUri {
 
 struct (0xd372158c) TopUpTons {
 }
+
+
+fun ForwardPayloadRemainder.checkIsCorrectTLBEither(self) {
+    // self is TL/B `(Either Cell ^Cell)`; we want to test, that if ^Cell, no other data exists in a slice
+    var mutableCopy = self;
+    if (mutableCopy.loadMaybeRef() != null) {
+        mutableCopy.assertEnd();
+    }
+    // else forward_payload in slice - arbitrary bits and refs
+}
+

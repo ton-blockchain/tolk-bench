@@ -72,21 +72,21 @@ const numericFolder = '03_notcoin';
 
 let actualConstantsInGasTolk = {
     GAS_CONSUMPTION_JettonTransfer:   0n,       // are assigned on tests run
-    GAS_CONSUMPTION_JettonReceive:    0n,       // and also exist in gas.tolk (embedded into a contract)
+    GAS_CONSUMPTION_JettonReceive:    0n,       // and also exist in fees-management.tolk (embedded into a contract)
     GAS_CONSUMPTION_BurnRequest:      0n,       // they are expected be equal
     GAS_CONSUMPTION_BurnNotification: 0n,       // (otherwise, tests fail)
 }
 
 function printActualGasConstants() {
     let s = `
-// these gas constants should be in \`gas.tolk\` ${numericFolder}:
+// these gas constants should be in \`fees-management.tolk\` ${numericFolder}:
 
 const GAS_CONSUMPTION_JettonTransfer    = ${actualConstantsInGasTolk.GAS_CONSUMPTION_JettonTransfer};
 const GAS_CONSUMPTION_JettonReceive     = ${actualConstantsInGasTolk.GAS_CONSUMPTION_JettonReceive};
 const GAS_CONSUMPTION_BurnRequest       = ${actualConstantsInGasTolk.GAS_CONSUMPTION_BurnRequest};
 const GAS_CONSUMPTION_BurnNotification  = ${actualConstantsInGasTolk.GAS_CONSUMPTION_BurnNotification};
 `;
-    console.log(s)      // when tests fail, probably gas.tolk should be updated
+    console.log(s)      // when tests fail, probably fees-management.tolk should be updated
 }
 
 describe(numericFolder, () => {
