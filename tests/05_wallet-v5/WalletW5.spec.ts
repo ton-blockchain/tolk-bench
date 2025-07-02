@@ -39,7 +39,7 @@ import {
     ExtensionAdd,
     ExtensionRemove
 } from '../../wrappers/05_wallet-v5/wallet-v5-test';
-import { myCompile } from "../my-compile";
+import { activateTVM11, myCompile } from "../my-compile";
 
 const numericFolder = '05_wallet-v5';
 
@@ -132,6 +132,7 @@ describe(numericFolder + ' external', () => {
 
     beforeAll(async () => {
         blockchain = await Blockchain.create();
+        activateTVM11(blockchain);
         code = await myCompile(numericFolder, 'wallet_v5');
         keys = keyPairFromSeed(await getSecureRandomBytes(32));
 

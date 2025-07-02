@@ -15,7 +15,7 @@ import { TransactionDescriptionGeneric } from '@ton/core/src/types/TransactionDe
 import { TransactionComputeVm } from '@ton/core/src/types/TransactionComputePhase';
 import { buildBlockchainLibraries, LibraryDeployer } from '../../wrappers/05_wallet-v5/library-deployer';
 import { default as config } from './config';
-import { myCompile } from "../my-compile";
+import { activateTVM11, myCompile } from "../my-compile";
 
 const WALLET_ID = new WalletId({ networkGlobalId: -239, workChain: 0, subwalletNumber: 0 });
 
@@ -64,6 +64,7 @@ describe(numericFolder + ' extensions', () => {
 
     beforeEach(async () => {
         blockchain = await Blockchain.create();
+        activateTVM11(blockchain);
         blockchain.libs = buildBlockchainLibraries([code]);
 
         keypair = keyPairFromSeed(await getSecureRandomBytes(32));

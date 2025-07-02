@@ -46,7 +46,7 @@ import {
     computeGasFee,
 } from './gasUtils';
 import { sha256 } from '@ton/crypto';
-import { myCompile } from "../my-compile";
+import { activateTVM11, myCompile } from "../my-compile";
 import { GasLogAndSave } from '../gas-logger';
 
 /*
@@ -149,6 +149,7 @@ describe(numericFolder, () => {
         GAS_LOG.rememberBocSize('minter', minter_code);
         GAS_LOG.rememberBocSize('wallet', jwallet_code_raw);
         blockchain = await Blockchain.create();
+        activateTVM11(blockchain);
         blockchain.now = Math.floor(Date.now() / 1000);
         deployer = await blockchain.treasury('deployer');
         notDeployer = await blockchain.treasury('notDeployer');

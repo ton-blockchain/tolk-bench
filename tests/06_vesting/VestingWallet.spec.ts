@@ -6,7 +6,7 @@ import {createWalletTransferV3} from "@ton/ton/dist/wallets/signing/createWallet
 import {KeyPair, keyPairFromSeed} from "@ton/crypto";
 import { findTransactionRequired } from '@ton/test-utils';
 import { GasLogAndSave } from "../gas-logger";
-import { myCompile } from "../my-compile";
+import { activateTVM11, myCompile } from "../my-compile";
 
 function senderArgsToMessageRelaxed(args: SenderArguments): MessageRelaxed {
     return internal({
@@ -65,6 +65,7 @@ describe(numericFolder, () => {
 
     beforeEach(async () => {
         blockchain = await Blockchain.create();
+        activateTVM11(blockchain);
         blockchain.now = VESTING_START_TIME;
 
         ownerKeyPair = keyPairFromSeed(Buffer.from('vt58J2v6FaBuXFGcyGtqT5elpVxcZ+I1zgu/GUfA5uY=', 'base64'));

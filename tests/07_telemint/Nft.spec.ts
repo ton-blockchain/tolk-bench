@@ -9,7 +9,7 @@ import { collectCellStats, computedGeneric, computeMessageForwardFees, getMsgPri
 import { findTransactionRequired } from '@ton/test-utils';
 import { getSecureRandomBytes, KeyPair, keyPairFromSeed, sha256 } from '@ton/crypto';
 import { GasLogAndSave } from "../gas-logger";
-import { myCompile } from "../my-compile";
+import { activateTVM11, myCompile } from "../my-compile";
 
 const numericFolder = '07_telemint';
 
@@ -65,6 +65,7 @@ describe(numericFolder, () => {
         GAS_LOG.rememberBocSize("NftItem", item_code);
 
         blockchain = await Blockchain.create();
+        activateTVM11(blockchain);
 
         blockchain.now = 1000;
 
@@ -1999,6 +2000,9 @@ describe(numericFolder, () => {
         // Dropping outgoing messages should result in lowering minimal fee
         for(let testVector of [{refund: null, amount: forwardAmount}, {refund: dstAddr, amount: 0n}]) {
             await blockchain.loadFrom(initialAuctionDone);
+            smc = await blockchain.getContract(deployerItem.address);
+            smc.balance = min_storage;
+
             // Accepted minFee should be lowered by 1 expected forward fee
             res = await deployerItem.sendTransfer(deployer.getSender(), dstAddr, testVector.refund, testVector.amount, forwardPayload, minFee - expFee, testQueryId);
 
@@ -2022,6 +2026,9 @@ describe(numericFolder, () => {
 
         // Now try minimal fee
         await blockchain.loadFrom(initialAuctionDone);
+        smc = await blockchain.getContract(deployerItem.address);
+        smc.balance = min_storage;
+
         res = await deployerItem.sendTransfer(deployer.getSender(), dstAddr, royaltyWallet.address, forwardAmount, forwardPayload, minFee, testQueryId);
 
         expect(res.transactions).toHaveTransaction({

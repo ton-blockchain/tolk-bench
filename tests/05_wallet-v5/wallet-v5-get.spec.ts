@@ -5,7 +5,7 @@ import '@ton/test-utils';
 import { getSecureRandomBytes, KeyPair, keyPairFromSeed } from '@ton/crypto';
 import { bufferToBigInt, packAddress } from './utils';
 import { buildBlockchainLibraries, LibraryDeployer } from '../../wrappers/05_wallet-v5/library-deployer';
-import { myCompile } from "../my-compile";
+import { activateTVM11, myCompile } from "../my-compile";
 
 const WALLET_ID = new WalletId({ networkGlobalId: -239, workChain: 0, subwalletNumber: 0 });
 
@@ -25,6 +25,7 @@ describe(numericFolder + ' get methods', () => {
 
     async function deploy(params?: Partial<Parameters<typeof WalletV5.createFromConfig>[0]>) {
         blockchain = await Blockchain.create();
+        activateTVM11(blockchain);
         blockchain.libs = buildBlockchainLibraries([code]);
         if (!params?.publicKey) {
             keypair = keyPairFromSeed(await getSecureRandomBytes(32));

@@ -4,7 +4,7 @@ import { NFTCollection } from '../../wrappers/02_nft/NFTCollection';
 import '@ton/test-utils';
 import { randomAddress } from '@ton/test-utils';
 import { NFTItem } from '../../wrappers/02_nft/NFTItem';
-import { myCompile } from "../my-compile";
+import { activateTVM11, myCompile } from "../my-compile";
 import { GasLogAndSave } from '../gas-logger';
 
 const numericFolder = '02_nft';
@@ -64,6 +64,7 @@ describe(numericFolder, () => {
 
     beforeAll(async () => {
         blockchain = await Blockchain.create();
+        activateTVM11(blockchain);
         owner = await blockchain.treasury('owner');
 
         nftCollection = blockchain.openContract(
@@ -384,6 +385,7 @@ describe(numericFolder, () => {
 
     beforeAll(async () => {
         blockchain = await Blockchain.create();
+        activateTVM11(blockchain);
         owner = await blockchain.treasury('owner');
 
         nftCollection = blockchain.openContract(

@@ -6,7 +6,7 @@ import '@ton/test-utils';
 import { collectCellStats } from './gasUtils';
 import { Op, Errors } from '../../wrappers/04_sharded_tgbtc/JettonConstants';
 import { findTransactionRequired } from '@ton/test-utils';
-import { myCompile } from "../my-compile";
+import { activateTVM11, myCompile } from "../my-compile";
 
 let blockchain: Blockchain;
 let deployer: SandboxContract<TreasuryContract>;
@@ -44,6 +44,7 @@ const STORAGE_SIZE_InitStateWallet_cells  = ${actualConstantsInGasTolk.STORAGE_S
 describe(numericFolder + ' StateInit', () => {
     beforeAll(async () => {
         blockchain = await Blockchain.create();
+        activateTVM11(blockchain);
         deployer   = await blockchain.treasury('deployer');
         jwallet_code_raw = await myCompile(numericFolder, 'JettonWallet');
         minter_code    = await myCompile(numericFolder, 'JettonMinter');

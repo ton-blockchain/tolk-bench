@@ -11,7 +11,7 @@ import { JettonMinter, jettonContentToCell } from '../../wrappers/01_jetton/Jett
 import '@ton/test-utils';
 import { randomAddress, getRandomTon, getRandomInt } from './utils';
 import { Op, Errors } from '../../wrappers/01_jetton/JettonConstants';
-import { myCompile } from "../my-compile";
+import { activateTVM11, myCompile } from "../my-compile";
 import { GasLogAndSave } from '../gas-logger';
 
 /*
@@ -43,6 +43,7 @@ describe(numericFolder, () => {
         GAS_LOG.rememberBocSize('minter', minter_code);
         GAS_LOG.rememberBocSize('wallet', jwallet_code);
         blockchain     = await Blockchain.create();
+        activateTVM11(blockchain)
         deployer       = await blockchain.treasury('deployer');
         notDeployer    = await blockchain.treasury('notDeployer');
         defaultContent = jettonContentToCell({type: 1, uri: "https://testjetton.org/content.json"});

@@ -1,8 +1,9 @@
-import {Cell} from "@ton/core";
+import { beginCell, Cell, Dictionary } from "@ton/core";
 import {extractCompilableConfig} from "@ton/blueprint/dist/compile/compile";
 import {doCompileFunc} from "@ton/blueprint/dist/compile/func/compile.func";
 import fs from "fs";
 import {doCompileTolk} from "@ton/blueprint/dist/compile/tolk/compile.tolk";
+import { Blockchain } from '@ton/sandbox'
 
 const PROJECT_ROOT = __dirname + '/../';
 const CONTRACTS_FUNC_ROOT = `${PROJECT_ROOT}/contracts_FunC/`;
@@ -30,6 +31,52 @@ function saveFiftOutput(numericFolder: string, contractName: string, fiftOutput:
         fs.renameSync(curFifFileName, prevFifFileName);
     }
     fs.writeFileSync(curFifFileName, fiftOutput, 'utf-8');
+}
+
+// modifies a cell blockchainConfig so that it contains "tvmVersion = {version}" parameter
+function setGlobalVersion(blockchainConfig: Cell, version: number, capabilities?: bigint) {
+    const parsedConfig = Dictionary.loadDirect(Dictionary.Keys.Int(32), Dictionary.Values.Cell(), blockchainConfig);
+
+    let changed = false;
+
+    const param8 = parsedConfig.get(8);
+    if (!param8) {
+        throw new Error('[setGlobalVersion] parameter 8 is not found!');
+    }
+
+    const ds = param8.beginParse();
+    const tag = ds.loadUint(8);
+    const curVersion = ds.loadUint(32);
+
+    const newValue = beginCell().storeUint(tag, 8);
+
+    if (curVersion != version) {
+        changed = true;
+    }
+    newValue.storeUint(version, 32);
+
+    if (capabilities) {
+        const curCapabilities = ds.loadUintBig(64);
+        if (capabilities != curCapabilities) {
+            changed = true;
+        }
+        newValue.storeUint(capabilities, 64);
+    } else {
+        newValue.storeSlice(ds);
+    }
+
+    // If any changes, serialize
+    if (changed) {
+        parsedConfig.set(8, newValue.endCell());
+        return beginCell().storeDictDirect(parsedConfig).endCell();
+    }
+
+    return blockchainConfig;
+}
+
+// activate TVM 11 before it's officially voted to and turned on by default
+export function activateTVM11(blockchain: Blockchain) {
+    blockchain.setConfig(setGlobalVersion(blockchain.config, 11));
 }
 
 // `myCompile` is a replacement for `compile` that searches for `.compile.ts` inside a given folder

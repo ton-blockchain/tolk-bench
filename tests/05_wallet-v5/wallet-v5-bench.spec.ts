@@ -15,7 +15,7 @@ import {
     sendInternalMessageFromExtension,
     validUntil,
 } from './bench-utils';
-import { myCompile } from "../my-compile";
+import { activateTVM11, myCompile } from "../my-compile";
 import { GasLogAndSave } from "../gas-logger";
 
 const numericFolder = '05_wallet-v5';
@@ -74,6 +74,7 @@ describe(numericFolder + ' gas tests', () => {
 
     beforeEach(async () => {
         blockchain = await Blockchain.create();
+        activateTVM11(blockchain);
 
         keypair = keyPairFromSeed(await getSecureRandomBytes(32));
 
