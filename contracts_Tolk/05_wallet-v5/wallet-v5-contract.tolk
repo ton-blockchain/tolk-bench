@@ -1,76 +1,10 @@
-import "@stdlib/tvm-dicts"
 import "@stdlib/gas-payments"
 import "errors"
+import "storage"
+import "messages"
 import "c5-register-validation"
 
-
 const SIZE_SIGNATURE = 512;
-const SIZE_ADDRESS_HASH = 256;
-
-type ExtensionsDict = dict;
-
-struct Storage {
-    isSignatureAllowed: bool;
-    seqno: uint32;
-    subwalletId: uint32;
-    publicKey: uint256;
-    extensions: ExtensionsDict;     // from address hash to true
-}
-
-fun Storage.load() {
-    return Storage.fromCell(contract.getData());
-}
-
-fun Storage.save(self) {
-    contract.setData(self.toCell());
-}
-
-fun ExtensionsDict.exists(self, addrHash: uint256) {
-    var (_, extensionFound) = self.uDictGet(SIZE_ADDRESS_HASH, addrHash);
-    return extensionFound;
-}
-
-fun ExtensionsDict.tryInsert(mutate self, addrHash: uint256) {
-    // todo how to optimize it? need to achieve `b{1} PUSHSLICE`
-    return self.uDictSetBuilderIfNotExists(SIZE_ADDRESS_HASH, addrHash, beginCell().storeBool(true));
-}
-
-fun ExtensionsDict.tryDelete(mutate self, addrHash: uint256) {
-    return self.uDictDelete(SIZE_ADDRESS_HASH, addrHash);
-}
-
-
-// -----------------
-// handle extra actions
-
-struct (0x02) AddExtensionExtraAction {
-    addr: address;
-}
-
-struct (0x03) RemoveExtensionExtraAction {
-    addr: address;
-}
-
-struct (0x04) SetSignatureAllowedExtraAction {
-    allowSignature: bool;
-}
-
-type ExtraAction =
-    AddExtensionExtraAction |
-    RemoveExtensionExtraAction |
-    SetSignatureAllowedExtraAction
-;
-
-// "extra actions" are represented in a snake format: "data".ref("data.ref("data"...))
-type SnakedExtraActions = RemainingBitsAndRefs;
-
-fun SnakedExtraActions.hasNext(self) {
-    return self.remainingRefsCount()
-}
-
-fun SnakedExtraActions.getNext(self): SnakedExtraActions {
-    return self.preloadRef().beginParse()
-}
 
 @inline_ref
 fun processExtraActions(extraActions: SnakedExtraActions, isExtension: bool) {
@@ -134,44 +68,16 @@ fun processActions(outActions: OutActionsCell?, hasExtraActions: bool, extraActi
 }
 
 
-// -----------------
-// handle incoming messages (internal and external)
+type AllowedMessageToWalletV5 = ExtensionActionRequest | InternalSignedRequest;
 
-struct (0x6578746E) ExtensionActionRequest {
-    queryId: uint64;
-    outActions: OutActionsCell?;
-    hasExtraActions: bool;
-    extraActions: SnakedExtraActions;
-}
-
-struct (0x73696E74) InternalSignedRequest {
-    walletId: uint32;
-    validUntil: uint32;
-    seqno: uint32;
-    outActions: OutActionsCell?;
-    hasExtraActions: bool;
-    extraActions: SnakedExtraActions;
-    // ends with a signature (512 bits), but it's parsed and compared separately
-}
-
-struct (0x7369676E) ExternalSignedRequest {
-    walletId: uint32;
-    validUntil: uint32;
-    seqno: uint32;
-    outActions: OutActionsCell?;
-    hasExtraActions: bool;
-    extraActions: SnakedExtraActions;
-    // ends with a signature (512 bits), but it's parsed and compared separately
-}
-
-type AllowedMessageToWallet = ExtensionActionRequest | InternalSignedRequest;
+type AllowedExternalMessageToWalletV5 = ExternalSignedRequest;
 
 
 fun onExternalMessage(inMsgBody: slice) {
     var signature = inMsgBody.getLastBits(SIZE_SIGNATURE);
     var signedSlice = inMsgBody.removeLastBits(SIZE_SIGNATURE);
 
-    var msg = ExternalSignedRequest.fromSlice(signedSlice, {
+    var msg = AllowedExternalMessageToWalletV5.fromSlice(signedSlice, {
         throwIfOpcodeDoesNotMatch: ERROR_INVALID_MESSAGE_OPERATION,
     });
 
@@ -196,7 +102,7 @@ fun onExternalMessage(inMsgBody: slice) {
 
 
 fun onInternalMessage(inMsgFull: cell, inMsgBody: slice) {
-    val msg = lazy AllowedMessageToWallet.fromSlice(inMsgBody);
+    val msg = lazy AllowedMessageToWalletV5.fromSlice(inMsgBody);
 
     match (msg) {
         ExtensionActionRequest => {
@@ -255,8 +161,6 @@ fun onInternalMessage(inMsgFull: cell, inMsgBody: slice) {
 }
 
 
-// -----------------
-// getters of a contract
 
 get is_signature_allowed(): bool {
     val storage = lazy Storage.load();
