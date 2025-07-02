@@ -1,9 +1,8 @@
-import "messages"
-
+import "storage"
 
 fun calcDeployedJettonWallet(ownerAddress: address, minterAddress: address, jettonWalletCode: cell): AutoDeployAddress {
     val emptyWalletStorage: WalletStorage = {
-        balance: 0,
+        jettonBalance: 0,
         ownerAddress,
         minterAddress,
     };

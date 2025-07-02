@@ -2,44 +2,27 @@ import "@stdlib/gas-payments"
 import "errors"
 import "jetton-utils"
 import "messages"
+import "fees-management"
+import "storage"
 
-
-const MIN_TONS_FOR_STORAGE = ton("0.01");
-// Note that 2 * gas_consumptions is expected to be able to cover fees on both wallets (sender and receiver)
-// and also constant fees on inter-wallet interaction, in particular fwd fee on state_init transfer
-// that means that you need to reconsider this fee when:
-// a) jetton logic become more gas-heavy
-// b) jetton-wallet code (sent with inter-wallet message) become larger or smaller
-// c) global fee changes / different workchain
-const EXPECTED_GAS_UPPER_BOUND = ton("0.015");
-
-fun WalletStorage.load() {
-    return WalletStorage.fromCell(contract.getData())
-}
-
-fun WalletStorage.save(self) {
-    contract.setData(self.toCell())
-}
+type AllowedMessageToWallet =
+    AskToTransfer |
+    AskToBurn |
+    InternalTransferStep |
+;
 
 // todo inline or inline_ref?
 @inline
 fun onBounce(inMsgBody: slice) {
     inMsgBody.skipBouncedPrefix();
     var op: int = inMsgBody.loadUint(32);
-    // todo why BurnNotificationForMinter is here?
-    assert((op == InternalTransfer.getDeclaredPackPrefix()) | (op == BurnNotificationForMinter.getDeclaredPackPrefix())) throw ERR_INVALID_OP;
+    assert ((op == InternalTransferStep.getDeclaredPackPrefix()) | (op == BurnNotificationForMinter.getDeclaredPackPrefix())) throw ERR_INVALID_OP;
     var queryId: int = inMsgBody.loadUint(64);
     var jettonAmount: int = inMsgBody.loadCoins();
     var storage = lazy WalletStorage.load();
-    storage.balance += jettonAmount;
+    storage.jettonBalance += jettonAmount;
     storage.save();
 }
-
-type AllowedWalletMessage =
-    AskToTransfer |
-    AskToBurn |
-    InternalTransfer |
-;
 
 fun onInternalMessage(myBalance: int, msgValue: int, inMsgFull: cell, inMsgBody: slice) {
     if (inMsgBody.isEnd()) {
@@ -63,20 +46,20 @@ fun onInternalMessage(myBalance: int, msgValue: int, inMsgFull: cell, inMsgBody:
 
     // todo load storage once or in every branch?
 
-    val msg = lazy AllowedWalletMessage.fromSlice(inMsgBody);
+    val msg = lazy AllowedMessageToWallet.fromSlice(inMsgBody);
 
     match (msg) {
-        InternalTransfer => {
+        InternalTransferStep => {
             var storage = lazy WalletStorage.load();
             if (senderAddress != storage.minterAddress) {
-                assert(senderAddress.isAddressOfJettonWallet(msg.ownerAddress, storage.minterAddress, contract.getCode())) throw ERR_INVALID_WALLET;
+                assert (senderAddress.isAddressOfJettonWallet(msg.transferInitiator, storage.minterAddress, contract.getCode())) throw ERR_INVALID_WALLET;
             }
-            storage.balance += msg.jettonAmount;
+            storage.jettonBalance += msg.jettonAmount;
             storage.save();
 
             var tonBalanceBeforeMsg: int = myBalance - msgValue;
             var storageFee: int = MIN_TONS_FOR_STORAGE - min(tonBalanceBeforeMsg, MIN_TONS_FOR_STORAGE);
-            msgValue -= (storageFee + EXPECTED_GAS_UPPER_BOUND);
+            msgValue -= (storageFee + JETTON_WALLET_GAS_CONSUMPTION);
 
             if (msg.forwardTonAmount) {
                 msgValue -= (msg.forwardTonAmount + fwdFee);
@@ -85,10 +68,10 @@ fun onInternalMessage(myBalance: int, msgValue: int, inMsgFull: cell, inMsgBody:
                     bounce: false,      // we should not bounce here cause receiver can have uninitialized contract
                     dest: storage.ownerAddress,
                     value: msg.forwardTonAmount,
-                    body: TransferNotificationForOwner {
+                    body: TransferNotificationForRecipient {
                         queryId: msg.queryId,
                         jettonAmount: msg.jettonAmount,
-                        fromAddress: msg.ownerAddress,
+                        transferInitiator: msg.transferInitiator,
                         forwardPayload: msg.forwardPayload
                     }
                 });
@@ -109,32 +92,32 @@ fun onInternalMessage(myBalance: int, msgValue: int, inMsgFull: cell, inMsgBody:
         }
 
         AskToTransfer => {
-            assert(msg.forwardPayload.remainingBitsCount()) throw ERR_INVALID_PAYLOAD;
-            assert(msg.toOwnerAddress.getWorkchain() == BASECHAIN) throw ERR_WRONG_WORKCHAIN;
+            assert (msg.forwardPayload.remainingBitsCount()) throw ERR_INVALID_PAYLOAD;
+            assert (msg.transferRecipient.getWorkchain() == BASECHAIN) throw ERR_WRONG_WORKCHAIN;
 
             var storage = lazy WalletStorage.load();
-            assert(senderAddress == storage.ownerAddress) throw ERR_NOT_FROM_OWNER;
-            assert(storage.balance >= msg.jettonAmount) throw ERR_NOT_ENOUGH_BALANCE;
-            storage.balance -= msg.jettonAmount;
+            assert (senderAddress == storage.ownerAddress) throw ERR_NOT_FROM_OWNER;
+            assert (storage.jettonBalance >= msg.jettonAmount) throw ERR_NOT_ENOUGH_BALANCE;
+            storage.jettonBalance -= msg.jettonAmount;
             storage.save();
 
             var forwardedMessagesCount = msg.forwardTonAmount ? 2 : 1;
-            assert(msgValue >
+            assert (msgValue >
                 msg.forwardTonAmount +
                 // 3 messages: wal1->wal2,  wal2->owner, wal2->response
                 // but last one is optional (it is ok if it fails)
                 forwardedMessagesCount * fwdFee +
-                (2 * EXPECTED_GAS_UPPER_BOUND + MIN_TONS_FOR_STORAGE)
+                (2 * JETTON_WALLET_GAS_CONSUMPTION + MIN_TONS_FOR_STORAGE)
             ) throw ERR_NOT_ENOUGH_TON;
 
             val deployMsg = createMessage({
                 bounce: true,
-                dest: calcDeployedJettonWallet(msg.toOwnerAddress, storage.minterAddress, contract.getCode()),
+                dest: calcDeployedJettonWallet(msg.transferRecipient, storage.minterAddress, contract.getCode()),
                 value: 0,
-                body: InternalTransfer {
+                body: InternalTransferStep {
                     queryId: msg.queryId,
                     jettonAmount: msg.jettonAmount,
-                    ownerAddress: storage.ownerAddress,
+                    transferInitiator: storage.ownerAddress,
                     sendExcessesTo: msg.sendExcessesTo,
                     forwardTonAmount: msg.forwardTonAmount,
                     forwardPayload: msg.forwardPayload,
@@ -144,26 +127,26 @@ fun onInternalMessage(myBalance: int, msgValue: int, inMsgFull: cell, inMsgBody:
         }
 
         AskToBurn => {
-            assert(msgValue > fwdFee + 2 * EXPECTED_GAS_UPPER_BOUND) throw ERR_NOT_ENOUGH_GAS;
+            assert (msgValue > fwdFee + 2 * JETTON_WALLET_GAS_CONSUMPTION) throw ERR_NOT_ENOUGH_GAS;
 
             var storage = lazy WalletStorage.load();
-            assert(senderAddress == storage.ownerAddress) throw ERR_NOT_FROM_OWNER;
-            assert(storage.balance >= msg.jettonAmount) throw ERR_NOT_ENOUGH_BALANCE;
-            storage.balance -= msg.jettonAmount;
+            assert (senderAddress == storage.ownerAddress) throw ERR_NOT_FROM_OWNER;
+            assert (storage.jettonBalance >= msg.jettonAmount) throw ERR_NOT_ENOUGH_BALANCE;
+            storage.jettonBalance -= msg.jettonAmount;
             storage.save();
 
-            val nofityMinterMsg = createMessage({
+            val notifyMinterMsg = createMessage({
                 bounce: true,
                 dest: storage.minterAddress,
                 value: 0,
                 body: BurnNotificationForMinter {
                     queryId: msg.queryId,
                     jettonAmount: msg.jettonAmount,
-                    fromOwnerAddress: storage.ownerAddress,
+                    burnInitiator: storage.ownerAddress,
                     sendExcessesTo: msg.sendExcessesTo,
                 }
             });
-            nofityMinterMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+            notifyMinterMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
         }
 
         else => throw 0xFFFF
@@ -173,7 +156,7 @@ fun onInternalMessage(myBalance: int, msgValue: int, inMsgFull: cell, inMsgBody:
 
 
 struct JettonWalletDataReply {
-    balance: coins;
+    jettonBalance: coins;
     ownerAddress: address;
     minterAddress: address;
     jettonWalletCode: cell;
@@ -183,7 +166,7 @@ get get_wallet_data(): JettonWalletDataReply {
     val storage = lazy WalletStorage.load();
 
     return {
-        balance: storage.balance,
+        jettonBalance: storage.jettonBalance,
         ownerAddress: storage.ownerAddress,
         minterAddress: storage.minterAddress,
         jettonWalletCode: contract.getCode(),

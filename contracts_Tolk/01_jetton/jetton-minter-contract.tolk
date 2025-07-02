@@ -2,21 +2,10 @@ import "@stdlib/gas-payments"
 import "errors"
 import "jetton-utils"
 import "messages"
+import "storage"
+import "fees-management"
 
-
-// 6905(computational_gas_price) * 1000(cur_gas_price) = 6905000
-// ceil(6905000) = 10000000 ~= 0.01 TON
-const MINIMAL_MESSAGE_VALUE_BOUND = ton("0.01");
-
-fun MinterStorage.load() {
-    return MinterStorage.fromCell(contract.getData())
-}
-
-fun MinterStorage.save(self) {
-    contract.setData(self.toCell())
-}
-
-type AllowedMinterMessage =
+type AllowedMessageToMinter =
     MintNewJettons |
     BurnNotificationForMinter |
     RequestWalletAddress |
@@ -42,14 +31,14 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
     val incomingFwdFee = cs.loadCoins();
     val fwdFee = calculateOriginalMessageFee(BASECHAIN, incomingFwdFee);
 
-    val msg = lazy AllowedMinterMessage.fromSlice(inMsgBody);
+    val msg = lazy AllowedMessageToMinter.fromSlice(inMsgBody);
 
     // todo load storage once or in every branch?
     var storage = MinterStorage.load();
 
     match (msg) {
         BurnNotificationForMinter => {
-            assert(senderAddress.isAddressOfJettonWallet(msg.fromOwnerAddress, contract.getAddress(), storage.jettonWalletCode)) throw ERR_UNAUTHORIZED_BURN;
+            assert (senderAddress.isAddressOfJettonWallet(msg.burnInitiator, contract.getAddress(), storage.jettonWalletCode)) throw ERR_UNAUTHORIZED_BURN;
 
             storage.totalSupply -= msg.jettonAmount;
             storage.save();
@@ -70,9 +59,9 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
         }
 
         RequestWalletAddress => {
-            assert(msgValue > fwdFee + MINIMAL_MESSAGE_VALUE_BOUND) throw ERR_NOT_ENOUGH_AMOUNT_TO_RESPOND;
+            assert (msgValue > fwdFee + MINIMAL_MESSAGE_VALUE_BOUND) throw ERR_NOT_ENOUGH_AMOUNT_TO_RESPOND;
 
-            var includedAddress: Cell<address>? = msg.isIncludeAddress
+            var respondOwnerAddress: Cell<address>? = msg.includeOwnerAddress
                 ? msg.ownerAddress.toCell()
                 : null;
 
@@ -90,8 +79,8 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
                 body: UnsafeBodyNoRef {     // tell the compiler that `builder` (walletAddress) is small and safe to inline
                     forceInline: ResponseWalletAddress {
                         queryId: msg.queryId,
-                        walletAddress,
-                        includedAddress,
+                        jettonWalletAddress: walletAddress,
+                        ownerAddress: respondOwnerAddress,
                     }
                 }
             });
@@ -99,17 +88,15 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
         }
 
         MintNewJettons => {
-            assert(senderAddress == storage.adminAddress) throw ERR_NOT_FROM_ADMIN;
+            assert (senderAddress == storage.adminAddress) throw ERR_NOT_FROM_ADMIN;
 
-            // todo why do we originally get jettonAmount from masterMsg, not from msg.jettonAmount?
             var internalTransferMsg = lazy msg.internalTransferMsg.load();
             storage.totalSupply += internalTransferMsg.jettonAmount;
             storage.save();
-            // assert(internalTransferMsg.jettonAmount == msg.jettonAmount, 888);   // it's okay
 
             val deployMsg = createMessage({
                 bounce: true,
-                dest: calcDeployedJettonWallet(msg.toOwnerAddress, contract.getAddress(), storage.jettonWalletCode),
+                dest: calcDeployedJettonWallet(msg.mintRecipient, contract.getAddress(), storage.jettonWalletCode),
                 value: msg.tonAmount,
                 body: msg.internalTransferMsg,  // a newly-deployed wallet contract will immediately handle it
             });
@@ -117,13 +104,13 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
         }
 
         ChangeMinterAdmin => {
-            assert(senderAddress == storage.adminAddress) throw ERR_NOT_FROM_ADMIN;
+            assert (senderAddress == storage.adminAddress) throw ERR_NOT_FROM_ADMIN;
             storage.adminAddress = msg.newAdminAddress;
             storage.save();
         }
 
         ChangeMinterContent => {
-            assert(senderAddress == storage.adminAddress) throw ERR_NOT_FROM_ADMIN;
+            assert (senderAddress == storage.adminAddress) throw ERR_NOT_FROM_ADMIN;
             storage.content = msg.newContent;
             storage.save();
         }

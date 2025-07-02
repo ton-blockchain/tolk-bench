@@ -9,7 +9,7 @@ export const compile: CompilerConfig = {
     //     'jetton-wallet.fc'
     // ],
     lang: 'tolk',
-    entrypoint: 'jetton-wallet.tolk',
+    entrypoint: 'jetton-wallet-contract.tolk',
     withSrcLineComments: true,
     withStackComments: true,
 };
