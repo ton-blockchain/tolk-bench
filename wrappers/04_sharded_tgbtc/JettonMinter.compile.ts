@@ -4,7 +4,7 @@ export const compile: CompilerConfig = {
     // lang: 'func',
     // targets: ['jetton-minter.fc'],
     lang: 'tolk',
-    entrypoint: 'jetton-minter.tolk',
+    entrypoint: 'jetton-minter-contract.tolk',
     withSrcLineComments: true,
     withStackComments: true,
 };

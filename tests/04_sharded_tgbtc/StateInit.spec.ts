@@ -30,7 +30,7 @@ let actualConstantsInGasTolk = {
 
 function printActualStorageConstants() {
     let s = `
-// these storage constants should be in \`gas.tolk\` ${numericFolder}:
+// these storage constants should be in \`fees-management.tolk\` ${numericFolder}:
 
 const STORAGE_SIZE_MaxWallet_bits         = ${actualConstantsInGasTolk.STORAGE_SIZE_MaxWallet_bits};
 const STORAGE_SIZE_MaxWallet_cells        = ${actualConstantsInGasTolk.STORAGE_SIZE_MaxWallet_cells};

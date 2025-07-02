@@ -2,7 +2,6 @@ import "@stdlib/gas-payments"
 import "sharding"
 import "errors"
 
-
 // Storage costs
 // these constants are used to estimate storage fee (how much we should pay for storing a wallet contract);
 // actual storage state (desired value of these constants) are printed to console in StateInit.spec.ts
@@ -48,7 +47,7 @@ fun checkAmountIsEnoughToTransfer(msgValue: int, forwardTonAmount: int, fwdFee: 
     var sendTransferGasConsumption: int = (jettonWalletGasConsumption == null) ? GAS_CONSUMPTION_JettonTransfer : jettonWalletGasConsumption;
     var receiveTransferGasConsumption: int = (jettonWalletGasConsumption == null) ? GAS_CONSUMPTION_JettonReceive : jettonWalletGasConsumption;
 
-    assert(msgValue >
+    assert (msgValue >
         forwardTonAmount +
         // 3 messages: wal1->wal2,  wal2->owner, wal2->response
         // but last one is optional (it is ok if it fails)
@@ -65,7 +64,7 @@ fun checkAmountIsEnoughToBurn(msgValue: int) {
     var jettonWalletGasConsumption: int? = getPrecompiledGasConsumption();
     var sendBurnGasConsumption: int = (jettonWalletGasConsumption == null) ? GAS_CONSUMPTION_BurnRequest : jettonWalletGasConsumption;
 
-    assert(msgValue >
+    assert (msgValue >
         calculateMessageFee(MY_WORKCHAIN, MESSAGE_SIZE_BurnNotification_bits, MESSAGE_SIZE_BurnNotification_cells) +
         calculateGasFee(MY_WORKCHAIN, sendBurnGasConsumption) +
         calculateGasFee(MY_WORKCHAIN, GAS_CONSUMPTION_BurnNotification)
