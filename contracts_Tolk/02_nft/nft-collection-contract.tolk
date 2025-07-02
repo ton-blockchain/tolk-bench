@@ -1,35 +1,28 @@
 import "@stdlib/tvm-dicts"
+import "errors"
 import "storage"
 import "messages"
 
-
-fun NftCollectionStorage.load() {
-    return NftCollectionStorage.fromCell(contract.getData())
-}
-
-fun NftCollectionStorage.save(self) {
-    contract.setData(self.toCell())
-}
-
-@inline
-fun deployNftItem(itemIndex: int, nftItemCode: cell, tonAmount: coins, initParams: Cell<NftItemInitAtDeployment>) {
+@inline   // todo need?
+fun deployNftItem(itemIndex: int, nftItemCode: cell, attachTonAmount: coins, initParams: Cell<NftItemInitAtDeployment>) {
     val deployMsg = createMessage({
         bounce: true,
         dest: calcDeployedNftItem(itemIndex, contract.getAddress(), nftItemCode),
-        value: tonAmount,
+        value: attachTonAmount,
         body: initParams,
     });
     deployMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
 }
 
-type AllowedMessageToCollection =
+type AllowedMessageToNftCollection =
     RequestRoyaltyParams |
     DeployNft |
     BatchDeployNfts |
-    ChangeNftOwner |
+    ChangeCollectionAdmin |
 ;
 
 fun onInternalMessage(inMsgFull: cell, inMsgBody: slice) {
+    // todo below
     if (inMsgBody.isEnd()) {
         // ignore empty messages
         return;
@@ -46,15 +39,15 @@ fun onInternalMessage(inMsgFull: cell, inMsgBody: slice) {
     // todo load once or lazily in every branch?
     var storage = NftCollectionStorage.load();
 
-    val msg = lazy AllowedMessageToCollection.fromSlice(inMsgBody);
+    val msg = lazy AllowedMessageToNftCollection.fromSlice(inMsgBody);
 
     match (msg) {
         DeployNft => {
-            assert(senderAddress == storage.ownerAddress) throw 401;
-            assert(msg.itemIndex <= storage.nextItemIndex) throw 402;
+            assert (senderAddress == storage.adminAddress) throw ERROR_NOT_FROM_ADMIN;
+            assert (msg.itemIndex <= storage.nextItemIndex) throw ERROR_INVALID_ITEM_INDEX;
 
             var isLast = msg.itemIndex == storage.nextItemIndex;
-            deployNftItem(msg.itemIndex, storage.nftItemCode, msg.amount, msg.initParams);
+            deployNftItem(msg.itemIndex, storage.nftItemCode, msg.attachTonAmount, msg.initParams);
             if (isLast) {
                 storage.nextItemIndex += 1;
                 storage.save();
@@ -75,7 +68,7 @@ fun onInternalMessage(inMsgFull: cell, inMsgBody: slice) {
         }
 
         BatchDeployNfts => {
-            assert(senderAddress == storage.ownerAddress) throw 401;
+            assert (senderAddress == storage.adminAddress) throw ERROR_NOT_FROM_ADMIN;
 
             var counter = 0;
             var deployList = msg.deployList;
@@ -88,20 +81,20 @@ fun onInternalMessage(inMsgFull: cell, inMsgBody: slice) {
                 itemIndex = itemIndex!;     // tell the compiler that it's not-null (because found)
 
                 counter += 1;
-                assert (counter < 250) throw 399;   // due to limits of action list size
+                assert (counter < 250) throw ERROR_BATCH_LIMIT_EXCEEDED;   // due to limits of action list size
 
-                assert(itemIndex <= storage.nextItemIndex) throw 403 + counter;
+                assert (itemIndex <= storage.nextItemIndex) throw ERROR_NOT_FROM_ADMIN + counter;
                 val dictItem = BatchDeployDictItem.fromSlice(valueSlice!);
-                deployNftItem(itemIndex, storage.nftItemCode, dictItem.amount, dictItem.initParams);
+                deployNftItem(itemIndex, storage.nftItemCode, dictItem.attachTonAmount, dictItem.initParams);
                 if (itemIndex == storage.nextItemIndex) {
                     storage.nextItemIndex += 1;
                 }
             }
         }
 
-        ChangeNftOwner => {
-            assert(senderAddress == storage.ownerAddress) throw 401;
-            storage.ownerAddress = msg.newOwnerAddress;
+        ChangeCollectionAdmin => {
+            assert (senderAddress == storage.adminAddress) throw ERROR_NOT_FROM_ADMIN;
+            storage.adminAddress = msg.newAdminAddress;
             storage.save();
         }
 
@@ -114,11 +107,11 @@ fun onInternalMessage(inMsgFull: cell, inMsgBody: slice) {
 struct CollectionDataReply {
     nextItemIndex: int;
     collectionMetadata: cell;
-    ownerAddress: address;
+    adminAddress: address;
 }
 
 struct (0x01) OffchainMetadataReply {
-    string: builder;        // builder with valid SnakeString
+    string: SnakeString;
 }
 
 get get_collection_data(): CollectionDataReply {
@@ -128,7 +121,7 @@ get get_collection_data(): CollectionDataReply {
     return {
         nextItemIndex: storage.nextItemIndex,
         collectionMetadata: content.collectionMetadata,
-        ownerAddress: storage.ownerAddress,
+        adminAddress: storage.adminAddress,
     }
 }
 
@@ -143,7 +136,7 @@ get royalty_params(): RoyaltyParams {
     return storage.royaltyParams.load();
 }
 
-get get_nft_content(index: int, individualNftContent: Cell<SnakeString>): Cell<OffchainMetadataReply> {
+get get_nft_content(itemIndex: int, individualNftContent: Cell<SnakeString>): Cell<OffchainMetadataReply> {
     val storage = lazy NftCollectionStorage.load();
     val content = lazy storage.content.load();
 
@@ -156,5 +149,6 @@ get get_nft_content(index: int, individualNftContent: Cell<SnakeString>): Cell<O
         string: beginCell()
             .storeSlice(content.commonContent.load())   // assume it's short (no refs)
             .storeRef(individualNftContent)             // so, it's the first ref (snake encoding)
+            .endCell().beginParse()
     }.toCell()
 }

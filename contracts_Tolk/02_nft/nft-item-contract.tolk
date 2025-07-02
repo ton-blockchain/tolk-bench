@@ -1,46 +1,11 @@
 import "@stdlib/gas-payments"
+import "errors"
 import "storage"
 import "messages"
-
-
-const MIN_TONS_FOR_STORAGE = ton("0.05");
-
-// actual storage of an NFT item is tricky: it's either initialized or not;
-// after NFT has been inited, it's represented as `NftItemStorage`;
-// before initialization, it has only index and collectionAddress: `NftItemStorageNotInitialized`;
-// hence, we start parsing it, that then we detect, whether it's inited or not
-struct NftItemStorageMaybeNotInitialized {
-    contractData: slice;
-}
-
-// how do we detect whether it's initialized or not?
-// the answer: when "inited", we store `content` (cell),
-// so, we have a ref, and for uninited, we don't have a ref
-fun NftItemStorageMaybeNotInitialized.isInitialized(self) {
-    val hasContent = self.contractData.remainingRefsCount();
-    return hasContent
-}
-
-fun NftItemStorageMaybeNotInitialized.parseNotInitialized(self) {
-    return NftItemStorageNotInitialized.fromSlice(self.contractData)
-}
-
-fun NftItemStorageMaybeNotInitialized.parseInitialized(self) {
-    return NftItemStorage.fromSlice(self.contractData)
-}
-
-fun startLoadingNftItemStorage(): NftItemStorageMaybeNotInitialized {
-    return {
-        contractData: contract.getData().beginParse()
-    }
-}
-
-fun NftItemStorage.save(self) {
-    contract.setData(self.toCell())
-}
+import "fees-management"
 
 type AllowedMessageToNftItem =
-    AskToTransfer |
+    AskToChangeOwnership |
     RequestStaticData |
 ;
 
@@ -63,12 +28,12 @@ fun onInternalMessage(myBalance: int, msgValue: int, inMsgFull: cell, inMsgBody:
     var loadingStorage = startLoadingNftItemStorage();
     if (!loadingStorage.isInitialized()) {
         val uninitedSt = loadingStorage.parseNotInitialized();
-        assert(uninitedSt.collectionAddress == senderAddress) throw 405;
+        assert (uninitedSt.collectionAddress == senderAddress) throw ERROR_NOT_FROM_COLLECTION;
 
         // using a message from collection, convert "uninitialized" to "initialized" state
         val initParams = NftItemInitAtDeployment.fromSlice(inMsgBody);
         val storage: NftItemStorage = {
-            index: uninitedSt.index,
+            itemIndex: uninitedSt.itemIndex,
             collectionAddress: uninitedSt.collectionAddress,
             ownerAddress: initParams.ownerAddress,
             content: initParams.content,
@@ -90,11 +55,11 @@ fun onInternalMessage(myBalance: int, msgValue: int, inMsgFull: cell, inMsgBody:
     val msg = lazy AllowedMessageToNftItem.fromSlice(inMsgBody);
 
     match (msg) {
-        AskToTransfer => {
-            assert(senderAddress == storage.ownerAddress) throw 401;
+        AskToChangeOwnership => {
+            assert (senderAddress == storage.ownerAddress) throw ERROR_NOT_FROM_OWNER;
 
-            assert(msg.forwardPayload.remainingBitsCount()) throw 708;
-            assert(msg.newOwnerAddress.getWorkchain() == BASECHAIN) throw 333;
+            assert (msg.forwardPayload.remainingBitsCount()) throw ERROR_INCORRECT_FORWARD_PAYLOAD;
+            assert (msg.newOwnerAddress.getWorkchain() == BASECHAIN) throw ERROR_INVALID_WORKCHAIN;
 
             var restAmount = myBalance - MIN_TONS_FOR_STORAGE;
             if (msg.forwardTonAmount) {
@@ -102,20 +67,20 @@ fun onInternalMessage(myBalance: int, msgValue: int, inMsgFull: cell, inMsgBody:
             }
             var needResponse = msg.sendExcessesTo.isInternal();
             if (needResponse) {
-                assert(msg.sendExcessesTo.getWorkchain() == BASECHAIN) throw 333;
+                assert (msg.sendExcessesTo.getWorkchain() == BASECHAIN) throw ERROR_INVALID_WORKCHAIN;
                 restAmount -= fwdFee;
             }
 
-            assert(restAmount >= 0) throw 402; // base nft spends fixed amount of gas, will not check for response
+            assert (restAmount >= 0) throw ERROR_TOO_SMALL_REST_AMOUNT; // base nft spends fixed amount of gas, will not check for response
 
             if (msg.forwardTonAmount) {
                 val ownershipMsg = createMessage({
                     bounce: false,
                     dest: msg.newOwnerAddress,
                     value: msg.forwardTonAmount,
-                    body: NotificationOwnershipAssigned {
+                    body: NotificationForNewOwner {
                         queryId: msg.queryId,
-                        ownerAddress: storage.ownerAddress,
+                        oldOwnerAddress: storage.ownerAddress,
                         payload: msg.forwardPayload,
                     }
                 });
@@ -150,7 +115,7 @@ fun onInternalMessage(myBalance: int, msgValue: int, inMsgFull: cell, inMsgBody:
                 body: UnsafeBodyNoRef {
                     forceInline: ResponseStaticData {
                         queryId: msg.queryId,
-                        index: storage.index as uint256,
+                        itemIndex: storage.itemIndex as uint256,
                         collectionAddress: storage.collectionAddress,
                     }
                 }
@@ -178,7 +143,7 @@ get get_nft_data(): NftDataReply {
         val uninitedSt = loadingStorage.parseNotInitialized();
         return {
             isInitialized: false,
-            itemIndex: uninitedSt.index,
+            itemIndex: uninitedSt.itemIndex,
             collectionAddress: uninitedSt.collectionAddress,
         }
     }
@@ -186,7 +151,7 @@ get get_nft_data(): NftDataReply {
     val storage = loadingStorage.parseInitialized();
     return {
         isInitialized: true,
-        itemIndex: storage.index,
+        itemIndex: storage.itemIndex,
         collectionAddress: storage.collectionAddress,
         ownerAddress: storage.ownerAddress,
         content: storage.content,

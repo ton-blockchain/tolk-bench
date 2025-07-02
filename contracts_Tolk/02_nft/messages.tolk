@@ -1,6 +1,5 @@
 import "storage"
 
-
 struct NftItemInitAtDeployment {
     ownerAddress: address;
     content: Cell<SnakeString>;
@@ -18,7 +17,7 @@ struct (0xa8cb00ad) ResponseRoyaltyParams {
 struct (0x00000001) DeployNft {
     queryId: uint64;
     itemIndex: uint64;
-    amount: coins;
+    attachTonAmount: coins;
     initParams: Cell<NftItemInitAtDeployment>;
 }
 
@@ -28,13 +27,13 @@ struct (0x00000002) BatchDeployNfts {
 }
 
 struct BatchDeployDictItem {
-    amount: coins;
+    attachTonAmount: coins;
     initParams: Cell<NftItemInitAtDeployment>;
 }
 
-struct (0x00000003) ChangeNftOwner {
+struct (0x00000003) ChangeCollectionAdmin {
     queryId: uint64;
-    newOwnerAddress: address;
+    newAdminAddress: address;
 }
 
 struct (0x2fcb26a2) RequestStaticData {
@@ -43,13 +42,13 @@ struct (0x2fcb26a2) RequestStaticData {
 
 struct (0x8b771735) ResponseStaticData {
     queryId: uint64;
-    index: uint256;
+    itemIndex: uint256;
     collectionAddress: address;
 }
 
-struct (0x05138d91) NotificationOwnershipAssigned {
+struct (0x05138d91) NotificationForNewOwner {
     queryId: uint64;
-    ownerAddress: address;
+    oldOwnerAddress: address;
     payload: RemainingBitsAndRefs;
 }
 
@@ -57,7 +56,7 @@ struct (0xd53276db) ReturnExcessesBack {
     queryId: uint64;
 }
 
-struct (0x5fcc3d14) AskToTransfer {
+struct (0x5fcc3d14) AskToChangeOwnership {
     queryId: uint64;
     newOwnerAddress: address;
     sendExcessesTo: address;
