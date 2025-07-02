@@ -1,4 +1,4 @@
-import "@stdlib/tvm-dicts.tolk"
+import "@stdlib/tvm-dicts"
 
 type WhitelistDict = dict;     // a map of [address => nothing]
 
@@ -10,6 +10,15 @@ struct Storage {
     vestingParameters: Cell<VestingParameters>;
 }
 
+fun Storage.load() {
+    return Storage.fromCell(contract.getData());
+}
+
+fun Storage.save(self) {
+    contract.setData(self.toCell());
+}
+
+
 struct VestingParameters {
     startTime: uint64;
     totalDuration: uint32;     // > 0 and <= 135 years (2^32 seconds) ; mod unlockPeriod == 0
@@ -19,6 +28,26 @@ struct VestingParameters {
     senderAddress: address;
     ownerAddress: address;
 }
+
+// todo inline?
+@inline_ref
+fun VestingParameters.getLockedAmount(self, nowTime: int): coins {
+    if (nowTime > self.startTime + self.totalDuration) {
+        return 0;
+    }
+
+    if (nowTime < self.startTime + self.cliffDuration) {
+        return self.totalAmount;
+    }
+
+    return self.totalAmount -
+    mulDivFloor(
+        self.totalAmount,
+        (nowTime - self.startTime) / self.unlockPeriod,
+        self.totalDuration / self.unlockPeriod
+    );
+}
+
 
 const ADDRESS_SIZE = 267; // '100' (std addr no anycast) + workchain 8 + hash 256
 

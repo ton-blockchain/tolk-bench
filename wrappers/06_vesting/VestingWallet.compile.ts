@@ -4,7 +4,7 @@ export const compile: CompilerConfig = {
     // lang: 'func',
     // targets: ['vesting_wallet.fc'],
     lang: 'tolk',
-    entrypoint: 'vesting_wallet.tolk',
+    entrypoint: 'vesting-contract.tolk',
     withSrcLineComments: true,
     withStackComments: true,
 };

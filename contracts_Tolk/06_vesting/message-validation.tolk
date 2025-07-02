@@ -3,9 +3,9 @@
 // to ensure they have known opcodes.
 // This file is dedicated to parsing and validating raw message cells.
 
-import "storage.tolk"
-import "errors.tolk"
-import "messages.tolk"
+import "storage"
+import "errors"
+import "messages"
 
 // https://github.com/ton-blockchain/ton/blob/d2b418bb703ed6ccd89b7d40f9f1e44686012014/crypto/block/block.tlb#L605
 const CONFIG_CONFIG_ID = 0;
@@ -130,7 +130,7 @@ fun validateMessageToConfigContract(body: slice) {
 
 @inline
 fun AttachedMessage.validateIfLockedAmount(self, whitelist: WhitelistDict, lockedAmount: coins, vestingSenderAddress: address) {
-    assert(self.sendMode == SEND_MODE_IGNORE_ERRORS + SEND_MODE_PAY_FEES_SEPARATELY) throw ERROR_SEND_MODE_NOT_ALLOWED;
+    assert (self.sendMode == SEND_MODE_IGNORE_ERRORS + SEND_MODE_PAY_FEES_SEPARATELY) throw ERROR_SEND_MODE_NOT_ALLOWED;
 
     // start parsing raw msgCell
     var msgCs = self.msgCell.beginParse();
@@ -149,13 +149,13 @@ fun AttachedMessage.validateIfLockedAmount(self, whitelist: WhitelistDict, locke
     }
 
     // a message must be bounceable
-    assert(cellHeader.isBounceable()) throw ERROR_NON_BOUNCEABLE_NOT_ALLOWED;
+    assert (cellHeader.isBounceable()) throw ERROR_NON_BOUNCEABLE_NOT_ALLOWED;
 
     // parse raw msg cell up to the end
     val restOfCell = lazy MessageCellContentsRest.fromSlice(msgCs);
 
     // a message can not contain StateInit
-    assert(!restOfCell.hasStateInit()) throw ERROR_STATE_INIT_NOT_ALLOWED;
+    assert (!restOfCell.hasStateInit()) throw ERROR_STATE_INIT_NOT_ALLOWED;
 
     var body = restOfCell.getBodySlice();
 

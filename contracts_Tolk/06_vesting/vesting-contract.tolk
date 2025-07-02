@@ -1,42 +1,12 @@
-tolk 0.99
-
 import "@stdlib/tvm-dicts"
 import "@stdlib/gas-payments"
 import "@stdlib/lisp-lists"
-import "storage.tolk"
-import "message-validation.tolk"
-import "errors.tolk"
-import "messages.tolk"
+import "storage"
+import "message-validation"
+import "errors"
+import "messages"
 
-
-fun Storage.load() {
-    return Storage.fromCell(contract.getData());
-}
-
-fun Storage.save(self) {
-    contract.setData(self.toCell());
-}
-
-// todo inline?
-@inline_ref
-fun VestingParameters.getLockedAmount(self, nowTime: int): coins {
-    if (nowTime > self.startTime + self.totalDuration) {
-        return 0;
-    }
-
-    if (nowTime < self.startTime + self.cliffDuration) {
-        return self.totalAmount;
-    }
-
-    return self.totalAmount -
-        mulDivFloor(
-            self.totalAmount,
-            (nowTime - self.startTime) / self.unlockPeriod,
-            self.totalDuration / self.unlockPeriod
-        );
-}
-
-type AllowedMessageForVestingWallet = RequestAddToWhitelist | AskToSendMessage;
+type AllowedMessageToVestingWallet = RequestAddToWhitelist | AskToSendMessage;
 
 fun onInternalMessage(myBalance: int, msgValue: int, msgCell: cell, msgBody: slice) {
     var cs: slice = msgCell.beginParse();
@@ -50,11 +20,11 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgCell: cell, msgBody: sli
     var storage = Storage.load();
     val vesting = storage.vestingParameters.load();
 
-    val msg = lazy AllowedMessageForVestingWallet.fromSlice(msgBody);
+    val msg = lazy AllowedMessageToVestingWallet.fromSlice(msgBody);
 
     match (msg) {
         AskToSendMessage => {
-            assert(senderAddress == vesting.ownerAddress, 0);
+            assert (senderAddress == vesting.ownerAddress, 0);
             val attachedMsg = msg.attachedMsg;
             var lockedAmount = vesting.getLockedAmount(blockchain.now());
             if (lockedAmount > 0) {
@@ -75,7 +45,7 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgCell: cell, msgBody: sli
         }
 
         RequestAddToWhitelist => {
-            assert(senderAddress == vesting.senderAddress, 0);
+            assert (senderAddress == vesting.senderAddress, 0);
             var addrToWhitelist = msg.addrToWhitelist;
             var nextRef = msg.restRefs;
             do {
@@ -111,12 +81,12 @@ fun onExternalMessage(extBody: slice) {
     var signature = extBody.loadBits(512);
     val hashOfAllAfter = extBody.hash();
     val msg = ExternalMsgAfterSignature.fromSlice(extBody);
-    assert(msg.validUntil > blockchain.now()) throw ERROR_EXPIRED;
+    assert (msg.validUntil > blockchain.now()) throw ERROR_EXPIRED;
 
     var storage = lazy Storage.load();
-    assert(msg.seqno == storage.seqno) throw ERROR_INVALID_SEQNO;
-    assert(msg.subwalletId == storage.subwalletId) throw ERROR_INVALID_SUBWALLET_ID;
-    assert(isSignatureValid(hashOfAllAfter, signature, storage.publicKey)) throw ERROR_INVALID_SIGNATURE;
+    assert (msg.seqno == storage.seqno) throw ERROR_INVALID_SEQNO;
+    assert (msg.subwalletId == storage.subwalletId) throw ERROR_INVALID_SUBWALLET_ID;
+    assert (isSignatureValid(hashOfAllAfter, signature, storage.publicKey)) throw ERROR_INVALID_SIGNATURE;
 
     acceptExternalMessage();
 
@@ -138,7 +108,12 @@ fun onExternalMessage(extBody: slice) {
     storage.save();
 }
 
-// GET methods
+
+
+struct VestingDataReply {
+    vestingParameters: VestingParameters;
+    whitelist: dict;
+}
 
 get seqno(): int {
     val storage = lazy Storage.load();
@@ -155,11 +130,13 @@ get get_public_key(): int {
     return storage.publicKey;
 }
 
-get get_vesting_data(): (VestingParameters, dict) {
+get get_vesting_data(): VestingDataReply {
     val storage = lazy Storage.load();
-    val v = storage.vestingParameters.load();
 
-    return (v, storage.whitelist);
+    return {
+        vestingParameters: storage.vestingParameters.load(),
+        whitelist: storage.whitelist,
+    }
 }
 
 get is_whitelisted(address: address): bool {
@@ -169,10 +146,9 @@ get is_whitelisted(address: address): bool {
 
 get get_whitelist(): tuple {
     val storage = lazy Storage.load();
+    var d: dict = storage.whitelist;
 
     var list: tuple? = null;
-
-    var d: dict = storage.whitelist;
     do {
         var (key: slice?, value: slice?, found: bool) = d.sDictDeleteFirstAndGet(ADDRESS_SIZE);
         if (found) {
@@ -184,7 +160,7 @@ get get_whitelist(): tuple {
     return list!;
 }
 
-get get_locked_amount(atTime: int): int {
+get get_locked_amount(atTime: int): coins {
     val storage = lazy Storage.load();
     return storage.vestingParameters.load().getLockedAmount(atTime);
 }
