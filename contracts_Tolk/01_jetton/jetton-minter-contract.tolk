@@ -13,32 +13,19 @@ type AllowedMessageToMinter =
     ChangeMinterContent |
 ;
 
-fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
-    if (inMsgBody.isEnd()) { // ignore empty messages todo if to delete, no tests fail
-        return;    // todo what if we throw 0xFFFF here?
+fun onInternalMessage(in: InMessage) {
+    if (in.body.isEmpty()) { // ignore empty messages
+        return;
     }
-    var cs: slice = inMsgFull.beginParse();
-    var flags: int = cs.loadUint(4);
 
-    if (flags & 1) { // ignore all bounced messages
-        return; // todo why do we need this? for example, will throw 0xFFFF on bounce
-    }
-    var senderAddress = cs.loadAddress();
-    cs.loadAddress(); // skip dst
-    cs.loadCoins(); // skip value
-    cs.skipBits(1); // skip extracurrency collection
-    cs.loadCoins(); // skip ihr_fee
-    val incomingFwdFee = cs.loadCoins();
-    val fwdFee = calculateOriginalMessageFee(BASECHAIN, incomingFwdFee);
-
-    val msg = lazy AllowedMessageToMinter.fromSlice(inMsgBody);
+    val msg = lazy AllowedMessageToMinter.fromSlice(in.body);
 
     // todo load storage once or in every branch?
     var storage = MinterStorage.load();
 
     match (msg) {
         BurnNotificationForMinter => {
-            assert (senderAddress.isAddressOfJettonWallet(msg.burnInitiator, contract.getAddress(), storage.jettonWalletCode)) throw ERR_UNAUTHORIZED_BURN;
+            assert (in.senderAddress.isAddressOfJettonWallet(msg.burnInitiator, contract.getAddress(), storage.jettonWalletCode)) throw ERR_UNAUTHORIZED_BURN;
 
             storage.totalSupply -= msg.jettonAmount;
             storage.save();
@@ -59,7 +46,7 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
         }
 
         RequestWalletAddress => {
-            assert (msgValue > fwdFee + MINIMAL_MESSAGE_VALUE_BOUND) throw ERR_NOT_ENOUGH_AMOUNT_TO_RESPOND;
+            assert (in.valueCoins > in.originalForwardFee + MINIMAL_MESSAGE_VALUE_BOUND) throw ERR_NOT_ENOUGH_AMOUNT_TO_RESPOND;
 
             var respondOwnerAddress: Cell<address>? = msg.includeOwnerAddress
                 ? msg.ownerAddress.toCell()
@@ -74,7 +61,7 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
 
             val respondMsg = createMessage({
                 bounce: true,
-                dest: senderAddress,
+                dest: in.senderAddress,
                 value: 0,
                 body: UnsafeBodyNoRef {     // tell the compiler that `builder` (walletAddress) is small and safe to inline
                     forceInline: ResponseWalletAddress {
@@ -88,7 +75,7 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
         }
 
         MintNewJettons => {
-            assert (senderAddress == storage.adminAddress) throw ERR_NOT_FROM_ADMIN;
+            assert (in.senderAddress == storage.adminAddress) throw ERR_NOT_FROM_ADMIN;
 
             var internalTransferMsg = lazy msg.internalTransferMsg.load();
             storage.totalSupply += internalTransferMsg.jettonAmount;
@@ -104,13 +91,13 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
         }
 
         ChangeMinterAdmin => {
-            assert (senderAddress == storage.adminAddress) throw ERR_NOT_FROM_ADMIN;
+            assert (in.senderAddress == storage.adminAddress) throw ERR_NOT_FROM_ADMIN;
             storage.adminAddress = msg.newAdminAddress;
             storage.save();
         }
 
         ChangeMinterContent => {
-            assert (senderAddress == storage.adminAddress) throw ERR_NOT_FROM_ADMIN;
+            assert (in.senderAddress == storage.adminAddress) throw ERR_NOT_FROM_ADMIN;
             storage.content = msg.newContent;
             storage.save();
         }
