@@ -26,29 +26,26 @@ const MIN_STORAGE_DURATION = 5 * 365 * 24 * 3600; // 5 years
 // they must be absolutely equal to consumed gas; if not, tests fail;
 // actual consumed gas (desired value of these constants) are printed to console after tests run
 
-const GAS_CONSUMPTION_JettonTransfer    = 6569;
-const GAS_CONSUMPTION_JettonReceive     = 7622;
+const GAS_CONSUMPTION_JettonTransfer    = 6561;
+const GAS_CONSUMPTION_JettonReceive     = 7640;
 const GAS_CONSUMPTION_BurnRequest       = 4412;
-const GAS_CONSUMPTION_BurnNotification  = 4337;
+const GAS_CONSUMPTION_BurnNotification  = 4205;
 
 
-@inline
 fun calculateJettonWalletMinStorageFee(): int {
     return calculateStorageFee(MY_WORKCHAIN, MIN_STORAGE_DURATION, STORAGE_SIZE_MaxWallet_bits, STORAGE_SIZE_MaxWallet_cells);
 }
 
-@inline
 fun forwardInitStateOverhead(): int {
     return calculateForwardFeeWithoutLumpPrice(MY_WORKCHAIN, STORAGE_SIZE_InitStateWallet_bits, STORAGE_SIZE_InitStateWallet_cells);
 }
 
-@inline
 fun checkAmountIsEnoughToTransfer(msgValue: int, forwardTonAmount: int, fwdFee: int) {
-    var fwdCount: int = forwardTonAmount ? 2 : 1; // second sending (forward) will be cheaper that first
+    var fwdCount = forwardTonAmount ? 2 : 1; // second sending (forward) will be cheaper that first
 
-    var jettonWalletGasConsumption: int? = getPrecompiledGasConsumption();
-    var sendTransferGasConsumption: int = (jettonWalletGasConsumption == null) ? GAS_CONSUMPTION_JettonTransfer : jettonWalletGasConsumption;
-    var receiveTransferGasConsumption: int = (jettonWalletGasConsumption == null) ? GAS_CONSUMPTION_JettonReceive : jettonWalletGasConsumption;
+    var jettonWalletGasConsumption = getPrecompiledGasConsumption();
+    var sendTransferGasConsumption = (jettonWalletGasConsumption == null) ? GAS_CONSUMPTION_JettonTransfer : jettonWalletGasConsumption;
+    var receiveTransferGasConsumption = (jettonWalletGasConsumption == null) ? GAS_CONSUMPTION_JettonReceive : jettonWalletGasConsumption;
 
     assert (msgValue >
         forwardTonAmount +
@@ -62,10 +59,9 @@ fun checkAmountIsEnoughToTransfer(msgValue: int, forwardTonAmount: int, fwdFee: 
     ) throw ERROR_NOT_ENOUGH_GAS;
 }
 
-@inline
 fun checkAmountIsEnoughToBurn(msgValue: int) {
-    var jettonWalletGasConsumption: int? = getPrecompiledGasConsumption();
-    var sendBurnGasConsumption: int = (jettonWalletGasConsumption == null) ? GAS_CONSUMPTION_BurnRequest : jettonWalletGasConsumption;
+    var jettonWalletGasConsumption = getPrecompiledGasConsumption();
+    var sendBurnGasConsumption = (jettonWalletGasConsumption == null) ? GAS_CONSUMPTION_BurnRequest : jettonWalletGasConsumption;
 
     assert (msgValue >
         calculateForwardFee(MY_WORKCHAIN, MESSAGE_SIZE_BurnNotification_bits, MESSAGE_SIZE_BurnNotification_cells) +

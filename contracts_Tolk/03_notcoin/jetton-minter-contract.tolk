@@ -29,13 +29,11 @@ fun onBouncedMessage(in: InMessageBounced) {
 }
 
 fun onInternalMessage(in: InMessage) {
-    // todo load storage once or lazily in each branch?
-    var storage = MinterStorage.load();
-
     val msg = lazy AllowedMessageToMinter.fromSlice(in.body);
 
     match (msg) {
         BurnNotificationForMinter => {
+            var storage = lazy MinterStorage.load();
             assert (in.senderAddress.isAddressOfJettonWallet(msg.burnInitiator, contract.getAddress(), storage.jettonWalletCode)) throw ERROR_NOT_VALID_WALLET;
             storage.totalSupply -= msg.jettonAmount;
             storage.save();
@@ -62,6 +60,7 @@ fun onInternalMessage(in: InMessage) {
 
             var walletAddress: builder;
             if (msg.ownerAddress.getWorkchain() == MY_WORKCHAIN) {
+                val storage = lazy MinterStorage.load();
                 walletAddress = buildAddressOfJettonWallet(msg.ownerAddress, contract.getAddress(), storage.jettonWalletCode);
             } else {
                 walletAddress = beginCell().storeAddressNone();
@@ -83,6 +82,7 @@ fun onInternalMessage(in: InMessage) {
         }
 
         MintNewJettons => {
+            var storage = lazy MinterStorage.load();
             assert (in.senderAddress == storage.adminAddress) throw ERROR_NOT_OWNER;
             assert (msg.mintRecipient.getWorkchain() == MY_WORKCHAIN) throw ERROR_WRONG_WORKCHAIN;
 
@@ -110,12 +110,14 @@ fun onInternalMessage(in: InMessage) {
         }
 
         ChangeMinterAdmin => {
+            var storage = lazy MinterStorage.load();
             assert (in.senderAddress == storage.adminAddress) throw ERROR_NOT_OWNER;
             storage.nextAdminAddress = msg.newAdminAddress;
             storage.save();
         }
 
         ClaimMinterAdmin => {
+            var storage = lazy MinterStorage.load();
             assert (in.senderAddress == storage.nextAdminAddress) throw ERROR_NOT_OWNER;
             storage.adminAddress = storage.nextAdminAddress;
             storage.nextAdminAddress = createAddressNone();
@@ -123,6 +125,7 @@ fun onInternalMessage(in: InMessage) {
         }
 
         DropMinterAdmin => {
+            var storage = lazy MinterStorage.load();
             assert (in.senderAddress == storage.adminAddress) throw ERROR_NOT_OWNER;
             storage.adminAddress = createAddressNone();
             storage.nextAdminAddress = createAddressNone();
@@ -130,12 +133,14 @@ fun onInternalMessage(in: InMessage) {
         }
 
         ChangeMinterMetadataUri => {
+            var storage = lazy MinterStorage.load();
             assert (in.senderAddress == storage.adminAddress) throw ERROR_NOT_OWNER;
             storage.metadataUri = msg.newMetadataUri.toCell();
             storage.save();
         }
 
         UpgradeMinterCode => {
+            var storage = lazy MinterStorage.load();
             assert (in.senderAddress == storage.adminAddress) throw ERROR_NOT_OWNER;
             contract.setData(msg.newData);
             contract.setCodePostponed(msg.newCode);
