@@ -12,38 +12,32 @@ type AllowedMessageToWallet =
     TopUpTons |
 ;
 
-@inline
-fun onBounce(inMsgBody: slice) {
-    inMsgBody.skipBouncedPrefix();
-    var op: int = inMsgBody.loadMessageOp();
-    assert ((op == InternalTransferStep.getDeclaredPackPrefix()) | (op == BurnNotificationForMinter.getDeclaredPackPrefix())) throw ERROR_WRONG_OP;
-    inMsgBody.skipMessageQueryId();
-    var jettonAmount: int = inMsgBody.loadCoins();
+type BounceOpToHandle = InternalTransferStep | BurnNotificationForMinter;
+
+fun onBouncedMessage(in: InMessageBounced) {
+    in.bouncedBody.skipBouncedPrefix();
+
+    val msg = lazy BounceOpToHandle.fromSlice(in.bouncedBody);
+    val restoreAmount = match (msg) {
+        InternalTransferStep => msg.jettonAmount,       // safe to fetch jettonAmount, because
+        BurnNotificationForMinter => msg.jettonAmount,  // it's in the beginning of a message
+    };
+
     var storage = lazy WalletStorage.load();
-    storage.jettonBalance += jettonAmount;
+    storage.jettonBalance += restoreAmount;
     storage.save();
 }
 
-fun onInternalMessage(myTonBalance: int, msgValue: int, inMsgFull: cell, inMsgBody: slice) {
-    var inMsgFullSlice: slice = inMsgFull.beginParse();
-    var msgFlags: int = inMsgFullSlice.loadMessageFlags();
-    if (msgFlags & 1) {
-        onBounce(inMsgBody);
-        return;
-    }
-    var senderAddress = inMsgFullSlice.loadAddress();
-    var fwdFeeFromInMsg = inMsgFullSlice.retrieveFwdFee();
-    var fwdFee: int = calculateOriginalMessageFee(MY_WORKCHAIN, fwdFeeFromInMsg); // we use message fwd_fee for estimation of forward_payload costs
-
-    val msg = lazy AllowedMessageToWallet.fromSlice(inMsgBody);
+fun onInternalMessage(in: InMessage) {
+    val msg = lazy AllowedMessageToWallet.fromSlice(in.body);
 
     // todo load storage once or lazily in each branch?
 
     match (msg) {
         InternalTransferStep => {
             var storage = lazy WalletStorage.load();
-            if (senderAddress != storage.minterAddress) {
-                assert (senderAddress.isAddressOfJettonWallet(msg.transferInitiator, storage.minterAddress, contract.getCode())) throw ERROR_NOT_VALID_WALLET;
+            if (in.senderAddress != storage.minterAddress) {
+                assert (in.senderAddress.isAddressOfJettonWallet(msg.transferInitiator, storage.minterAddress, contract.getCode())) throw ERROR_NOT_VALID_WALLET;
             }
             storage.jettonBalance += msg.jettonAmount;
             storage.save();
@@ -64,7 +58,7 @@ fun onInternalMessage(myTonBalance: int, msgValue: int, inMsgFull: cell, inMsgBo
             }
 
             if (msg.sendExcessesTo.isInternal()) {
-                var toLeaveOnBalance = myTonBalance - msgValue + contract.getStorageDuePayment();
+                var toLeaveOnBalance = contract.getOriginalBalance() - in.valueCoins + contract.getStorageDuePayment();
                 reserveToncoinsOnBalance(max(toLeaveOnBalance, calculateJettonWalletMinStorageFee()), RESERVE_MODE_AT_MOST);
 
                 val excessesMsg = createMessage({
@@ -82,10 +76,10 @@ fun onInternalMessage(myTonBalance: int, msgValue: int, inMsgFull: cell, inMsgBo
         AskToTransfer => {
             msg.forwardPayload.checkIsCorrectTLBEither();
             assert (msg.transferRecipient.getWorkchain() == MY_WORKCHAIN) throw ERROR_WRONG_WORKCHAIN;
-            checkAmountIsEnoughToTransfer(msgValue, msg.forwardTonAmount, fwdFee);
+            checkAmountIsEnoughToTransfer(in.valueCoins, msg.forwardTonAmount, in.originalForwardFee);
 
             var storage = lazy WalletStorage.load();
-            assert (senderAddress == storage.ownerAddress) throw ERROR_NOT_OWNER;
+            assert (in.senderAddress == storage.ownerAddress) throw ERROR_NOT_OWNER;
             assert (storage.jettonBalance >= msg.jettonAmount) throw ERROR_BALANCE_ERROR;
             storage.jettonBalance -= msg.jettonAmount;
             storage.save();
@@ -107,10 +101,10 @@ fun onInternalMessage(myTonBalance: int, msgValue: int, inMsgFull: cell, inMsgBo
         }
 
         AskToBurn => {
-            checkAmountIsEnoughToBurn(msgValue);
+            checkAmountIsEnoughToBurn(in.valueCoins);
 
             var storage = lazy WalletStorage.load();
-            assert (senderAddress == storage.ownerAddress) throw ERROR_NOT_OWNER;
+            assert (in.senderAddress == storage.ownerAddress) throw ERROR_NOT_OWNER;
             assert (storage.jettonBalance >= msg.jettonAmount) throw ERROR_BALANCE_ERROR;
             storage.jettonBalance -= msg.jettonAmount;
             storage.save();
