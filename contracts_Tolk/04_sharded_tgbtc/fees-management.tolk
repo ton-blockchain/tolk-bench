@@ -22,10 +22,10 @@ const MIN_STORAGE_DURATION = 5 * 365 * 24 * 3600; // 5 years
 // they must be absolutely equal to consumed gas; if not, tests fail;
 // actual consumed gas (desired value of these constants) are printed to console after tests run
 
-const GAS_CONSUMPTION_JettonTransfer    = 7236;
-const GAS_CONSUMPTION_JettonReceive     = 8255;
-const GAS_CONSUMPTION_BurnRequest       = 4824;
-const GAS_CONSUMPTION_BurnNotification  = 5174;
+const GAS_CONSUMPTION_JettonTransfer    = 6798;
+const GAS_CONSUMPTION_JettonReceive     = 7974;
+const GAS_CONSUMPTION_BurnRequest       = 4342;
+const GAS_CONSUMPTION_BurnNotification  = 4574;
 
 
 fun getPrecompiledGasConsumption(): int?
@@ -36,7 +36,7 @@ fun calculateJettonWalletMinStorageFee(): int {
 }
 
 fun forwardInitStateOverhead(): int {
-    return calculateMessageFeeWithoutLumpPrice(MY_WORKCHAIN, STORAGE_SIZE_InitStateWallet_bits, STORAGE_SIZE_InitStateWallet_cells);
+    return calculateForwardFeeWithoutLumpPrice(MY_WORKCHAIN, STORAGE_SIZE_InitStateWallet_bits, STORAGE_SIZE_InitStateWallet_cells);
 }
 
 @inline
@@ -65,7 +65,7 @@ fun checkAmountIsEnoughToBurn(msgValue: int) {
     var sendBurnGasConsumption: int = (jettonWalletGasConsumption == null) ? GAS_CONSUMPTION_BurnRequest : jettonWalletGasConsumption;
 
     assert (msgValue >
-        calculateMessageFee(MY_WORKCHAIN, MESSAGE_SIZE_BurnNotification_bits, MESSAGE_SIZE_BurnNotification_cells) +
+        calculateForwardFee(MY_WORKCHAIN, MESSAGE_SIZE_BurnNotification_bits, MESSAGE_SIZE_BurnNotification_cells) +
         calculateGasFee(MY_WORKCHAIN, sendBurnGasConsumption) +
         calculateGasFee(MY_WORKCHAIN, GAS_CONSUMPTION_BurnNotification)
     ) throw ERROR_NOT_ENOUGH_GAS;

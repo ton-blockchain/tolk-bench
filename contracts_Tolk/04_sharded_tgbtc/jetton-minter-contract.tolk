@@ -19,39 +19,25 @@ type AllowedMessageToMinter =
     TopUpTons |
 ;
 
-// todo inline or inline_ref?
-fun onBounce(inMsgBody: slice) {
-    inMsgBody.skipBouncedPrefix();
-    // process only mint bounces
-    if (inMsgBody.loadMessageOp() == InternalTransferStep.getDeclaredPackPrefix()) {
-        inMsgBody.skipMessageQueryId();
-        var jettonAmount: int = inMsgBody.loadCoins();
-        var storage = lazy MinterStorage.load();
-        storage.totalSupply -= jettonAmount;
-        storage.save();
-    }
+fun onBouncedMessage(in: InMessageBounced) {
+    in.bouncedBody.skipBouncedPrefix();
+    // process only mint bounces; on other messages, an exception will be thrown, it's okay
+    val msg = lazy InternalTransferStep.fromSlice(in.bouncedBody);
+
+    var storage = lazy MinterStorage.load();
+    storage.totalSupply -= msg.jettonAmount;
+    storage.save();
 }
 
-fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
-    var inMsgFullSlice: slice = inMsgFull.beginParse();
-    var msgFlags: int = inMsgFullSlice.loadMessageFlags();
-
-    if (msgFlags & 1) { // is bounced
-        onBounce(inMsgBody);
-        return;
-    }
-    var senderAddress = inMsgFullSlice.loadAddress();
-    var fwdFeeFromInMsg = inMsgFullSlice.retrieveFwdFee();
-    var fwdFee: int = calculateOriginalMessageFee(MY_WORKCHAIN, fwdFeeFromInMsg); // we use message fwd_fee for estimation of forward_payload costs
-
-    val msg = lazy AllowedMessageToMinter.fromSlice(inMsgBody);
+fun onInternalMessage(in: InMessage) {
+    val msg = lazy AllowedMessageToMinter.fromSlice(in.body);
 
     // todo load storage once or lazily in each branch?
     var storage = MinterStorage.load();
 
     match (msg) {
         BurnNotificationForMinter => {
-            assert (senderAddress.isAddressOfJettonWallet(msg.burnInitiator, contract.getAddress(), storage.jettonWalletCode)) throw ERROR_NOT_VALID_WALLET;
+            assert (in.senderAddress.isAddressOfJettonWallet(msg.burnInitiator, contract.getAddress(), storage.jettonWalletCode)) throw ERROR_NOT_VALID_WALLET;
             storage.totalSupply -= msg.jettonAmount;
             storage.save();
 
@@ -86,7 +72,7 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
 
             val respondMsg = createMessage({
                 bounce: false,
-                dest: senderAddress,
+                dest: in.senderAddress,
                 value: 0,
                 body: UnsafeBodyNoRef {     // tell the compiler that `builder` (walletAddress) is small and safe to inline
                     forceInline: ResponseWalletAddress {
@@ -101,7 +87,7 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
         }
 
         MintNewJettons => {
-            assert (senderAddress == storage.adminAddress) throw ERROR_NOT_OWNER;
+            assert (in.senderAddress == storage.adminAddress) throw ERROR_NOT_OWNER;
             assert (msg.mintRecipient.getWorkchain() == MY_WORKCHAIN) throw ERROR_WRONG_WORKCHAIN;
 
             val internalTransferMsg = lazy msg.internalTransferMsg.load({
@@ -111,7 +97,7 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
             internalTransferMsg.forwardPayload.checkIsCorrectTLBEither();
 
             // a little more than needed, it’s ok since it’s sent by the admin and excesses will return back
-            checkAmountIsEnoughToTransfer(msg.tonAmount, forwardTonAmount, fwdFee);
+            checkAmountIsEnoughToTransfer(msg.tonAmount, forwardTonAmount, in.originalForwardFee);
 
             storage.totalSupply += internalTransferMsg.jettonAmount;
             storage.save();
@@ -128,33 +114,33 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
         }
 
         ChangeMinterAdmin => {
-            assert (senderAddress == storage.adminAddress) throw ERROR_NOT_OWNER;
+            assert (in.senderAddress == storage.adminAddress) throw ERROR_NOT_OWNER;
             storage.nextAdminAddress = msg.newAdminAddress;
             storage.save();
         }
 
         ClaimMinterAdmin => {
-            assert (senderAddress == storage.nextAdminAddress) throw ERROR_NOT_OWNER;
+            assert (in.senderAddress == storage.nextAdminAddress) throw ERROR_NOT_OWNER;
             storage.adminAddress = storage.nextAdminAddress;
             storage.nextAdminAddress = createAddressNone();
             storage.save();
         }
 
         DropMinterAdmin => {
-            assert (senderAddress == storage.adminAddress) throw ERROR_NOT_OWNER;
+            assert (in.senderAddress == storage.adminAddress) throw ERROR_NOT_OWNER;
             storage.adminAddress = createAddressNone();
             storage.nextAdminAddress = createAddressNone();
             storage.save();
         }
 
         ChangeMinterMetadataUri => {
-            assert (senderAddress == storage.adminAddress) throw ERROR_NOT_OWNER;
+            assert (in.senderAddress == storage.adminAddress) throw ERROR_NOT_OWNER;
             storage.metadataUri = msg.newMetadataUri.toCell();
             storage.save();
         }
 
         UpgradeMinterCode => {
-            assert (senderAddress == storage.adminAddress) throw ERROR_NOT_OWNER;
+            assert (in.senderAddress == storage.adminAddress) throw ERROR_NOT_OWNER;
             contract.setCodePostponed(msg.newCode);
             contract.setData(msg.newData);
         }

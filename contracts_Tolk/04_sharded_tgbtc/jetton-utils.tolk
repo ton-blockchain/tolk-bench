@@ -30,15 +30,3 @@ fun address.isAddressOfJettonWallet(self, ownerAddress: address, minterAddress: 
     val jwDeployed = calcDeployedJettonWallet(ownerAddress, minterAddress, jettonWalletCode);
     return jwDeployed.addressMatches(self)
 }
-
-// todo del after TVM 11
-// parse after sender_address
-@inline
-fun slice.retrieveFwdFee(mutate self): coins {
-    self.loadAddress(); // skip dst
-    self.loadCoins(); // skip value
-    self.skipDict(); // skip extracurrency collection
-    self.loadCoins(); // skip ihr_fee
-    var fwdFee: coins = self.loadCoins();
-    return fwdFee;
-}
