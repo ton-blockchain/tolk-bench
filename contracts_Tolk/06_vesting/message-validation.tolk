@@ -172,7 +172,7 @@ fun AttachedMessage.validateIfLockedAmount(self, whitelist: WhitelistDict, locke
     // okay, it's a message for some other destination (not elector, not config);
     // empty — allowed
 
-    if (body.isEnd()) {
+    if (body.isEmpty()) {
         return;
     }
 

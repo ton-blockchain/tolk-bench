@@ -8,23 +8,16 @@ import "messages"
 
 type AllowedMessageToVestingWallet = RequestAddToWhitelist | AskToSendMessage;
 
-fun onInternalMessage(myBalance: int, msgValue: int, msgCell: cell, msgBody: slice) {
-    var cs: slice = msgCell.beginParse();
-    var flags: int = cs.loadUint(4);
-    if (flags & 1) { // ignore all bounced messages
-        return;
-    }
-    var senderAddress = cs.loadAddress();
-
+fun onInternalMessage(in: InMessage) {
     // todo load storage once or lazily in every branch?
     var storage = Storage.load();
     val vesting = storage.vestingParameters.load();
 
-    val msg = lazy AllowedMessageToVestingWallet.fromSlice(msgBody);
+    val msg = lazy AllowedMessageToVestingWallet.fromSlice(in.body);
 
     match (msg) {
         AskToSendMessage => {
-            assert (senderAddress == vesting.ownerAddress, 0);
+            assert (in.senderAddress == vesting.ownerAddress, 0);
             val attachedMsg = msg.attachedMsg;
             var lockedAmount = vesting.getLockedAmount(blockchain.now());
             if (lockedAmount > 0) {
@@ -35,7 +28,7 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgCell: cell, msgBody: sli
 
             val excessesMsg = createMessage({
                 bounce: true,
-                dest: senderAddress,
+                dest: in.senderAddress,
                 value: 0,
                 body: SendExcesses {
                     queryId: msg.queryId
@@ -45,7 +38,7 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgCell: cell, msgBody: sli
         }
 
         RequestAddToWhitelist => {
-            assert (senderAddress == vesting.senderAddress, 0);
+            assert (in.senderAddress == vesting.senderAddress, 0);
             var addrToWhitelist = msg.addrToWhitelist;
             var nextRef = msg.restRefs;
             do {
@@ -61,7 +54,7 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgCell: cell, msgBody: sli
 
             val excessesMsg = createMessage({
                 bounce: true,
-                dest: senderAddress,
+                dest: in.senderAddress,
                 value: 0,
                 body: ResponseAddedToWhitelist {
                     queryId: msg.queryId
