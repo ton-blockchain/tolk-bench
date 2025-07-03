@@ -168,5 +168,22 @@
       "wallet bits": 4917,
       "wallet cells": 9
     }
+  },
+  {
+    "commitDesc": "intentional degradation: respond address, not builder",
+    "gas": {
+      "MINT jettons by admin": 11901,
+      "TRANSFER with forward_amount": 13623,
+      "TRANSFER no forward_amount": 11175,
+      "BURN jettons": 8413,
+      "DISCOVER with include_address": 5459,
+      "DISCOVER no include_address": 4905
+    },
+    "codeSize": {
+      "minter bits": 4802,
+      "minter cells": 12,
+      "wallet bits": 4917,
+      "wallet cells": 9
+    }
   }
 ]

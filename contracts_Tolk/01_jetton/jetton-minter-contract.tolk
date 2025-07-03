@@ -45,24 +45,27 @@ fun onInternalMessage(in: InMessage) {
                 ? msg.ownerAddress.toCell()
                 : null;
 
-            var walletAddress: builder;
+            var walletAddrBuilt: builder;
             if (msg.ownerAddress.getWorkchain() == BASECHAIN) {
                 var storage = lazy MinterStorage.load();
-                walletAddress = buildAddressOfJettonWallet(msg.ownerAddress, contract.getAddress(), storage.jettonWalletCode);
+                walletAddrBuilt = buildAddressOfJettonWallet(msg.ownerAddress, contract.getAddress(), storage.jettonWalletCode);
             } else {
-                walletAddress = beginCell().storeAddressNone();
+                walletAddrBuilt = beginCell().storeAddressNone();
             }
+            // we could respond `builder` (and it would be much more effective),
+            // but we want to leave the type as `address` in a "Response" struct
+            // (for clarity and future TypeScript wrappers, which can't be auto-generated for "builder");
+            // in TVM 12, there will be a cheap instruction to avoid an intermediate cell creation
+            val walletAddress = address.fromValidBuilder(walletAddrBuilt);
 
             val respondMsg = createMessage({
                 bounce: true,
                 dest: in.senderAddress,
                 value: 0,
-                body: UnsafeBodyNoRef {     // tell the compiler that `builder` (walletAddress) is small and safe to inline
-                    forceInline: ResponseWalletAddress {
-                        queryId: msg.queryId,
-                        jettonWalletAddress: walletAddress,
-                        ownerAddress: respondOwnerAddress,
-                    }
+                body: ResponseWalletAddress {
+                    queryId: msg.queryId,
+                    jettonWalletAddress: walletAddress,
+                    ownerAddress: respondOwnerAddress,
                 }
             });
             respondMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
