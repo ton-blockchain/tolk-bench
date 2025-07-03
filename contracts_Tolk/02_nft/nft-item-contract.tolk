@@ -10,11 +10,6 @@ type AllowedMessageToNftItem =
 ;
 
 fun onInternalMessage(in: InMessage) {
-    if (in.body.isEmpty()) {  // todo below
-        // ignore empty messages
-        return;
-    }
-
     var loadingStorage = startLoadingNftItemStorage();
     if (!loadingStorage.isInitialized()) {
         val uninitedSt = loadingStorage.parseNotInitialized();
@@ -32,7 +27,6 @@ fun onInternalMessage(in: InMessage) {
         return;
     }
 
-    // todo load once or lazily in every branch?
     var storage = loadingStorage.parseInitialized();
 
     val msg = lazy AllowedMessageToNftItem.fromSlice(in.body);
@@ -107,7 +101,10 @@ fun onInternalMessage(in: InMessage) {
             respondMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
         }
 
-        else => throw 0xFFFF
+        else => {
+            // ignore empty messages, throw "wrong opcode" for others
+            assert (in.body.isEmpty()) throw 0xFFFF
+        }
     }
 }
 
