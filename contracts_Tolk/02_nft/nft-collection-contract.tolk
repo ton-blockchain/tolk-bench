@@ -21,29 +21,21 @@ type AllowedMessageToNftCollection =
     ChangeCollectionAdmin |
 ;
 
-fun onInternalMessage(inMsgFull: cell, inMsgBody: slice) {
+fun onInternalMessage(in: InMessage) {
     // todo below
-    if (inMsgBody.isEnd()) {
+    if (in.body.isEmpty()) {
         // ignore empty messages
         return;
     }
-    var cs: slice = inMsgFull.beginParse();
-    var flags: int = cs.loadUint(4);
-
-    if (flags & 1) {
-        // ignore all bounced messages
-        return;
-    }
-    var senderAddress = cs.loadAddress();
 
     // todo load once or lazily in every branch?
     var storage = NftCollectionStorage.load();
 
-    val msg = lazy AllowedMessageToNftCollection.fromSlice(inMsgBody);
+    val msg = lazy AllowedMessageToNftCollection.fromSlice(in.body);
 
     match (msg) {
         DeployNft => {
-            assert (senderAddress == storage.adminAddress) throw ERROR_NOT_FROM_ADMIN;
+            assert (in.senderAddress == storage.adminAddress) throw ERROR_NOT_FROM_ADMIN;
             assert (msg.itemIndex <= storage.nextItemIndex) throw ERROR_INVALID_ITEM_INDEX;
 
             var isLast = msg.itemIndex == storage.nextItemIndex;
@@ -57,7 +49,7 @@ fun onInternalMessage(inMsgFull: cell, inMsgBody: slice) {
         RequestRoyaltyParams => {
             val respondMsg = createMessage({
                 bounce: false,
-                dest: senderAddress,
+                dest: in.senderAddress,
                 value: 0,
                 body: ResponseRoyaltyParams {
                     queryId: msg.queryId,
@@ -68,7 +60,7 @@ fun onInternalMessage(inMsgFull: cell, inMsgBody: slice) {
         }
 
         BatchDeployNfts => {
-            assert (senderAddress == storage.adminAddress) throw ERROR_NOT_FROM_ADMIN;
+            assert (in.senderAddress == storage.adminAddress) throw ERROR_NOT_FROM_ADMIN;
 
             var counter = 0;
             var deployList = msg.deployList;
@@ -93,7 +85,7 @@ fun onInternalMessage(inMsgFull: cell, inMsgBody: slice) {
         }
 
         ChangeCollectionAdmin => {
-            assert (senderAddress == storage.adminAddress) throw ERROR_NOT_FROM_ADMIN;
+            assert (in.senderAddress == storage.adminAddress) throw ERROR_NOT_FROM_ADMIN;
             storage.adminAddress = msg.newAdminAddress;
             storage.save();
         }

@@ -133,5 +133,20 @@
       "nft-collection bits": 4299,
       "nft-collection cells": 14
     }
+  },
+  {
+    "commitDesc": "modern onInternalMessage, inline variables",
+    "gas": {
+      "DEPLOY nft": 6144,
+      "BATCH deploy nft": 699244,
+      "TRANSFER nft": 4517,
+      "GET static data": 2637
+    },
+    "codeSize": {
+      "nft-item bits": 2621,
+      "nft-item cells": 7,
+      "nft-collection bits": 4283,
+      "nft-collection cells": 14
+    }
   }
 ]

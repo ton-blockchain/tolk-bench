@@ -9,29 +9,19 @@ type AllowedMessageToNftItem =
     RequestStaticData |
 ;
 
-fun onInternalMessage(myBalance: int, msgValue: int, inMsgFull: cell, inMsgBody: slice) {
-    if (inMsgBody.isEnd()) {
+fun onInternalMessage(in: InMessage) {
+    if (in.body.isEmpty()) {  // todo below
         // ignore empty messages
         return;
     }
 
-    var cs: slice = inMsgFull.beginParse();
-    var flags: int = cs.loadUint(4);
-
-    if (flags & 1) {
-        // ignore all bounced messages
-        return;
-    }
-
-    var senderAddress = cs.loadAddress();
-
     var loadingStorage = startLoadingNftItemStorage();
     if (!loadingStorage.isInitialized()) {
         val uninitedSt = loadingStorage.parseNotInitialized();
-        assert (uninitedSt.collectionAddress == senderAddress) throw ERROR_NOT_FROM_COLLECTION;
+        assert (in.senderAddress == uninitedSt.collectionAddress) throw ERROR_NOT_FROM_COLLECTION;
 
         // using a message from collection, convert "uninitialized" to "initialized" state
-        val initParams = NftItemInitAtDeployment.fromSlice(inMsgBody);
+        val initParams = NftItemInitAtDeployment.fromSlice(in.body);
         val storage: NftItemStorage = {
             itemIndex: uninitedSt.itemIndex,
             collectionAddress: uninitedSt.collectionAddress,
@@ -45,23 +35,17 @@ fun onInternalMessage(myBalance: int, msgValue: int, inMsgFull: cell, inMsgBody:
     // todo load once or lazily in every branch?
     var storage = loadingStorage.parseInitialized();
 
-    cs.loadAddress(); // skip dst
-    cs.loadCoins(); // skip value
-    cs.skipBits(1); // skip extracurrency collection
-    cs.loadCoins(); // skip ihr_fee
-    val incomingFwdFee = cs.loadCoins();
-    var fwdFee = calculateOriginalMessageFee(BASECHAIN, incomingFwdFee);
-
-    val msg = lazy AllowedMessageToNftItem.fromSlice(inMsgBody);
+    val msg = lazy AllowedMessageToNftItem.fromSlice(in.body);
 
     match (msg) {
         AskToChangeOwnership => {
-            assert (senderAddress == storage.ownerAddress) throw ERROR_NOT_FROM_OWNER;
+            assert (in.senderAddress == storage.ownerAddress) throw ERROR_NOT_FROM_OWNER;
 
             assert (msg.forwardPayload.remainingBitsCount()) throw ERROR_INCORRECT_FORWARD_PAYLOAD;
             assert (msg.newOwnerAddress.getWorkchain() == BASECHAIN) throw ERROR_INVALID_WORKCHAIN;
 
-            var restAmount = myBalance - MIN_TONS_FOR_STORAGE;
+            val fwdFee = in.originalForwardFee;
+            var restAmount = contract.getOriginalBalance() - MIN_TONS_FOR_STORAGE;
             if (msg.forwardTonAmount) {
                 restAmount -= (msg.forwardTonAmount + fwdFee);
             }
@@ -105,7 +89,7 @@ fun onInternalMessage(myBalance: int, msgValue: int, inMsgFull: cell, inMsgBody:
         RequestStaticData => {
             val respondMsg = createMessage({
                 bounce: false,
-                dest: senderAddress,
+                dest: in.senderAddress,
                 value: 0,
                 // why ever, in FunC implementation, item index was encoded as 256-bit (not 64-bit),
                 // do the same here to pass FunC tests;
