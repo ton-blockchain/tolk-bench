@@ -106,23 +106,6 @@ fun onInternalMessage(in: InMessage) {
     val msg = lazy AllowedMessageToWalletV5.fromSlice(in.body);
 
     match (msg) {
-        ExtensionActionRequest => {
-            var (senderWorkchain, senderAddrHash) = in.senderAddress.getWorkchainAndHash();
-            var myWorkchain = contract.getAddress().getWorkchain();
-            if (myWorkchain != senderWorkchain) {
-                return;
-            }
-
-            val storage = lazy Storage.load();
-            if (!storage.extensions.exists(senderAddrHash)) {
-                // Note that some random contract may have deposited funds with this prefix,
-                // so we accept the funds silently instead of throwing an error (wallet v4 does the same).
-                return;
-            }
-
-            processActions(msg.outActions, msg.hasExtraActions, msg.extraActions, false, true);
-        }
-
         InternalSignedRequest => {
             val bodyLongEnough = in.body.remainingBitsCount() >= SIZE_SIGNATURE + 128;
             if (!bodyLongEnough) {
@@ -148,6 +131,23 @@ fun onInternalMessage(in: InMessage) {
             storage.save();
 
             processActions(msg.outActions, msg.hasExtraActions, msg.extraActions, false, false);
+        }
+
+        ExtensionActionRequest => {
+            var (senderWorkchain, senderAddrHash) = in.senderAddress.getWorkchainAndHash();
+            var myWorkchain = contract.getAddress().getWorkchain();
+            if (myWorkchain != senderWorkchain) {
+                return;
+            }
+
+            val storage = lazy Storage.load();
+            if (!storage.extensions.exists(senderAddrHash)) {
+                // Note that some random contract may have deposited funds with this prefix,
+                // so we accept the funds silently instead of throwing an error (wallet v4 does the same).
+                return;
+            }
+
+            processActions(msg.outActions, msg.hasExtraActions, msg.extraActions, false, true);
         }
 
         else => {

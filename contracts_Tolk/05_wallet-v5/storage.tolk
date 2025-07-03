@@ -27,11 +27,13 @@ fun ExtensionsDict.exists(self, addrHash: uint256) {
 }
 
 fun ExtensionsDict.tryInsert(mutate self, addrHash: uint256) {
-    // todo how to optimize it? need to achieve `b{1} PUSHSLICE`
-    return self.uDictSetBuilderIfNotExists(SIZE_ADDRESS_HASH, addrHash, beginCell().storeBool(true));
+    return self.uDictSetIfNotExists(SIZE_ADDRESS_HASH, addrHash, ExtensionsDict.constSliceBoolTrue());
 }
 
 fun ExtensionsDict.tryDelete(mutate self, addrHash: uint256) {
     return self.uDictDelete(SIZE_ADDRESS_HASH, addrHash);
 }
 
+// low-level optimization: store a const slice representing `1` bit (a value of ExtenstionsDict)
+fun ExtensionsDict.constSliceBoolTrue(): slice
+    asm "b{1} PUSHSLICE";

@@ -102,5 +102,18 @@
       "wallet_v5 bits": 5903,
       "wallet_v5 cells": 19
     }
+  },
+  {
+    "commitDesc": "manual optimizations",
+    "gas": {
+      "EXTERNAL transfer": 3917,
+      "INTERNAL transfer": 4399,
+      "ADD extension": 5005,
+      "EXTENSION transfer": 2874
+    },
+    "codeSize": {
+      "wallet_v5 bits": 5887,
+      "wallet_v5 cells": 19
+    }
   }
 ]
