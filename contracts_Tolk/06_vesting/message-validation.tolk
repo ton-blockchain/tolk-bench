@@ -62,7 +62,6 @@ type AllowedOpTextAction =
     AllowedOpTextAction_W |
 ;
 
-@inline
 fun address.matchesAddressFromConfig(self, configId: int): bool {
     var (addrWc, addrHash) = self.getWorkchainAndHash();
     var matched = false;
@@ -128,7 +127,7 @@ fun validateMessageToConfigContract(body: slice) {
     }
 }
 
-@inline
+@inline_ref
 fun AttachedMessage.validateIfLockedAmount(self, whitelist: WhitelistDict, lockedAmount: coins, vestingSenderAddress: address) {
     assert (self.sendMode == SEND_MODE_IGNORE_ERRORS + SEND_MODE_PAY_FEES_SEPARATELY) throw ERROR_SEND_MODE_NOT_ALLOWED;
 

@@ -142,5 +142,21 @@
       "vesting wallet bits": 7173,
       "vesting wallet cells": 27
     }
+  },
+  {
+    "commitDesc": "manual optimizations",
+    "gas": {
+      "ADD whitelist": 4448,
+      "UNLOCK internal partial": 5952,
+      "INTERNAL to vesting sender": 5216,
+      "INTERNAL to elector": 7687,
+      "INTERNAL to single nominator": 6812,
+      "INTERNAL with comment": 6900,
+      "EXTERNAL transfer after unlock": 4527
+    },
+    "codeSize": {
+      "vesting wallet bits": 7069,
+      "vesting wallet cells": 26
+    }
   }
 ]

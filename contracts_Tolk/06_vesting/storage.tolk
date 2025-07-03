@@ -29,7 +29,6 @@ struct VestingParameters {
     ownerAddress: address;
 }
 
-// todo inline?
 @inline_ref
 fun VestingParameters.getLockedAmount(self, nowTime: int): coins {
     if (nowTime > self.startTime + self.totalDuration) {
@@ -41,11 +40,11 @@ fun VestingParameters.getLockedAmount(self, nowTime: int): coins {
     }
 
     return self.totalAmount -
-    mulDivFloor(
-        self.totalAmount,
-        (nowTime - self.startTime) / self.unlockPeriod,
-        self.totalDuration / self.unlockPeriod
-    );
+        mulDivFloor(
+            self.totalAmount,
+            (nowTime - self.startTime) / self.unlockPeriod,
+            self.totalDuration / self.unlockPeriod
+        );
 }
 
 

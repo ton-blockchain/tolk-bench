@@ -9,15 +9,14 @@ import "messages"
 type AllowedMessageToVestingWallet = RequestAddToWhitelist | AskToSendMessage;
 
 fun onInternalMessage(in: InMessage) {
-    // todo load storage once or lazily in every branch?
-    var storage = Storage.load();
-    val vesting = storage.vestingParameters.load();
-
     val msg = lazy AllowedMessageToVestingWallet.fromSlice(in.body);
 
     match (msg) {
         AskToSendMessage => {
+            var storage = lazy Storage.load();
+            val vesting = lazy storage.vestingParameters.load();
             assert (in.senderAddress == vesting.ownerAddress, 0);
+
             val attachedMsg = msg.attachedMsg;
             var lockedAmount = vesting.getLockedAmount(blockchain.now());
             if (lockedAmount > 0) {
@@ -38,7 +37,10 @@ fun onInternalMessage(in: InMessage) {
         }
 
         RequestAddToWhitelist => {
+            var storage = lazy Storage.load();
+            val vesting = lazy storage.vestingParameters.load();
             assert (in.senderAddress == vesting.senderAddress, 0);
+
             var addrToWhitelist = msg.addrToWhitelist;
             var nextRef = msg.restRefs;
             do {
