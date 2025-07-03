@@ -51,19 +51,8 @@ fun deployItem(senderAddress: address, bidAmount: coins, nftItemCode: cell, para
 
 type AllowedMessageToCollection = TopUp | AskToDeployItem;
 
-fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
-    var cs: slice = inMsgFull.beginParse();
-    var flags: int = cs.loadUint(4);
-
-    if (flags & 1) {
-        // ignore all bounced messages
-        return;
-    }
-    var senderAddress = cs.loadAddress();
-
-    assert (!inMsgBody.isEnd()) throw ERR_WRONG_TOPUP_COMMENT;
-
-    val msg = lazy AllowedMessageToCollection.fromSlice(inMsgBody);
+fun onInternalMessage(in: InMessage) {
+    val msg = lazy AllowedMessageToCollection.fromSlice(in.body);
 
     match (msg) {
         TopUp => {
@@ -83,10 +72,13 @@ fun onInternalMessage(msgValue: int, inMsgFull: cell, inMsgBody: slice) {
             assert (input.validSince < now) throw ERR_NOT_YET_VALID_SIGNATURE;
             assert (now < input.validTill) throw ERR_EXPIRED_SIGNATURE;
 
-            deployItem(senderAddress, msgValue, storage.nftItemCode, input, storage.fullDomain.load(), storage.royaltyParams);
+            deployItem(in.senderAddress, in.valueCoins, storage.nftItemCode, input, storage.fullDomain.load(), storage.royaltyParams);
         }
 
-        else => throw ERR_UNKNOWN_OP
+        else => {
+            // ignore empty messages, throw for others
+            assert (in.body.isEmpty()) throw ERR_UNKNOWN_OP
+        }
     }
 }
 
