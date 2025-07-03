@@ -93,12 +93,13 @@ struct (0xd372158c) TopUpTons {
 }
 
 
+// "forward payload" is TL/B `(Either Cell ^Cell)`;
+// we want to test, that if ^Cell, no other data exists in a slice
 fun ForwardPayloadRemainder.checkIsCorrectTLBEither(self) {
-    // self is TL/B `(Either Cell ^Cell)`; we want to test, that if ^Cell, no other data exists in a slice
     var mutableCopy = self;
     if (mutableCopy.loadMaybeRef() != null) {
+        // throw "cell underflow" if other data exist in a slice
         mutableCopy.assertEnd();
     }
-    // else forward_payload in slice - arbitrary bits and refs
 }
 

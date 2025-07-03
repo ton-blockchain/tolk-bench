@@ -32,8 +32,6 @@ fun onBouncedMessage(in: InMessageBounced) {
 fun onInternalMessage(in: InMessage) {
     val msg = lazy AllowedMessageToWallet.fromSlice(in.body);
 
-    // todo load storage once or lazily in each branch?
-
     match (msg) {
         InternalTransferStep => {
             var storage = lazy WalletStorage.load();
