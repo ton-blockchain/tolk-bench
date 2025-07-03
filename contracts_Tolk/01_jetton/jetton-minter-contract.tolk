@@ -14,17 +14,11 @@ type AllowedMessageToMinter =
 ;
 
 fun onInternalMessage(in: InMessage) {
-    if (in.body.isEmpty()) { // ignore empty messages
-        return;
-    }
-
     val msg = lazy AllowedMessageToMinter.fromSlice(in.body);
-
-    // todo load storage once or in every branch?
-    var storage = MinterStorage.load();
 
     match (msg) {
         BurnNotificationForMinter => {
+            var storage = lazy MinterStorage.load();
             assert (in.senderAddress.isAddressOfJettonWallet(msg.burnInitiator, contract.getAddress(), storage.jettonWalletCode)) throw ERR_UNAUTHORIZED_BURN;
 
             storage.totalSupply -= msg.jettonAmount;
@@ -54,6 +48,7 @@ fun onInternalMessage(in: InMessage) {
 
             var walletAddress: builder;
             if (msg.ownerAddress.getWorkchain() == BASECHAIN) {
+                var storage = lazy MinterStorage.load();
                 walletAddress = buildAddressOfJettonWallet(msg.ownerAddress, contract.getAddress(), storage.jettonWalletCode);
             } else {
                 walletAddress = beginCell().storeAddressNone();
@@ -75,6 +70,7 @@ fun onInternalMessage(in: InMessage) {
         }
 
         MintNewJettons => {
+            var storage = lazy MinterStorage.load();
             assert (in.senderAddress == storage.adminAddress) throw ERR_NOT_FROM_ADMIN;
 
             var internalTransferMsg = lazy msg.internalTransferMsg.load();
@@ -91,18 +87,23 @@ fun onInternalMessage(in: InMessage) {
         }
 
         ChangeMinterAdmin => {
+            var storage = lazy MinterStorage.load();
             assert (in.senderAddress == storage.adminAddress) throw ERR_NOT_FROM_ADMIN;
             storage.adminAddress = msg.newAdminAddress;
             storage.save();
         }
 
         ChangeMinterContent => {
+            var storage = lazy MinterStorage.load();
             assert (in.senderAddress == storage.adminAddress) throw ERR_NOT_FROM_ADMIN;
             storage.content = msg.newContent;
             storage.save();
         }
 
-        else => throw 0xFFFF
+        else => {
+            // ignore empty messages, throw "wrong opcode" for others
+            assert (in.body.isEmpty()) throw 0xFFFF
+        }
     }
 }
 

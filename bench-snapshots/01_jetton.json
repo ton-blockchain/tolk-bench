@@ -151,5 +151,22 @@
       "wallet bits": 5037,
       "wallet cells": 9
     }
+  },
+  {
+    "commitDesc": "manual optimizations",
+    "gas": {
+      "MINT jettons by admin": 11901,
+      "TRANSFER with forward_amount": 13623,
+      "TRANSFER no forward_amount": 11175,
+      "BURN jettons": 8413,
+      "DISCOVER with include_address": 4831,
+      "DISCOVER no include_address": 4277
+    },
+    "codeSize": {
+      "minter bits": 4794,
+      "minter cells": 12,
+      "wallet bits": 4917,
+      "wallet cells": 9
+    }
   }
 ]

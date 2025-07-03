@@ -28,13 +28,6 @@ fun onBouncedMessage(in: InMessageBounced) {
 }
 
 fun onInternalMessage(in: InMessage) {
-    if (in.body.isEmpty()) {
-        // ignore empty messages
-        return;
-    }
-
-    // todo load storage once or in every branch?
-
     val msg = lazy AllowedMessageToWallet.fromSlice(in.body);
 
     match (msg) {
@@ -47,8 +40,8 @@ fun onInternalMessage(in: InMessage) {
             storage.save();
 
             var msgValue = in.valueCoins;
-            var tonBalanceBeforeMsg: int = contract.getOriginalBalance() - msgValue;
-            var storageFee: int = MIN_TONS_FOR_STORAGE - min(tonBalanceBeforeMsg, MIN_TONS_FOR_STORAGE);
+            var tonBalanceBeforeMsg = contract.getOriginalBalance() - msgValue;
+            var storageFee = MIN_TONS_FOR_STORAGE - min(tonBalanceBeforeMsg, MIN_TONS_FOR_STORAGE);
             msgValue -= (storageFee + JETTON_WALLET_GAS_CONSUMPTION);
 
             if (msg.forwardTonAmount) {
@@ -117,8 +110,6 @@ fun onInternalMessage(in: InMessage) {
         }
 
         AskToBurn => {
-            assert (in.valueCoins > in.originalForwardFee + 2 * JETTON_WALLET_GAS_CONSUMPTION) throw ERR_NOT_ENOUGH_GAS;
-
             var storage = lazy WalletStorage.load();
             assert (in.senderAddress == storage.ownerAddress) throw ERR_NOT_FROM_OWNER;
             assert (storage.jettonBalance >= msg.jettonAmount) throw ERR_NOT_ENOUGH_BALANCE;
@@ -136,10 +127,13 @@ fun onInternalMessage(in: InMessage) {
                     sendExcessesTo: msg.sendExcessesTo,
                 }
             });
-            notifyMinterMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+            notifyMinterMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
         }
 
-        else => throw 0xFFFF
+        else => {
+            // ignore empty messages, throw "wrong opcode" for others
+            assert (in.body.isEmpty()) throw 0xFFFF
+        }
     }
 }
 
