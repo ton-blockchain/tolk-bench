@@ -14,11 +14,10 @@ fun deployNftItem(itemIndex: int, nftItemCode: cell, attachTonAmount: coins, ini
 }
 
 type AllowedMessageToNftCollection =
-    RequestRoyaltyParams |
-    DeployNft |
-    BatchDeployNfts |
-    ChangeCollectionAdmin |
-;
+    | RequestRoyaltyParams
+    | DeployNft
+    | BatchDeployNfts
+    | ChangeCollectionAdmin
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy AllowedMessageToNftCollection.fromSlice(in.body);
@@ -103,7 +102,7 @@ struct (0x01) OffchainMetadataReply {
     string: SnakeString;
 }
 
-get get_collection_data(): CollectionDataReply {
+get fun get_collection_data(): CollectionDataReply {
     val storage = lazy NftCollectionStorage.load();
     val content = lazy storage.content.load();
 
@@ -114,18 +113,18 @@ get get_collection_data(): CollectionDataReply {
     }
 }
 
-get get_nft_address_by_index(itemIndex: int): address {
+get fun get_nft_address_by_index(itemIndex: int): address {
     val storage = lazy NftCollectionStorage.load();
     val nftDeployed = calcDeployedNftItem(itemIndex, contract.getAddress(), storage.nftItemCode);
     return address.fromValidBuilder(nftDeployed.buildAddress());
 }
 
-get royalty_params(): RoyaltyParams {
+get fun royalty_params(): RoyaltyParams {
     val storage = lazy NftCollectionStorage.load();
     return storage.royaltyParams.load();
 }
 
-get get_nft_content(itemIndex: int, individualNftContent: Cell<SnakeString>): Cell<OffchainMetadataReply> {
+get fun get_nft_content(itemIndex: int, individualNftContent: Cell<SnakeString>): Cell<OffchainMetadataReply> {
     val storage = lazy NftCollectionStorage.load();
     val content = lazy storage.content.load();
 

@@ -6,12 +6,11 @@ import "fees-management"
 import "storage"
 
 type AllowedMessageToWallet =
-    AskToTransfer |
-    AskToBurn |
-    InternalTransferStep |
-;
+    | AskToTransfer
+    | AskToBurn
+    | InternalTransferStep
 
-type BounceOpToHandle = InternalTransferStep | BurnNotificationForMinter;
+type BounceOpToHandle = InternalTransferStep | BurnNotificationForMinter
 
 fun onBouncedMessage(in: InMessageBounced) {
     in.bouncedBody.skipBouncedPrefix();
@@ -146,7 +145,7 @@ struct JettonWalletDataReply {
     jettonWalletCode: cell;
 }
 
-get get_wallet_data(): JettonWalletDataReply {
+get fun get_wallet_data(): JettonWalletDataReply {
     val storage = lazy WalletStorage.load();
 
     return {

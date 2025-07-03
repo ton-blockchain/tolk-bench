@@ -8,16 +8,15 @@ import "storage"
 import "messages"
 
 type AllowedMessageToMinter =
-    MintNewJettons |
-    BurnNotificationForMinter |
-    RequestWalletAddress |
-    ChangeMinterAdmin |
-    ClaimMinterAdmin |
-    DropMinterAdmin |
-    ChangeMinterMetadataUri |
-    UpgradeMinterCode |
-    TopUpTons |
-;
+    | MintNewJettons
+    | BurnNotificationForMinter
+    | RequestWalletAddress
+    | ChangeMinterAdmin
+    | ClaimMinterAdmin
+    | DropMinterAdmin
+    | ChangeMinterMetadataUri
+    | UpgradeMinterCode
+    | TopUpTons
 
 fun onBouncedMessage(in: InMessageBounced) {
     in.bouncedBody.skipBouncedPrefix();
@@ -173,7 +172,7 @@ struct (0x00) SnakeDataReply {
     string: SnakeString;
 }
 
-get get_jetton_data(): JettonDataReply {
+get fun get_jetton_data(): JettonDataReply {
     val storage = lazy MinterStorage.load();
     var metadata: OnchainMetadataReply = {
         contentDict: createEmptyDict()
@@ -190,13 +189,13 @@ get get_jetton_data(): JettonDataReply {
     }
 }
 
-get get_wallet_address(ownerAddress: address): address {
+get fun get_wallet_address(ownerAddress: address): address {
     val storage = lazy MinterStorage.load();
     val addrBuilt = buildAddressOfJettonWallet(ownerAddress, contract.getAddress(), storage.jettonWalletCode);
     return address.fromValidBuilder(addrBuilt);
 }
 
-get get_next_admin_address(): address {
+get fun get_next_admin_address(): address {
     val storage = lazy MinterStorage.load();
     return storage.nextAdminAddress;
 }

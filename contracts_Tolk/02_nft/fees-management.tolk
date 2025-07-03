@@ -1,2 +1,2 @@
 
-const MIN_TONS_FOR_STORAGE = ton("0.05");
+const MIN_TONS_FOR_STORAGE = ton("0.05")

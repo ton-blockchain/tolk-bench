@@ -13,13 +13,12 @@ struct (0x04) SetSignatureAllowedExtraAction {
 }
 
 type ExtraAction =
-    AddExtensionExtraAction |
-    RemoveExtensionExtraAction |
-    SetSignatureAllowedExtraAction
-;
+    | AddExtensionExtraAction
+    | RemoveExtensionExtraAction
+    | SetSignatureAllowedExtraAction
 
 // "extra actions" are represented in a snake format: "data".ref("data.ref("data"...))
-type SnakedExtraActions = RemainingBitsAndRefs;
+type SnakedExtraActions = RemainingBitsAndRefs
 
 fun SnakedExtraActions.hasNext(self) {
     return self.remainingRefsCount()

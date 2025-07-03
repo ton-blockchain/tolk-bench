@@ -81,10 +81,10 @@ function printActualGasConstants() {
     let s = `
 // these gas constants should be in \`fees-management.tolk\` ${numericFolder}:
 
-const GAS_CONSUMPTION_JettonTransfer    = ${actualConstantsInGasTolk.GAS_CONSUMPTION_JettonTransfer};
-const GAS_CONSUMPTION_JettonReceive     = ${actualConstantsInGasTolk.GAS_CONSUMPTION_JettonReceive};
-const GAS_CONSUMPTION_BurnRequest       = ${actualConstantsInGasTolk.GAS_CONSUMPTION_BurnRequest};
-const GAS_CONSUMPTION_BurnNotification  = ${actualConstantsInGasTolk.GAS_CONSUMPTION_BurnNotification};
+const GAS_CONSUMPTION_JettonTransfer    = ${actualConstantsInGasTolk.GAS_CONSUMPTION_JettonTransfer}
+const GAS_CONSUMPTION_JettonReceive     = ${actualConstantsInGasTolk.GAS_CONSUMPTION_JettonReceive}
+const GAS_CONSUMPTION_BurnRequest       = ${actualConstantsInGasTolk.GAS_CONSUMPTION_BurnRequest}
+const GAS_CONSUMPTION_BurnNotification  = ${actualConstantsInGasTolk.GAS_CONSUMPTION_BurnNotification}
 `;
     console.log(s)      // when tests fail, probably fees-management.tolk should be updated
 }

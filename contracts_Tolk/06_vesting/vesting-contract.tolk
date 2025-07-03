@@ -6,7 +6,7 @@ import "message-validation"
 import "errors"
 import "messages"
 
-type AllowedMessageToVestingWallet = RequestAddToWhitelist | AskToSendMessage;
+type AllowedMessageToVestingWallet = RequestAddToWhitelist | AskToSendMessage
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy AllowedMessageToVestingWallet.fromSlice(in.body);
@@ -110,22 +110,22 @@ struct VestingDataReply {
     whitelist: dict;
 }
 
-get seqno(): int {
+get fun seqno(): int {
     val storage = lazy Storage.load();
     return storage.seqno;
 }
 
-get get_subwallet_id(): int {
+get fun get_subwallet_id(): int {
     val storage = lazy Storage.load();
     return storage.subwalletId;
 }
 
-get get_public_key(): int {
+get fun get_public_key(): int {
     val storage = lazy Storage.load();
     return storage.publicKey;
 }
 
-get get_vesting_data(): VestingDataReply {
+get fun get_vesting_data(): VestingDataReply {
     val storage = lazy Storage.load();
 
     return {
@@ -134,12 +134,12 @@ get get_vesting_data(): VestingDataReply {
     }
 }
 
-get is_whitelisted(address: address): bool {
+get fun is_whitelisted(address: address): bool {
     val storage = lazy Storage.load();
     return storage.whitelist.isWhitelisted(address);
 }
 
-get get_whitelist(): tuple {
+get fun get_whitelist(): tuple {
     val storage = lazy Storage.load();
     var d: dict = storage.whitelist;
 
@@ -155,7 +155,7 @@ get get_whitelist(): tuple {
     return list!;
 }
 
-get get_locked_amount(atTime: int): coins {
+get fun get_locked_amount(atTime: int): coins {
     val storage = lazy Storage.load();
     return storage.vestingParameters.load().getLockedAmount(atTime);
 }

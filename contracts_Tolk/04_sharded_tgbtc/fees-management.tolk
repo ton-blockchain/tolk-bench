@@ -6,15 +6,15 @@ import "errors"
 // these constants are used to estimate storage fee (how much we should pay for storing a wallet contract);
 // actual storage state (desired value of these constants) are printed to console in StateInit.spec.ts
 
-const STORAGE_SIZE_MaxWallet_bits         = 1026;
-const STORAGE_SIZE_MaxWallet_cells        = 3;
-const STORAGE_SIZE_InitStateWallet_bits   = 812;
-const STORAGE_SIZE_InitStateWallet_cells  = 3;
+const STORAGE_SIZE_MaxWallet_bits         = 1026
+const STORAGE_SIZE_MaxWallet_cells        = 3
+const STORAGE_SIZE_InitStateWallet_bits   = 812
+const STORAGE_SIZE_InitStateWallet_cells  = 3
 
-const MESSAGE_SIZE_BurnNotification_bits  = 754;   // body = 32+64+124+(3+8+256)+(3+8+256)
-const MESSAGE_SIZE_BurnNotification_cells = 1;     // body always in ref
+const MESSAGE_SIZE_BurnNotification_bits  = 754   // body = 32+64+124+(3+8+256)+(3+8+256)
+const MESSAGE_SIZE_BurnNotification_cells = 1     // body always in ref
 
-const MIN_STORAGE_DURATION = 5 * 365 * 24 * 3600; // 5 years
+const MIN_STORAGE_DURATION = 5 * 365 * 24 * 3600  // 5 years
 
 
 // Gas costs
@@ -22,20 +22,20 @@ const MIN_STORAGE_DURATION = 5 * 365 * 24 * 3600; // 5 years
 // they must be absolutely equal to consumed gas; if not, tests fail;
 // actual consumed gas (desired value of these constants) are printed to console after tests run
 
-const GAS_CONSUMPTION_JettonTransfer    = 6772;
-const GAS_CONSUMPTION_JettonReceive     = 7956;
-const GAS_CONSUMPTION_BurnRequest       = 4298;
-const GAS_CONSUMPTION_BurnNotification  = 4588;
+const GAS_CONSUMPTION_JettonTransfer    = 6772
+const GAS_CONSUMPTION_JettonReceive     = 7956
+const GAS_CONSUMPTION_BurnRequest       = 4298
+const GAS_CONSUMPTION_BurnNotification  = 4588
 
 
 fun getPrecompiledGasConsumption(): int?
     asm "GETPRECOMPILEDGAS";
 
-fun calculateJettonWalletMinStorageFee(): int {
+fun calculateJettonWalletMinStorageFee() {
     return calculateStorageFee(MY_WORKCHAIN, MIN_STORAGE_DURATION, STORAGE_SIZE_MaxWallet_bits, STORAGE_SIZE_MaxWallet_cells);
 }
 
-fun forwardInitStateOverhead(): int {
+fun forwardInitStateOverhead() {
     return calculateForwardFeeWithoutLumpPrice(MY_WORKCHAIN, STORAGE_SIZE_InitStateWallet_bits, STORAGE_SIZE_InitStateWallet_cells);
 }
 

@@ -5,9 +5,8 @@ import "messages"
 import "fees-management"
 
 type AllowedMessageToNftItem =
-    AskToChangeOwnership |
-    RequestStaticData |
-;
+    | AskToChangeOwnership
+    | RequestStaticData
 
 fun onInternalMessage(in: InMessage) {
     var loadingStorage = startLoadingNftItemStorage();
@@ -118,7 +117,7 @@ struct NftDataReply {
     content: Cell<SnakeString>? = null;
 }
 
-get get_nft_data(): NftDataReply {
+get fun get_nft_data(): NftDataReply {
     var loadingStorage = startLoadingNftItemStorage();
     if (!loadingStorage.isInitialized()) {
         val uninitedSt = loadingStorage.parseNotInitialized();

@@ -1,7 +1,7 @@
 // SnakeString describes a (potentially long) string inside a cell;
 // short strings are stored as-is, like "my-picture.png";
 // long strings are nested refs, like "xxxx".ref("yyyy".ref("zzzz"))
-type SnakeString = slice;
+type SnakeString = slice
 
 fun SnakeString.unpackFromSlice(mutate s: slice) {
     // obviously, SnakeString can be only the last: it's just "the remainder";

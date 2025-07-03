@@ -2,7 +2,7 @@ import "@stdlib/gas-payments"
 import "errors"
 
 // we're working in basechain, but theoretically, a jetton might even work in masterchain
-const MY_WORKCHAIN = BASECHAIN;
+const MY_WORKCHAIN = BASECHAIN
 
 fun getPrecompiledGasConsumption(): int?
     asm "GETPRECOMPILEDGAS";
@@ -10,15 +10,15 @@ fun getPrecompiledGasConsumption(): int?
 // Storage costs
 // these constants are used to estimate storage fee (how much we should pay for storing a wallet contract)
 
-const STORAGE_SIZE_MaxWallet_bits         = 1033;
-const STORAGE_SIZE_MaxWallet_cells        = 3;
-const STORAGE_SIZE_InitStateWallet_bits   = 931;
-const STORAGE_SIZE_InitStateWallet_cells  = 3;
+const STORAGE_SIZE_MaxWallet_bits         = 1033
+const STORAGE_SIZE_MaxWallet_cells        = 3
+const STORAGE_SIZE_InitStateWallet_bits   = 931
+const STORAGE_SIZE_InitStateWallet_cells  = 3
 
-const MESSAGE_SIZE_BurnNotification_bits  = 754;   // body = 32+64+124+(3+8+256)+(3+8+256)
-const MESSAGE_SIZE_BurnNotification_cells = 1;     // body always in ref
+const MESSAGE_SIZE_BurnNotification_bits  = 754   // body = 32+64+124+(3+8+256)+(3+8+256)
+const MESSAGE_SIZE_BurnNotification_cells = 1     // body always in ref
 
-const MIN_STORAGE_DURATION = 5 * 365 * 24 * 3600; // 5 years
+const MIN_STORAGE_DURATION = 5 * 365 * 24 * 3600  // 5 years
 
 
 // Gas costs
@@ -26,17 +26,17 @@ const MIN_STORAGE_DURATION = 5 * 365 * 24 * 3600; // 5 years
 // they must be absolutely equal to consumed gas; if not, tests fail;
 // actual consumed gas (desired value of these constants) are printed to console after tests run
 
-const GAS_CONSUMPTION_JettonTransfer    = 6561;
-const GAS_CONSUMPTION_JettonReceive     = 7640;
-const GAS_CONSUMPTION_BurnRequest       = 4412;
-const GAS_CONSUMPTION_BurnNotification  = 4205;
+const GAS_CONSUMPTION_JettonTransfer    = 6561
+const GAS_CONSUMPTION_JettonReceive     = 7640
+const GAS_CONSUMPTION_BurnRequest       = 4412
+const GAS_CONSUMPTION_BurnNotification  = 4205
 
 
-fun calculateJettonWalletMinStorageFee(): int {
+fun calculateJettonWalletMinStorageFee() {
     return calculateStorageFee(MY_WORKCHAIN, MIN_STORAGE_DURATION, STORAGE_SIZE_MaxWallet_bits, STORAGE_SIZE_MaxWallet_cells);
 }
 
-fun forwardInitStateOverhead(): int {
+fun forwardInitStateOverhead() {
     return calculateForwardFeeWithoutLumpPrice(MY_WORKCHAIN, STORAGE_SIZE_InitStateWallet_bits, STORAGE_SIZE_InitStateWallet_cells);
 }
 

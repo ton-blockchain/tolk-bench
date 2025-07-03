@@ -6,12 +6,11 @@ import "storage"
 import "fees-management"
 
 type AllowedMessageToMinter =
-    MintNewJettons |
-    BurnNotificationForMinter |
-    RequestWalletAddress |
-    ChangeMinterAdmin |
-    ChangeMinterContent |
-;
+    | MintNewJettons
+    | BurnNotificationForMinter
+    | RequestWalletAddress
+    | ChangeMinterAdmin
+    | ChangeMinterContent
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy AllowedMessageToMinter.fromSlice(in.body);
@@ -117,7 +116,7 @@ struct JettonDataReply {
     jettonWalletCode: cell;
 }
 
-get get_jetton_data(): JettonDataReply {
+get fun get_jetton_data(): JettonDataReply {
     val storage = lazy MinterStorage.load();
 
     return {
@@ -129,7 +128,7 @@ get get_jetton_data(): JettonDataReply {
     }
 }
 
-get get_wallet_address(ownerAddress: address): address {
+get fun get_wallet_address(ownerAddress: address): address {
     val storage = lazy MinterStorage.load();
     val addrBuilt = buildAddressOfJettonWallet(ownerAddress, contract.getAddress(), storage.jettonWalletCode);
     return address.fromValidBuilder(addrBuilt);

@@ -1,8 +1,8 @@
 import "@stdlib/tvm-dicts"
 
-const SIZE_ADDRESS_HASH = 256;
+const SIZE_ADDRESS_HASH = 256
 
-type ExtensionsDict = dict;
+type ExtensionsDict = dict
 
 struct Storage {
     isSignatureAllowed: bool;

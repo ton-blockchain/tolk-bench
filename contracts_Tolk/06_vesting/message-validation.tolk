@@ -8,59 +8,56 @@ import "errors"
 import "messages"
 
 // https://github.com/ton-blockchain/ton/blob/d2b418bb703ed6ccd89b7d40f9f1e44686012014/crypto/block/block.tlb#L605
-const CONFIG_CONFIG_ID = 0;
-const ELECTOR_CONFIG_ID = 1;
+const CONFIG_CONFIG_ID = 0
+const ELECTOR_CONFIG_ID = 1
 
 // contract "elector"
 // https://github.com/ton-blockchain/ton/blob/master/crypto/smartcont/elector-code.fc
 
 type AllowedOpToElectorContract =
-    AllowedOpElectorNewStake |
-    AllowedOpElectorRecoverStake |
-    AllowedOpElectorVoteForComplaint |
-    AllowedOpElectorVoteForProposal |
-;
+    | AllowedOpElectorNewStake
+    | AllowedOpElectorRecoverStake
+    | AllowedOpElectorVoteForComplaint
+    | AllowedOpElectorVoteForProposal
 
-struct (0x4e73744b) AllowedOpElectorNewStake {}
-struct (0x47657424) AllowedOpElectorRecoverStake {}
-struct (0x56744370) AllowedOpElectorVoteForComplaint {}
-struct (0x566f7465) AllowedOpElectorVoteForProposal {}
+struct (0x4e73744b) AllowedOpElectorNewStake
+struct (0x47657424) AllowedOpElectorRecoverStake
+struct (0x56744370) AllowedOpElectorVoteForComplaint
+struct (0x566f7465) AllowedOpElectorVoteForProposal
 
 // contract "config"
 
-type AllowedOpToConfigContract = AllowedOpElectorVoteForProposal;
+type AllowedOpToConfigContract = AllowedOpElectorVoteForProposal
 
 // other contracts, enumerate well-known opcodes
 
-struct (0x00001000) AllowedOpSingleNominatorPoolWithdraw {}
-struct (0x00001001) AllowedOpSingleChangeValidator {}
-struct (0x47d54391) AllowedOpTonStakersDeposit {}
-struct (0x595f07bc) AllowedOpJettonBurn {}
-struct (0x69fb306c) AllowedOpTonStakersVote {}
+struct (0x00001000) AllowedOpSingleNominatorPoolWithdraw
+struct (0x00001001) AllowedOpSingleChangeValidator
+struct (0x47d54391) AllowedOpTonStakersDeposit
+struct (0x595f07bc) AllowedOpJettonBurn
+struct (0x69fb306c) AllowedOpTonStakersVote
 struct (0x00000000) AllowedOpText { rest: RemainingBitsAndRefs }
 
 type AllowedOpToOtherContract =
-    AllowedOpSingleNominatorPoolWithdraw |
-    AllowedOpSingleChangeValidator |
-    AllowedOpTonStakersDeposit |
-    AllowedOpJettonBurn |
-    AllowedOpTonStakersVote |
-    AllowedOpElectorVoteForComplaint |
-    AllowedOpElectorVoteForProposal |
-    AllowedOpText |
-;
+    | AllowedOpSingleNominatorPoolWithdraw
+    | AllowedOpSingleChangeValidator
+    | AllowedOpTonStakersDeposit
+    | AllowedOpJettonBurn
+    | AllowedOpTonStakersVote
+    | AllowedOpElectorVoteForComplaint
+    | AllowedOpElectorVoteForProposal
+    | AllowedOpText
 
-struct (0x64) AllowedOpTextAction_d {}  // single letter "d", etc
-struct (0x77) AllowedOpTextAction_w {}
-struct (0x44) AllowedOpTextAction_D {}
-struct (0x57) AllowedOpTextAction_W {}
+struct (0x64) AllowedOpTextAction_d  // single letter "d", etc
+struct (0x77) AllowedOpTextAction_w
+struct (0x44) AllowedOpTextAction_D
+struct (0x57) AllowedOpTextAction_W
 
 type AllowedOpTextAction =
-    AllowedOpTextAction_d |
-    AllowedOpTextAction_w |
-    AllowedOpTextAction_D |
-    AllowedOpTextAction_W |
-;
+    | AllowedOpTextAction_d
+    | AllowedOpTextAction_w
+    | AllowedOpTextAction_D
+    | AllowedOpTextAction_W
 
 fun address.matchesAddressFromConfig(self, configId: int): bool {
     var (addrWc, addrHash) = self.getWorkchainAndHash();

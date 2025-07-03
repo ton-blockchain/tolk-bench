@@ -4,7 +4,7 @@ import "storage"
 import "messages"
 import "c5-register-validation"
 
-const SIZE_SIGNATURE = 512;
+const SIZE_SIGNATURE = 512
 
 @inline_ref
 fun processExtraActions(extraActions: SnakedExtraActions, isExtension: bool) {
@@ -68,9 +68,9 @@ fun processActions(outActions: OutActionsCell?, hasExtraActions: bool, extraActi
 }
 
 
-type AllowedMessageToWalletV5 = ExtensionActionRequest | InternalSignedRequest;
+type AllowedMessageToWalletV5 = ExtensionActionRequest | InternalSignedRequest
 
-type AllowedExternalMessageToWalletV5 = ExternalSignedRequest;
+type AllowedExternalMessageToWalletV5 = ExternalSignedRequest
 
 
 fun onExternalMessage(inMsgBody: slice) {
@@ -159,28 +159,28 @@ fun onInternalMessage(in: InMessage) {
 
 
 
-get is_signature_allowed(): bool {
+get fun is_signature_allowed(): bool {
     val storage = lazy Storage.load();
     return storage.isSignatureAllowed;
 }
 
-get seqno(): int {
+get fun seqno(): int {
     val storage = lazy Storage.load();
     return storage.seqno;
 }
 
-get get_subwallet_id(): int {
+get fun get_subwallet_id(): int {
     val storage = lazy Storage.load();
     return storage.subwalletId;
 }
 
-get get_public_key(): int {
+get fun get_public_key(): int {
     val storage = lazy Storage.load();
     return storage.publicKey;
 }
 
 // Returns raw dictionary (or null if empty) where keys are address hashes. Workchains of extensions are same with wallet smart contract workchain
-get get_extensions(): dict {
+get fun get_extensions(): dict {
     val storage = lazy Storage.load();
     return storage.extensions;
 }

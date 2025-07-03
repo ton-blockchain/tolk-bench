@@ -1,6 +1,6 @@
 import "storage"
 
-type ForwardPayloadRemainder = RemainingBitsAndRefs;
+type ForwardPayloadRemainder = RemainingBitsAndRefs
 
 struct (0x0f8a7ea5) AskToTransfer {
     queryId: uint64;

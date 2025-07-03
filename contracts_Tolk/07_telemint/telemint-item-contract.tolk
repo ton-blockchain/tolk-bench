@@ -135,14 +135,13 @@ fun initializeItemOnDeployingByCollection(uninitedSt: ItemStorageNotInitialized,
 }
 
 type AllowedMessageToItem =
-    TelemintItemDeploy |
-    MakeNewStakeOrTopUp |
-    RequestRoyaltyParams |
-    RequestStaticData |
-    AskToStartAuction |
-    AskToCancelAuction |
-    AskToTransfer |
-;
+    | TelemintItemDeploy
+    | MakeNewStakeOrTopUp
+    | RequestRoyaltyParams
+    | RequestStaticData
+    | AskToStartAuction
+    | AskToCancelAuction
+    | AskToTransfer
 
 fun onInternalMessage(in: InMessage) {
     var myBalance = contract.getOriginalBalance();
@@ -390,7 +389,7 @@ struct AuctionStateReply {
     endTime: int;
 }
 
-get get_nft_data(): NftDataReply {
+get fun get_nft_data(): NftDataReply {
     var loadingStorage = startLoadingItemStorage();
     if (!loadingStorage.isInitialized()) {
         val uninitedSt = loadingStorage.parseNotInitialized();
@@ -413,14 +412,14 @@ get get_nft_data(): NftDataReply {
     }
 }
 
-get get_telemint_token_name(): TelegramString {
+get fun get_telemint_token_name(): TelegramString {
     val storage = lazy ItemStorage.load();
     val itemContent = lazy storage.content.load();
     val tokenInfo = lazy itemContent.tokenInfo.load();
     return tokenInfo.tokenName;
 }
 
-get get_telemint_auction_state(): AuctionStateReply {
+get fun get_telemint_auction_state(): AuctionStateReply {
     val storage = lazy ItemStorage.load();
     assert (storage.auction != null) throw ERR_NO_AUCTION;
 
@@ -438,7 +437,7 @@ get get_telemint_auction_state(): AuctionStateReply {
     return reply;
 }
 
-get get_telemint_auction_config(): AuctionConfigReply {
+get fun get_telemint_auction_config(): AuctionConfigReply {
     val storage = lazy ItemStorage.load();
     if (storage.auction == null) {
         return {
@@ -458,7 +457,7 @@ get get_telemint_auction_config(): AuctionConfigReply {
     }
 }
 
-get royalty_params(): RoyaltyParams {
+get fun royalty_params(): RoyaltyParams {
     val storage = lazy ItemStorage.load();
     return storage.royaltyParams.load();
 }

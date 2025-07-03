@@ -1,7 +1,7 @@
 import "fees-management"
 
 // encoded as TL/B `len: (## 8) data: (bits (len*8))`
-type TelegramString = slice;
+type TelegramString = slice
 
 fun TelegramString.packToBuilder(self, mutate b: builder) {
     val bytes = self.remainingBitsCount() / 8;      // assume it's divisible (since decoded from input)

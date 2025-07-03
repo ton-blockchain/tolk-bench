@@ -49,7 +49,9 @@ fun deployItem(senderAddress: address, bidAmount: coins, nftItemCode: cell, para
     deployMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-type AllowedMessageToCollection = TopUp | AskToDeployItem;
+type AllowedMessageToCollection =
+    | TopUp
+    | AskToDeployItem
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy AllowedMessageToCollection.fromSlice(in.body);
@@ -98,7 +100,7 @@ struct CollectionDataReply {
     ownerAddress: address;
 }
 
-get get_collection_data(): CollectionDataReply {
+get fun get_collection_data(): CollectionDataReply {
     val storage = lazy CollectionStorage.load();
 
     return {
@@ -108,12 +110,12 @@ get get_collection_data(): CollectionDataReply {
     }
 }
 
-get get_nft_address_by_index(index: int): address {
+get fun get_nft_address_by_index(index: int): address {
     val storage = lazy CollectionStorage.load();
     val teleitemDeployed = calcDeployedTeleItem(index, contract.getAddress(), storage.nftItemCode);
     return address.fromValidBuilder(teleitemDeployed.buildAddress());
 }
 
-get get_nft_content(index: int, individualNftContent: cell): cell {
+get fun get_nft_content(index: int, individualNftContent: cell): cell {
     return individualNftContent;
 }

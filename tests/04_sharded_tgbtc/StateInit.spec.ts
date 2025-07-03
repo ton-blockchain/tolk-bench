@@ -32,10 +32,10 @@ function printActualStorageConstants() {
     let s = `
 // these storage constants should be in \`fees-management.tolk\` ${numericFolder}:
 
-const STORAGE_SIZE_MaxWallet_bits         = ${actualConstantsInGasTolk.STORAGE_SIZE_MaxWallet_bits};
-const STORAGE_SIZE_MaxWallet_cells        = ${actualConstantsInGasTolk.STORAGE_SIZE_MaxWallet_cells};
-const STORAGE_SIZE_InitStateWallet_bits   = ${actualConstantsInGasTolk.STORAGE_SIZE_InitStateWallet_bits};
-const STORAGE_SIZE_InitStateWallet_cells  = ${actualConstantsInGasTolk.STORAGE_SIZE_InitStateWallet_cells};
+const STORAGE_SIZE_MaxWallet_bits         = ${actualConstantsInGasTolk.STORAGE_SIZE_MaxWallet_bits}
+const STORAGE_SIZE_MaxWallet_cells        = ${actualConstantsInGasTolk.STORAGE_SIZE_MaxWallet_cells}
+const STORAGE_SIZE_InitStateWallet_bits   = ${actualConstantsInGasTolk.STORAGE_SIZE_InitStateWallet_bits}
+const STORAGE_SIZE_InitStateWallet_cells  = ${actualConstantsInGasTolk.STORAGE_SIZE_InitStateWallet_cells}
 `;
     // console.log(s)          // commented out: they never change, actually
 }
