@@ -54,7 +54,7 @@ struct (0x2c76b973) RequestWalletAddress {
 
 struct (0xd1735400) ResponseWalletAddress {
     queryId: uint64;
-    jettonWalletAddress: builder;
+    jettonWalletAddress: address;
     ownerAddress: Cell<address>?;
 }
 
