@@ -89,5 +89,18 @@
       "wallet_v5 bits": 5951,
       "wallet_v5 cells": 20
     }
+  },
+  {
+    "commitDesc": "modern onInternalMessage, inline variables",
+    "gas": {
+      "EXTERNAL transfer": 3917,
+      "INTERNAL transfer": 4584,
+      "ADD extension": 5045,
+      "EXTENSION transfer": 2799
+    },
+    "codeSize": {
+      "wallet_v5 bits": 5903,
+      "wallet_v5 cells": 19
+    }
   }
 ]

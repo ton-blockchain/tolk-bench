@@ -47,7 +47,7 @@ fun OutActionsCell.verifyC5Actions(self, isExternal: bool): self {
 
         cs = outAction.prev.beginParseAllowExotic();
         count += 1;
-    } while (!cs.isEnd());
+    } while (!cs.isEmpty());
 
     assert (count <= 255) throw ERROR_INVALID_C5;
     return self;

@@ -101,16 +101,13 @@ fun onExternalMessage(inMsgBody: slice) {
 }
 
 
-fun onInternalMessage(inMsgFull: cell, inMsgBody: slice) {
-    val msg = lazy AllowedMessageToWalletV5.fromSlice(inMsgBody);
+@on_bounced_policy("manual")        // tell the compiler "don't insert code to filter out bounced messages"
+fun onInternalMessage(in: InMessage) {
+    val msg = lazy AllowedMessageToWalletV5.fromSlice(in.body);
 
     match (msg) {
         ExtensionActionRequest => {
-            var inMsgFullSlice: slice = inMsgFull.beginParse();
-            inMsgFullSlice.loadMessageFlags();
-            val senderAddress = inMsgFullSlice.loadAddress();
-
-            var (senderWorkchain, senderAddrHash) = senderAddress.getWorkchainAndHash();
+            var (senderWorkchain, senderAddrHash) = in.senderAddress.getWorkchainAndHash();
             var myWorkchain = contract.getAddress().getWorkchain();
             if (myWorkchain != senderWorkchain) {
                 return;
@@ -127,13 +124,13 @@ fun onInternalMessage(inMsgFull: cell, inMsgBody: slice) {
         }
 
         InternalSignedRequest => {
-            val bodyLongEnough = inMsgBody.remainingBitsCount() >= SIZE_SIGNATURE + 128;
+            val bodyLongEnough = in.body.remainingBitsCount() >= SIZE_SIGNATURE + 128;
             if (!bodyLongEnough) {
                 return;     // don't try to parse it (it will fail), just ignore
             }
 
-            var signature = inMsgBody.getLastBits(SIZE_SIGNATURE);
-            var signedSlice = inMsgBody.removeLastBits(SIZE_SIGNATURE);
+            var signature = in.body.getLastBits(SIZE_SIGNATURE);
+            var signedSlice = in.body.removeLastBits(SIZE_SIGNATURE);
 
             var storage = lazy Storage.load();
             if (!isSignatureValid(signedSlice.hash(), signature, storage.publicKey)) {
