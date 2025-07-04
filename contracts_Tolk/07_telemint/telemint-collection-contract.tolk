@@ -13,40 +13,15 @@ fun checkRestrictions(restrictions: OverrideRestrictionsAtDeploy, senderAddress:
     return senderAddress;
 }
 
-fun deployItem(senderAddress: address, bidAmount: coins, nftItemCode: cell, params: SignedDataAtDeploy, fullDomain: TelegramString, defaultRoyaltyParams: Cell<RoyaltyParams>) {
-    if (params.restrictions != null) {
-        senderAddress = checkRestrictions(params.restrictions.load(), senderAddress);
-    }
-
-    val auctionConfig = lazy params.auctionConfig.load();
-    assert (bidAmount >= auctionConfig.minBid) throw ERR_NOT_ENOUGH_FUNDS;
-    if (auctionConfig.isInvalid()) {
-        val returnBidMsg = createMessage({
-            bounce: false,
-            dest: senderAddress,
-            value: 0,
-            body: ReturnBidBackToBidder{}
-        });
-        returnBidMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
-        return;
-    }
-
-    var itemIndex: int = (params.tokenName as slice).bitsHash();
-
-    val deployMsg = createMessage({
-        bounce: true,
-        dest: calcDeployedTeleItem(itemIndex, contract.getAddress(), nftItemCode),
+@inline_ref
+fun returnBidOnIncorrectConfig(returnToAddress: address) {
+    val returnBidMsg = createMessage({
+        bounce: false,
+        dest: returnToAddress,
         value: 0,
-        body: TelemintItemDeploy {
-            bidderAddress: senderAddress,
-            bidAmount: bidAmount,
-            tokenInfo: TokenNameAndDomain { tokenName: params.tokenName, domain: fullDomain }.toCell(),
-            nftContent: params.content,
-            auctionConfig: params.auctionConfig,
-            royaltyParams: params.royalty != null ? params.royalty : defaultRoyaltyParams,
-        }
+        body: ReturnBidBackToBidder{}
     });
-    deployMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    returnBidMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 type AllowedMessageToCollection =
@@ -74,7 +49,35 @@ fun onInternalMessage(in: InMessage) {
             assert (input.validSince < now) throw ERR_NOT_YET_VALID_SIGNATURE;
             assert (now < input.validTill) throw ERR_EXPIRED_SIGNATURE;
 
-            deployItem(in.senderAddress, in.valueCoins, storage.nftItemCode, input, storage.fullDomain.load(), storage.royaltyParams);
+            var senderAddress = in.senderAddress;
+            if (input.restrictions != null) {
+                senderAddress = checkRestrictions(input.restrictions.load(), senderAddress);
+            }
+
+            val bidAmount = in.valueCoins;
+            val auctionConfig = lazy input.auctionConfig.load();
+            assert (bidAmount >= auctionConfig.minBid) throw ERR_NOT_ENOUGH_FUNDS;
+            if (auctionConfig.isInvalid()) {
+                returnBidOnIncorrectConfig(senderAddress);
+                return;
+            }
+
+            var itemIndex = input.tokenName.bitsHash();
+
+            val deployMsg = createMessage({
+                bounce: true,
+                dest: calcDeployedTeleItem(itemIndex, contract.getAddress(), storage.nftItemCode),
+                value: 0,
+                body: TelemintItemDeploy {
+                    bidderAddress: senderAddress,
+                    bidAmount: bidAmount,
+                    tokenInfo: TokenNameAndDomain { tokenName: input.tokenName, domain: storage.fullDomain.load() }.toCell(),
+                    nftContent: input.content,
+                    auctionConfig: input.auctionConfig,
+                    royaltyParams: input.royalty != null ? input.royalty : storage.royaltyParams,
+                }
+            });
+            deployMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
         }
 
         else => {
