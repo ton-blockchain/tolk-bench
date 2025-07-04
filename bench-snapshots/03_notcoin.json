@@ -253,5 +253,22 @@
       "wallet bits": 5690,
       "wallet cells": 12
     }
+  },
+  {
+    "commitDesc": "compiler: optimize PUSHINT+STU to STSLICECONST",
+    "gas": {
+      "MINT jettons by admin": 10962,
+      "TRANSFER with forward_amount": 14585,
+      "TRANSFER no forward_amount": 12232,
+      "BURN jettons": 8800,
+      "DISCOVER with include_address": 5002,
+      "DISCOVER no include_address": 4448
+    },
+    "codeSize": {
+      "minter bits": 7719,
+      "minter cells": 16,
+      "wallet bits": 5602,
+      "wallet cells": 12
+    }
   }
 ]

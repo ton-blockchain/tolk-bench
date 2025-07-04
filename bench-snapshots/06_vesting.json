@@ -206,5 +206,21 @@
       "vesting wallet bits": 6989,
       "vesting wallet cells": 26
     }
+  },
+  {
+    "commitDesc": "compiler: optimize PUSHINT+STU to STSLICECONST",
+    "gas": {
+      "ADD whitelist": 4376,
+      "UNLOCK internal partial": 5888,
+      "INTERNAL to vesting sender": 5152,
+      "INTERNAL to elector": 7615,
+      "INTERNAL to single nominator": 6740,
+      "INTERNAL with comment": 6828,
+      "EXTERNAL transfer after unlock": 4509
+    },
+    "codeSize": {
+      "vesting wallet bits": 6973,
+      "vesting wallet cells": 26
+    }
   }
 ]

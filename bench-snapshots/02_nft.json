@@ -208,5 +208,20 @@
       "nft-collection bits": 4387,
       "nft-collection cells": 14
     }
+  },
+  {
+    "commitDesc": "compiler: optimize PUSHINT+STU to STSLICECONST",
+    "gas": {
+      "DEPLOY nft": 5885,
+      "BATCH deploy nft": 686820,
+      "TRANSFER nft": 4445,
+      "GET static data": 2527
+    },
+    "codeSize": {
+      "nft-item bits": 2597,
+      "nft-item cells": 7,
+      "nft-collection bits": 4339,
+      "nft-collection cells": 14
+    }
   }
 ]
