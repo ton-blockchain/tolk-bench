@@ -158,5 +158,21 @@
       "vesting wallet bits": 7069,
       "vesting wallet cells": 26
     }
+  },
+  {
+    "commitDesc": "compiler: optimize SDSKIPFIRST to LDU + NIP",
+    "gas": {
+      "ADD whitelist": 4432,
+      "UNLOCK internal partial": 5952,
+      "INTERNAL to vesting sender": 5216,
+      "INTERNAL to elector": 7679,
+      "INTERNAL to single nominator": 6804,
+      "INTERNAL with comment": 6892,
+      "EXTERNAL transfer after unlock": 4527
+    },
+    "codeSize": {
+      "vesting wallet bits": 7029,
+      "vesting wallet cells": 26
+    }
   }
 ]

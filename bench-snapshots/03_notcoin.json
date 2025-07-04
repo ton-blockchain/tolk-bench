@@ -185,5 +185,22 @@
       "wallet bits": 5738,
       "wallet cells": 12
     }
+  },
+  {
+    "commitDesc": "compiler: optimize SDSKIPFIRST to LDU + NIP",
+    "gas": {
+      "MINT jettons by admin": 11143,
+      "TRANSFER with forward_amount": 14819,
+      "TRANSFER no forward_amount": 12413,
+      "BURN jettons": 8926,
+      "DISCOVER with include_address": 5106,
+      "DISCOVER no include_address": 4552
+    },
+    "codeSize": {
+      "minter bits": 7807,
+      "minter cells": 16,
+      "wallet bits": 5722,
+      "wallet cells": 12
+    }
   }
 ]

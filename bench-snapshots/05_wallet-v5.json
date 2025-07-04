@@ -115,5 +115,18 @@
       "wallet_v5 bits": 5887,
       "wallet_v5 cells": 19
     }
+  },
+  {
+    "commitDesc": "compiler: optimize SDSKIPFIRST to LDU + NIP",
+    "gas": {
+      "EXTERNAL transfer": 3917,
+      "INTERNAL transfer": 4399,
+      "ADD extension": 5005,
+      "EXTENSION transfer": 2866
+    },
+    "codeSize": {
+      "wallet_v5 bits": 5863,
+      "wallet_v5 cells": 19
+    }
   }
 ]
