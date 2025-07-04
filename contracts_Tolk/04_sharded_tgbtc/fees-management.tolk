@@ -25,7 +25,7 @@ const MIN_STORAGE_DURATION = 5 * 365 * 24 * 3600  // 5 years
 const GAS_CONSUMPTION_JettonTransfer    = 6727
 const GAS_CONSUMPTION_JettonReceive     = 7956
 const GAS_CONSUMPTION_BurnRequest       = 4283
-const GAS_CONSUMPTION_BurnNotification  = 4588
+const GAS_CONSUMPTION_BurnNotification  = 4578
 
 
 fun getPrecompiledGasConsumption(): int?

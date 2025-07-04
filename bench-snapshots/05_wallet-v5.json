@@ -128,5 +128,18 @@
       "wallet_v5 bits": 5863,
       "wallet_v5 cells": 19
     }
+  },
+  {
+    "commitDesc": "compiler: optimize LD+DROP to PLD",
+    "gas": {
+      "EXTERNAL transfer": 3889,
+      "INTERNAL transfer": 4371,
+      "ADD extension": 4969,
+      "EXTENSION transfer": 2951
+    },
+    "codeSize": {
+      "wallet_v5 bits": 5807,
+      "wallet_v5 cells": 20
+    }
   }
 ]

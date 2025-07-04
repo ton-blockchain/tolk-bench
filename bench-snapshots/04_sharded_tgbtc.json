@@ -202,5 +202,22 @@
       "wallet bits": 5727,
       "wallet cells": 11
     }
+  },
+  {
+    "commitDesc": "compiler: optimize LD+DROP to PLD",
+    "gas": {
+      "MINT jettons by admin": 11640,
+      "TRANSFER with forward_amount": 15301,
+      "TRANSFER no forward_amount": 12895,
+      "BURN jettons": 9170,
+      "DISCOVER with include_address": 5503,
+      "DISCOVER no include_address": 4949
+    },
+    "codeSize": {
+      "minter bits": 8415,
+      "minter cells": 19,
+      "wallet bits": 5727,
+      "wallet cells": 11
+    }
   }
 ]

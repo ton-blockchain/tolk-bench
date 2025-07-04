@@ -174,5 +174,21 @@
       "vesting wallet bits": 7029,
       "vesting wallet cells": 26
     }
+  },
+  {
+    "commitDesc": "compiler: optimize LD+DROP to PLD",
+    "gas": {
+      "ADD whitelist": 4422,
+      "UNLOCK internal partial": 5932,
+      "INTERNAL to vesting sender": 5196,
+      "INTERNAL to elector": 7659,
+      "INTERNAL to single nominator": 6784,
+      "INTERNAL with comment": 6872,
+      "EXTERNAL transfer after unlock": 4517
+    },
+    "codeSize": {
+      "vesting wallet bits": 7013,
+      "vesting wallet cells": 26
+    }
   }
 ]
