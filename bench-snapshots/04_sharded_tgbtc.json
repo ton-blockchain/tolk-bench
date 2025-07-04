@@ -185,5 +185,22 @@
       "wallet bits": 5751,
       "wallet cells": 11
     }
+  },
+  {
+    "commitDesc": "compiler: optimize ternary to CONDSEL",
+    "gas": {
+      "MINT jettons by admin": 11660,
+      "TRANSFER with forward_amount": 15301,
+      "TRANSFER no forward_amount": 12895,
+      "BURN jettons": 9180,
+      "DISCOVER with include_address": 5523,
+      "DISCOVER no include_address": 4969
+    },
+    "codeSize": {
+      "minter bits": 8415,
+      "minter cells": 19,
+      "wallet bits": 5727,
+      "wallet cells": 11
+    }
   }
 ]
