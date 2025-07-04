@@ -154,5 +154,18 @@
       "wallet_v5 bits": 5791,
       "wallet_v5 cells": 20
     }
+  },
+  {
+    "commitDesc": "compiler: optimize NOT+THROWIFNOT to THROWIF",
+    "gas": {
+      "EXTERNAL transfer": 3869,
+      "INTERNAL transfer": 4351,
+      "ADD extension": 4949,
+      "EXTENSION transfer": 2951
+    },
+    "codeSize": {
+      "wallet_v5 bits": 5775,
+      "wallet_v5 cells": 20
+    }
   }
 ]
