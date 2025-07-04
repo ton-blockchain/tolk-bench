@@ -236,5 +236,22 @@
       "wallet bits": 5698,
       "wallet cells": 12
     }
+  },
+  {
+    "commitDesc": "compiler: optimize SWAP + xxx to xxxR",
+    "gas": {
+      "MINT jettons by admin": 11060,
+      "TRANSFER with forward_amount": 14756,
+      "TRANSFER no forward_amount": 12350,
+      "BURN jettons": 8901,
+      "DISCOVER with include_address": 5086,
+      "DISCOVER no include_address": 4532
+    },
+    "codeSize": {
+      "minter bits": 7767,
+      "minter cells": 16,
+      "wallet bits": 5690,
+      "wallet cells": 12
+    }
   }
 ]

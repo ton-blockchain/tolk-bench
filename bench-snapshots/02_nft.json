@@ -193,5 +193,20 @@
       "nft-collection bits": 4387,
       "nft-collection cells": 14
     }
+  },
+  {
+    "commitDesc": "compiler: optimize SWAP + xxx to xxxR",
+    "gas": {
+      "DEPLOY nft": 5910,
+      "BATCH deploy nft": 689320,
+      "TRANSFER nft": 4473,
+      "GET static data": 2555
+    },
+    "codeSize": {
+      "nft-item bits": 2637,
+      "nft-item cells": 7,
+      "nft-collection bits": 4387,
+      "nft-collection cells": 14
+    }
   }
 ]

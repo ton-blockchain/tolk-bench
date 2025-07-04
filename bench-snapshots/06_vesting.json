@@ -190,5 +190,21 @@
       "vesting wallet bits": 7013,
       "vesting wallet cells": 26
     }
+  },
+  {
+    "commitDesc": "compiler: optimize SWAP + xxx to xxxR",
+    "gas": {
+      "ADD whitelist": 4404,
+      "UNLOCK internal partial": 5916,
+      "INTERNAL to vesting sender": 5180,
+      "INTERNAL to elector": 7643,
+      "INTERNAL to single nominator": 6768,
+      "INTERNAL with comment": 6856,
+      "EXTERNAL transfer after unlock": 4509
+    },
+    "codeSize": {
+      "vesting wallet bits": 6989,
+      "vesting wallet cells": 26
+    }
   }
 ]
