@@ -19,17 +19,17 @@ fun SnakeString.packToBuilder(self, mutate b: builder) {
 
 
 struct WalletStorage {
-    jettonBalance: coins;
-    ownerAddress: address;
-    minterAddress: address;
+    jettonBalance: coins
+    ownerAddress: address
+    minterAddress: address
 }
 
 struct MinterStorage {
-    totalSupply: coins;
-    adminAddress: address;
-    nextAdminAddress: address;
-    jettonWalletCode: cell;
-    metadataUri: Cell<SnakeString>;
+    totalSupply: coins
+    adminAddress: address
+    nextAdminAddress: address
+    jettonWalletCode: cell
+    metadataUri: Cell<SnakeString>
 }
 
 

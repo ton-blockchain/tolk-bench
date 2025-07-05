@@ -15,19 +15,19 @@ fun TelegramString.unpackFromSlice(mutate s: slice) {
 }
 
 struct CollectionStorage {
-    isCollectionInitialized: bool;
-    subwalletId: uint32;
-    publicKey: uint256;
-    content: cell;
-    nftItemCode: cell;
-    fullDomain: Cell<TelegramString>;
-    royaltyParams: Cell<RoyaltyParams>;
+    isCollectionInitialized: bool
+    subwalletId: uint32
+    publicKey: uint256
+    content: cell
+    nftItemCode: cell
+    fullDomain: Cell<TelegramString>
+    royaltyParams: Cell<RoyaltyParams>
 }
 
 struct RoyaltyParams {
-    royaltyFactor: uint16;
-    royaltyBase: uint16;
-    address: address;
+    royaltyFactor: uint16
+    royaltyBase: uint16
+    address: address
 }
 
 fun CollectionStorage.load() {
@@ -40,15 +40,15 @@ fun CollectionStorage.save(self) {
 
 
 struct ItemStorageNotInitialized {
-    config: Cell<ItemConfig>;
+    config: Cell<ItemConfig>
 }
 
 struct ItemStorage {
-    config: Cell<ItemConfig>;
-    ownerAddress: address;
-    content: Cell<ItemContent>;
-    auction: Cell<Auction>?;
-    royaltyParams: Cell<RoyaltyParams>;
+    config: Cell<ItemConfig>
+    ownerAddress: address
+    content: Cell<ItemContent>
+    auction: Cell<Auction>?
+    royaltyParams: Cell<RoyaltyParams>
 }
 
 // actual storage of an NFT item is tricky: it's either initialized or not;
@@ -56,7 +56,7 @@ struct ItemStorage {
 // before initialization, it has only cell ItemConfig: `ItemStorageNotInitialized`;
 // hence, we start parsing it, then we detect, whether it's inited or not
 struct ItemStorageMaybeNotInitialized {
-    contractData: slice;
+    contractData: slice
 }
 
 // how do we detect whether it's initialized or not?
@@ -91,41 +91,41 @@ fun ItemStorage.save(self) {
 
 
 struct ItemConfig {
-    index: uint256;
-    collectionAddress: address;
+    index: uint256
+    collectionAddress: address
 }
 
 struct ItemContent {
-    nftContent: cell;
-    dns: cell?;
-    tokenInfo: Cell<TokenNameAndDomain>;
+    nftContent: cell
+    dns: cell?
+    tokenInfo: Cell<TokenNameAndDomain>
 }
 
 struct TokenNameAndDomain {
-    tokenName: TelegramString;
-    domain: TelegramString;
+    tokenName: TelegramString
+    domain: TelegramString
 }
 
 struct AuctionConfig {
-    benificiaryAddress: address;
-    minBid: coins;
-    maxBid: coins;
-    minBidStep: uint8;
-    minExtendTime: uint32;
-    duration: uint32;
+    benificiaryAddress: address
+    minBid: coins
+    maxBid: coins
+    minBidStep: uint8
+    minExtendTime: uint32
+    duration: uint32
 }
 
 struct Auction {
-    config: Cell<AuctionConfig>;
-    lastBid: Cell<LastBidInfo>?;
-    minBid: coins;
-    endTime: uint32;
+    config: Cell<AuctionConfig>
+    lastBid: Cell<LastBidInfo>?
+    minBid: coins
+    endTime: uint32
 }
 
 struct LastBidInfo {
-    bidderAddress: address;
-    bidAmount: coins;
-    bidTimestamp: uint32;
+    bidderAddress: address
+    bidAmount: coins
+    bidTimestamp: uint32
 }
 
 fun calcDeployedTeleItem(index: int, collectionAddress: address, nftItemCode: cell): AutoDeployAddress {

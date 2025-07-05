@@ -106,8 +106,8 @@ fun onExternalMessage(extBody: slice) {
 
 
 struct VestingDataReply {
-    vestingParameters: VestingParameters;
-    whitelist: dict;
+    vestingParameters: VestingParameters
+    whitelist: dict
 }
 
 get fun seqno(): int {

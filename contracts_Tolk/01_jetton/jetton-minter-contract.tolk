@@ -103,7 +103,7 @@ fun onInternalMessage(in: InMessage) {
         }
 
         else => {
-            // ignore empty messages, throw "wrong opcode" for others
+            // ignore empty messages, "wrong opcode" for others
             assert (in.body.isEmpty()) throw 0xFFFF
         }
     }
@@ -112,11 +112,11 @@ fun onInternalMessage(in: InMessage) {
 
 
 struct JettonDataReply {
-    totalSupply: int;
-    mintable: bool;
-    adminAddress: address;
-    jettonContent: cell;
-    jettonWalletCode: cell;
+    totalSupply: int
+    mintable: bool
+    adminAddress: address
+    jettonContent: cell
+    jettonWalletCode: cell
 }
 
 get fun get_jetton_data(): JettonDataReply {

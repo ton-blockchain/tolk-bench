@@ -84,7 +84,7 @@ fun onInternalMessage(in: InMessage) {
         }
 
         else => {
-            // ignore empty messages, throw "wrong opcode" for others
+            // ignore empty messages, "wrong opcode" for others
             assert (in.body.isEmpty()) throw 0xFFFF
         }
     }
@@ -93,13 +93,13 @@ fun onInternalMessage(in: InMessage) {
 
 
 struct CollectionDataReply {
-    nextItemIndex: int;
-    collectionMetadata: cell;
-    adminAddress: address;
+    nextItemIndex: int
+    collectionMetadata: cell
+    adminAddress: address
 }
 
 struct (0x01) OffchainMetadataReply {
-    string: SnakeString;
+    string: SnakeString
 }
 
 get fun get_collection_data(): CollectionDataReply {

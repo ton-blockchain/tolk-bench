@@ -101,7 +101,7 @@ fun onInternalMessage(in: InMessage) {
         }
 
         else => {
-            // ignore empty messages, throw "wrong opcode" for others
+            // ignore empty messages, "wrong opcode" for others
             assert (in.body.isEmpty()) throw 0xFFFF
         }
     }
@@ -110,11 +110,11 @@ fun onInternalMessage(in: InMessage) {
 
 
 struct NftDataReply {
-    isInitialized: bool;
-    itemIndex: int;
-    collectionAddress: address;
-    ownerAddress: address? = null;
-    content: Cell<SnakeString>? = null;
+    isInitialized: bool
+    itemIndex: int
+    collectionAddress: address
+    ownerAddress: address? = null
+    content: Cell<SnakeString>? = null
 }
 
 get fun get_nft_data(): NftDataReply {

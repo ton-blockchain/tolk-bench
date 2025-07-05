@@ -19,34 +19,34 @@ fun SnakeString.packToBuilder(self, mutate b: builder) {
 
 
 struct RoyaltyParams {
-    numerator: uint16;
-    denominator: uint16;
-    royaltyAddress: address;
+    numerator: uint16
+    denominator: uint16
+    royaltyAddress: address
 }
 
 struct NftCollectionStorage {
-    adminAddress: address;
-    nextItemIndex: uint64;
-    content: Cell<CollectionContent>;
-    nftItemCode: cell;
-    royaltyParams: Cell<RoyaltyParams>;
+    adminAddress: address
+    nextItemIndex: uint64
+    content: Cell<CollectionContent>
+    nftItemCode: cell
+    royaltyParams: Cell<RoyaltyParams>
 }
 
 struct CollectionContent {
-    collectionMetadata: cell;
-    commonContent: Cell<SnakeString>;
+    collectionMetadata: cell
+    commonContent: Cell<SnakeString>
 }
 
 struct NftItemStorage {
-    itemIndex: uint64;
-    collectionAddress: address;
-    ownerAddress: address;
-    content: Cell<SnakeString>;
+    itemIndex: uint64
+    collectionAddress: address
+    ownerAddress: address
+    content: Cell<SnakeString>
 }
 
 struct NftItemStorageNotInitialized {
-    itemIndex: uint64;
-    collectionAddress: address;
+    itemIndex: uint64
+    collectionAddress: address
 }
 
 
@@ -64,7 +64,7 @@ fun NftCollectionStorage.save(self) {
 // before initialization, it has only itemIndex and collectionAddress: `NftItemStorageNotInitialized`;
 // hence, we start parsing it, that then we detect, whether it's inited or not
 struct NftItemStorageMaybeNotInitialized {
-    contractData: slice;
+    contractData: slice
 }
 
 // how do we detect whether it's initialized or not?

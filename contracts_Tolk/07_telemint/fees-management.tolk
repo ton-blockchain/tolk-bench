@@ -13,4 +13,4 @@ fun calculateFwdFeeDeprecated() {
 
 @deprecated
 fun getFwdFeeFromOriginalMsgCell(): coins
-    asm "INMSG_FWDFEE";
+    asm "INMSG_FWDFEE"

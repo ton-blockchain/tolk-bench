@@ -75,9 +75,9 @@ fun address.matchesAddressFromConfig(self, configId: int): bool {
 // because "all the rest" is not needed always
 
 struct MessageCellContentsStart {
-    flags: uint4;
-    senderAddress: address;
-    destinationAddress: address;
+    flags: uint4
+    senderAddress: address
+    destinationAddress: address
 }
 
 fun MessageCellContentsStart.isBounceable(self) {
@@ -85,15 +85,15 @@ fun MessageCellContentsStart.isBounceable(self) {
 }
 
 struct MessageCellContentsRest {
-    valueCoins: coins;
-    maybeExtraCurrency: bool;
-    ihrFee: coins;
-    fwdFee: coins;
-    createdLt: uint64;
-    createdAt: uint32;
-    maybeStateInit: bool;
-    maybeBodyRef: bool;
-    refOrInline: RemainingBitsAndRefs;
+    valueCoins: coins
+    maybeExtraCurrency: bool
+    ihrFee: coins
+    fwdFee: coins
+    createdLt: uint64
+    createdAt: uint32
+    maybeStateInit: bool
+    maybeBodyRef: bool
+    refOrInline: RemainingBitsAndRefs
 }
 
 fun MessageCellContentsRest.hasStateInit(self) {
@@ -117,7 +117,7 @@ fun validateMessageToElectorContract(body: slice) {
 }
 
 fun validateMessageToConfigContract(body: slice) {
-    val msg = lazy AllowedOpElectorVoteForProposal.fromSlice(body);
+    val msg = lazy AllowedOpToConfigContract.fromSlice(body);
     match (msg) {
         AllowedOpElectorVoteForProposal => { }
         else => throw ERROR_COMMENT_NOT_ALLOWED

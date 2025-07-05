@@ -3,11 +3,11 @@ import "@stdlib/tvm-dicts"
 type WhitelistDict = dict     // a map of [address => nothing]
 
 struct Storage {
-    seqno: uint32;
-    subwalletId: uint32;
-    publicKey: uint256;
-    whitelist: WhitelistDict;
-    vestingParameters: Cell<VestingParameters>;
+    seqno: uint32
+    subwalletId: uint32
+    publicKey: uint256
+    whitelist: WhitelistDict
+    vestingParameters: Cell<VestingParameters>
 }
 
 fun Storage.load() {
@@ -20,13 +20,13 @@ fun Storage.save(self) {
 
 
 struct VestingParameters {
-    startTime: uint64;
-    totalDuration: uint32;     // > 0 and <= 135 years (2^32 seconds) ; mod unlockPeriod == 0
-    unlockPeriod: uint32;      // > 0 and <= totalDuration
-    cliffDuration: uint32;     // >= 0 and < totalDuration ; mod unlockPeriod == 0
-    totalAmount: coins;
-    senderAddress: address;
-    ownerAddress: address;
+    startTime: uint64
+    totalDuration: uint32     // > 0 and <= 135 years (2^32 seconds) ; mod unlockPeriod == 0
+    unlockPeriod: uint32      // > 0 and <= totalDuration
+    cliffDuration: uint32     // >= 0 and < totalDuration ; mod unlockPeriod == 0
+    totalAmount: coins
+    senderAddress: address
+    ownerAddress: address
 }
 
 @inline_ref

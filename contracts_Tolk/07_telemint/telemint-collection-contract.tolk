@@ -98,9 +98,9 @@ fun onExternalMessage(inMsg: slice) {
 
 
 struct CollectionDataReply {
-    nextItemIndex: int;
-    collectionMetadata: cell;
-    ownerAddress: address;
+    nextItemIndex: int
+    collectionMetadata: cell
+    ownerAddress: address
 }
 
 get fun get_collection_data(): CollectionDataReply {

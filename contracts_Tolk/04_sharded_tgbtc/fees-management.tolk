@@ -29,7 +29,7 @@ const GAS_CONSUMPTION_BurnNotification  = 4530
 
 
 fun getPrecompiledGasConsumption(): int?
-    asm "GETPRECOMPILEDGAS";
+    asm "GETPRECOMPILEDGAS"
 
 fun calculateJettonWalletMinStorageFee() {
     return calculateStorageFee(MY_WORKCHAIN, MIN_STORAGE_DURATION, STORAGE_SIZE_MaxWallet_bits, STORAGE_SIZE_MaxWallet_cells);

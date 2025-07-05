@@ -5,19 +5,19 @@ const SIZE_ADDRESS_HASH = 256
 type ExtensionsDict = dict
 
 struct Storage {
-    isSignatureAllowed: bool;
-    seqno: uint32;
-    subwalletId: uint32;
-    publicKey: uint256;
-    extensions: ExtensionsDict;     // from address hash to true
+    isSignatureAllowed: bool
+    seqno: uint32
+    subwalletId: uint32
+    publicKey: uint256
+    extensions: ExtensionsDict      // from address hash to true
 }
 
 fun Storage.load() {
-    return Storage.fromCell(contract.getData());
+    return Storage.fromCell(contract.getData())
 }
 
 fun Storage.save(self) {
-    contract.setData(self.toCell());
+    contract.setData(self.toCell())
 }
 
 
@@ -36,4 +36,4 @@ fun ExtensionsDict.tryDelete(mutate self, addrHash: uint256) {
 
 // low-level optimization: store a const slice representing `1` bit (a value of ExtenstionsDict)
 fun ExtensionsDict.constSliceBoolTrue(): slice
-    asm "b{1} PUSHSLICE";
+    asm "b{1} PUSHSLICE"

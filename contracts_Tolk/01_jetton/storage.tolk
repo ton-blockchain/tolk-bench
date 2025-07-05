@@ -1,15 +1,15 @@
 
 struct WalletStorage {
-    jettonBalance: coins;
-    ownerAddress: address;
-    minterAddress: address;
+    jettonBalance: coins
+    ownerAddress: address
+    minterAddress: address
 }
 
 struct MinterStorage {
-    totalSupply: coins;
-    adminAddress: address;
-    content: cell;
-    jettonWalletCode: cell;
+    totalSupply: coins
+    adminAddress: address
+    content: cell
+    jettonWalletCode: cell
 }
 
 

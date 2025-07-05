@@ -160,19 +160,19 @@ fun onInternalMessage(in: InMessage) {
 
 
 struct JettonDataReply {
-    totalSupply: int;
-    mintable: bool;
-    adminAddress: address;
-    jettonContent: Cell<OnchainMetadataReply>;
-    jettonWalletCode: cell;
+    totalSupply: int
+    mintable: bool
+    adminAddress: address
+    jettonContent: Cell<OnchainMetadataReply>
+    jettonWalletCode: cell
 }
 
 struct (0x00) OnchainMetadataReply {
-    contentDict: dict;      // map from sha256(key) to Cell<SnakeDataReply>
+    contentDict: dict       // map from sha256(key) to Cell<SnakeDataReply>
 }
 
 struct (0x00) SnakeDataReply {
-    string: SnakeString;
+    string: SnakeString
 }
 
 get fun get_jetton_data(): JettonDataReply {

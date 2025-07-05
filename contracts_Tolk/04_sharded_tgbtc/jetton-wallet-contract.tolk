@@ -132,10 +132,10 @@ fun onInternalMessage(in: InMessage) {
 
 
 struct JettonWalletDataReply {
-    jettonBalance: coins;
-    ownerAddress: address;
-    minterAddress: address;
-    jettonWalletCode: cell;
+    jettonBalance: coins
+    ownerAddress: address
+    minterAddress: address
+    jettonWalletCode: cell
 }
 
 get fun get_wallet_data(): JettonWalletDataReply {

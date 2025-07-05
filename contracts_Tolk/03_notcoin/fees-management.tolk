@@ -5,7 +5,7 @@ import "errors"
 const MY_WORKCHAIN = BASECHAIN
 
 fun getPrecompiledGasConsumption(): int?
-    asm "GETPRECOMPILEDGAS";
+    asm "GETPRECOMPILEDGAS"
 
 // Storage costs
 // these constants are used to estimate storage fee (how much we should pay for storing a wallet contract)

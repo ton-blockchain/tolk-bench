@@ -365,28 +365,28 @@ fun onExternalMessage(inMsg: slice) {
 
 
 struct NftDataReply {
-    isInitialized: bool;
-    itemIndex: int;
-    collectionAddress: address;
-    ownerAddress: address? = null;
-    content: cell? = null;
+    isInitialized: bool
+    itemIndex: int
+    collectionAddress: address
+    ownerAddress: address? = null
+    content: cell? = null
 }
 
 struct AuctionConfigReply {
-    benificiaryAddress: address?;
-    minBid: coins = 0;
-    maxBid: coins = 0;
-    minBidStep: uint8 = 0;
-    minExtendTime: uint32 = 0;
-    duration: uint32 = 0;
+    benificiaryAddress: address?
+    minBid: coins = 0
+    maxBid: coins = 0
+    minBidStep: uint8 = 0
+    minExtendTime: uint32 = 0
+    duration: uint32 = 0
 }
 
 struct AuctionStateReply {
-    bidderAddress: address? = null;
-    bidAmount: coins = 0;
-    bidTimestamp: int = 0;
-    minBid: coins;
-    endTime: int;
+    bidderAddress: address? = null
+    bidAmount: coins = 0
+    bidTimestamp: int = 0
+    minBid: coins
+    endTime: int
 }
 
 get fun get_nft_data(): NftDataReply {
