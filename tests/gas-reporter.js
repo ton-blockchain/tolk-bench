@@ -20,7 +20,7 @@ class GasReporter {
             let table = this.prepareTableOldVsNew(lastBench, lastRun)
             console.log(`\n •  ${colors.bold(numericFolder)}`);
             console.log(`    prev: ${lastBench ? lastBench.commitDesc : 'none'}\n`);
-            console.log(table.join('\n'));
+            console.log(this.printTableOldVsNew(table));
         }
     }
 
@@ -56,13 +56,63 @@ class GasReporter {
     }
 
     /**
-     *
+     * @param {{column: string, old: string, cur: string, diff: number}[]} table
+     * @returns {string}
+     */
+    printTableOldVsNew(table) {
+        let strings = []
+
+        for (let {column, old, cur, diff} of table) {
+            let s = `    ${column.padEnd(40)} `
+            if (column.startsWith('code size')) {
+                if (old) {
+                    s += `${old} `
+                    if (diff)
+                        s += colors.greenBright(`→ ${cur}`)
+                    else if (old !== cur)
+                        s += `→ ${cur}`
+                    else
+                        s += `=`
+                } else {
+                    s += cur
+                }
+            } else {
+                if (old) {
+                    s += `${old.padEnd(7)} `
+                    if (diff < 0)
+                        s += colors.red(`→ ${cur.padEnd(7)} +${(-diff).toFixed(2)}%`)
+                    else if (diff > 0)
+                        s += colors.greenBright(`→ ${cur.padEnd(7)} -${diff.toFixed(2)}%`)
+                    else
+                        s += `=`
+                } else {
+                    s += cur
+                }
+            }
+            strings.push(s)
+        }
+
+        return strings.join('\n')
+    }
+
+    /**
      * @param {{gas: Object<number>, codeSize: Object<number>} | null} oldRun
      * @param {{gas: Object<number>, codeSize: Object<number>}} lastRun
-     * @returns {string[]}
+     * @returns {{column: string, old: string, cur: string, diff: number}[]}
      */
     prepareTableOldVsNew(oldRun, lastRun) {
         let table = []
+
+        for (let key in lastRun.gas) {          // {"step1": n, "step2": m}
+            let curGas = lastRun.gas[key];
+            let prevGas = oldRun ? oldRun.gas[key] : null;
+            table.push({
+                column: key,
+                old: prevGas.toString(),
+                cur: curGas.toString(),
+                diff: (prevGas - curGas) / prevGas * 100,
+            });
+        }
 
         for (let key in lastRun.codeSize) {     // {"xxx bits": n, "xxx cells": m}
             if (!key.endsWith(" bits"))         // handle only "bits", join bits+cells to one line
@@ -73,39 +123,12 @@ class GasReporter {
             let curCells = lastRun.codeSize[key + " cells"];
             let prevBits = oldRun ? oldRun.codeSize[key + " bits"] : null;
             let prevCells = oldRun ? oldRun.codeSize[key + " cells"] : null;
-
-            let s = `    ${(key + " (bits / cells)").padEnd(40)} `
-            if (prevBits && prevCells) {
-                s += `${prevBits} / ${prevCells} `
-                if (curBits <= prevBits && curCells <= prevCells && (curBits < prevBits || curCells < prevCells))
-                    s += colors.greenBright(`→ ${curBits} / ${curCells}`)
-                else if (curBits !== prevBits || curCells !== prevCells)
-                    s += `→ ${curBits} / ${curCells}`
-                else
-                    s += `=`
-            } else {
-                s += `${curBits} / ${curCells}`
-            }
-            table.push(s)
-        }
-
-        for (let key in lastRun.gas) {          // {"step1": n, "step2": m}
-            let curGas = lastRun.gas[key];
-            let prevGas = oldRun ? oldRun.gas[key] : null;
-
-            let s = `    ${key.padEnd(40)} `
-            if (prevGas) {
-                s += `${prevGas.toString().padEnd(7)} `
-                if (curGas > prevGas)
-                    s += colors.red(`→ ${curGas.toString().padEnd(7)} +${((curGas - prevGas) / prevGas * 100).toFixed(2)}%`)
-                else if (curGas < prevGas)
-                    s += colors.greenBright(`→ ${curGas.toString().padEnd(7)} -${((prevGas - curGas) / prevGas * 100).toFixed(2)}%`)
-                else
-                    s += `=`
-            } else {
-                s += `${curGas}`
-            }
-            table.push(s)
+            table.push({
+                column: "code size: " + key,
+                old: prevBits && prevCells ? `${prevBits} / ${prevCells}` : null,
+                cur: `${curBits} / ${curCells}`,
+                diff: curBits <= prevBits && curCells <= prevCells && (curBits < prevBits || curCells < prevCells)
+            });
         }
 
         return table

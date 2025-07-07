@@ -1,5 +1,6 @@
 const readline = require("node:readline/promises");
 const colors = require('ansi-colors');
+const fs = require('fs');
 const GasReporter = require('./gas-reporter.js')
 
 /** @return {Promise<string>} */
@@ -90,7 +91,7 @@ async function cmdShow() {
 
             let table = gasReporter.prepareTableOldVsNew(prevRun, curRun);
             console.log(`\n •  ${colors.bold(curRun.commitDesc)}\n`);
-            console.log(table.join('\n'));
+            console.log(gasReporter.printTableOldVsNew(table));
         }
     } else {
         for (let {numericFolder} of allContracts) {
@@ -105,9 +106,51 @@ async function cmdShow() {
             let table = gasReporter.prepareTableOldVsNew(funcRun, tolkLastRun);
             console.log(`\n •  ${colors.bold(numericFolder)}`);
             console.log(`    FunC vs Tolk\n`);
-            console.log(table.join('\n'));
+            console.log(gasReporter.printTableOldVsNew(table));
         }
     }
+}
+
+// ----------------------------
+
+async function cmdGenerateReadme() {
+    const README_MD = __dirname + '/../README.md';
+    const START_MARKER = '## 📊 Benchmarks!';
+    const END_MARKER = '## How does Tolk';
+
+    const gasReporter = new GasReporter();
+    const allContracts = gasReporter.getAllContracts();
+
+    let strings = ['In gas units, plus code side (bits / cells).', '']
+    for (let {numericFolder, shortTitle} of allContracts) {
+        const allSavedRuns = gasReporter.parseAllBenchesForContract(numericFolder);
+        const funcRun = allSavedRuns[0]
+        const tolkLastRun = allSavedRuns[allSavedRuns.length - 1]
+        const index = parseInt(numericFolder)
+
+        let table = gasReporter.prepareTableOldVsNew(funcRun, tolkLastRun);
+        strings.push(`### ${index < 10 ? '0' + index : index} — ${shortTitle}`);
+        strings.push('');
+        strings.push(`| Operation                       | FunC       | Tolk       | **Gas savings** |`);
+        strings.push(`|---------------------------------|------------|------------|-----------------|`);
+
+        for (const {column, cur, old, diff} of table) {
+            let savings = column.startsWith('code size') ? '' : `**-${diff.toFixed(2)}%**`
+            strings.push(`| ${column.padEnd(31)} | ${old.padEnd(10)} | ${cur.padEnd(10)} | ${savings.padEnd(15)} |`);
+        }
+        strings.push('');
+    }
+    strings.push('<br>')
+
+    let readme = fs.readFileSync(README_MD, 'utf8');
+    let pos1 = readme.indexOf(START_MARKER);
+    let pos2 = readme.indexOf(END_MARKER);
+    if (pos1 === -1 || pos2 === -1 || pos2 < pos1)
+        throw 'Could not find positions in README.md';
+
+    const newReadme = `${readme.slice(0, pos1 + START_MARKER.length)}\n\n${strings.join('\n')}\n\n${readme.slice(pos2)}`;
+    fs.writeFileSync(README_MD, newReadme, 'utf8');
+    console.log('README.md updated');
 }
 
 // ----------------------------
@@ -120,6 +163,9 @@ switch (argvCommand) {
         break;
     case 'show':
         cmdShow().catch(console.error);
+        break;
+    case 'readme':
+        cmdGenerateReadme().catch(console.error);
         break;
     default:
         console.error(`Unknown command ${argvCommand}`)

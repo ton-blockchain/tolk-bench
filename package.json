@@ -15,7 +15,8 @@
         "test:exact": "npm run clear && jest 07",
         "bench:exact": "npm run clear && jest 07 -t bench",
         "save": "node tests/bench-cli.js save",
-        "show": "node tests/bench-cli.js show"
+        "show": "node tests/bench-cli.js show",
+        "generate-readme": "node tests/bench-cli.js readme"
     },
     "devDependencies": {
         "@ton/blueprint": "^0.37.0",
