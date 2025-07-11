@@ -46,7 +46,8 @@ struct ItemStorageNotInitialized {
 struct ItemStorage {
     config: Cell<ItemConfig>
     ownerAddress: address
-    content: Cell<ItemContent>
+    content: cell
+    token: Cell<ItemContent>
     auction: Cell<Auction>?
     royaltyParams: Cell<RoyaltyParams>
 }
@@ -89,14 +90,12 @@ fun ItemStorage.save(self) {
     contract.setData(self.toCell())
 }
 
-
 struct ItemConfig {
     index: uint256
     collectionAddress: address
 }
 
 struct ItemContent {
-    nftContent: cell
     dns: cell?
     tokenInfo: Cell<TokenNameAndDomain>
 }

@@ -124,8 +124,8 @@ fun initializeItemOnDeployingByCollection(uninitedSt: ItemStorageNotInitialized,
     return {
         config: uninitedSt.config,
         ownerAddress,
-        content: ItemContent{
-            nftContent: msg.nftContent,
+        content: msg.nftContent,
+        token: ItemContent{
             dns: null,
             tokenInfo: msg.tokenInfo,
         }.toCell(),
@@ -414,9 +414,9 @@ get fun get_nft_data(): NftDataReply {
 
 get fun get_telemint_token_name(): TelegramString {
     val storage = lazy ItemStorage.load();
-    val itemContent = lazy storage.content.load();
-    val tokenInfo = lazy itemContent.tokenInfo.load();
-    return tokenInfo.tokenName;
+    val content = lazy storage.token.load();           
+    val tokenData = lazy content.tokenInfo.load();     
+    return tokenData.tokenName;
 }
 
 get fun get_telemint_auction_state(): AuctionStateReply {
