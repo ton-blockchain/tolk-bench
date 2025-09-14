@@ -1,4 +1,3 @@
-import "@stdlib/tvm-dicts"
 import "errors"
 import "storage"
 import "messages"
@@ -55,25 +54,23 @@ fun onInternalMessage(in: InMessage) {
             assert (in.senderAddress == storage.adminAddress) throw ERROR_NOT_FROM_ADMIN;
 
             var counter = 0;
-            var deployList = msg.deployList;
-            while (true) {
-                var (itemIndex, valueSlice, found) = deployList.uDictDeleteFirstAndGet(64);
-                if (!found) {
-                    storage.save();
-                    return;
-                }
-                itemIndex = itemIndex!;     // tell the compiler that it's not-null (because found)
-
+            var r = msg.deployList.findFirst();
+            while (r.isFound) {
                 counter += 1;
                 assert (counter < 250) throw ERROR_BATCH_LIMIT_EXCEEDED;   // due to limits of action list size
 
+                val itemIndex = r.getKey();
                 assert (itemIndex <= storage.nextItemIndex) throw ERROR_NOT_FROM_ADMIN + counter;
-                val dictItem = BatchDeployDictItem.fromSlice(valueSlice!);
+
+                val dictItem = r.loadValue();
                 deployNftItem(itemIndex, storage.nftItemCode, dictItem.attachTonAmount, dictItem.initParams);
                 if (itemIndex == storage.nextItemIndex) {
                     storage.nextItemIndex += 1;
                 }
+
+                r = msg.deployList.iterateNext(r);
             }
+            storage.save();
         }
 
         ChangeCollectionAdmin => {

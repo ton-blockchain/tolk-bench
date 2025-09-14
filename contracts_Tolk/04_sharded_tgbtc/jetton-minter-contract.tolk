@@ -1,5 +1,3 @@
-import "@stdlib/gas-payments"
-import "@stdlib/tvm-dicts"
 import "errors"
 import "sharding"
 import "jetton-utils"
@@ -168,7 +166,7 @@ struct JettonDataReply {
 }
 
 struct (0x00) OnchainMetadataReply {
-    contentDict: dict       // map from sha256(key) to Cell<SnakeDataReply>
+    contentDict: map<uint256, Cell<SnakeDataReply>>
 }
 
 struct (0x00) SnakeDataReply {
@@ -178,10 +176,10 @@ struct (0x00) SnakeDataReply {
 get fun get_jetton_data(): JettonDataReply {
     val storage = lazy MinterStorage.load();
     var metadata: OnchainMetadataReply = {
-        contentDict: createEmptyDict()
+        contentDict: createEmptyMap()
     };
-    metadata.contentDict.setMetadataEntry(stringSha256("uri"), storage.metadataUri.load());
-    metadata.contentDict.setMetadataEntry(stringSha256("decimals"), "9");
+    metadata.contentDict.set(stringSha256("uri"), SnakeDataReply{string: storage.metadataUri.load()}.toCell());
+    metadata.contentDict.set(stringSha256("decimals"), SnakeDataReply{string: "9"}.toCell());
 
     return {
         totalSupply: storage.totalSupply,
@@ -201,8 +199,4 @@ get fun get_wallet_address(ownerAddress: address): address {
 get fun get_next_admin_address(): address {
     val storage = lazy MinterStorage.load();
     return storage.nextAdminAddress;
-}
-
-fun dict.setMetadataEntry(mutate self, key: int, string: SnakeString) {
-    self.uDictSetRef(256, key, SnakeDataReply { string }.toCell());
 }

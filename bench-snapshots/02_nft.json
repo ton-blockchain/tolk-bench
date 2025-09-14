@@ -223,5 +223,20 @@
       "nft-collection bits": 4339,
       "nft-collection cells": 14
     }
+  },
+  {
+    "commitDesc": "use `map<K,V>` instead of plain dict",
+    "gas": {
+      "DEPLOY nft": 5833,
+      "BATCH deploy nft": 482845,
+      "TRANSFER nft": 4445,
+      "GET static data": 2527
+    },
+    "codeSize": {
+      "nft-item bits": 2597,
+      "nft-item cells": 7,
+      "nft-collection bits": 4371,
+      "nft-collection cells": 14
+    }
   }
 ]

@@ -1,6 +1,4 @@
-import "@stdlib/tvm-dicts"
-
-type WhitelistDict = dict     // a map of [address => nothing]
+type WhitelistDict = map<address, ()>
 
 struct Storage {
     seqno: uint32
@@ -48,14 +46,10 @@ fun VestingParameters.getLockedAmount(self, nowTime: int): coins {
 }
 
 
-const ADDRESS_SIZE = 267  // '100' (std addr no anycast) + workchain 8 + hash 256
-
 fun WhitelistDict.addWhitelisted(mutate self, address: address) {
-    self.sDictSetBuilder(ADDRESS_SIZE, address as slice, beginCell());
+    self.set(address, ())
 }
 
-fun WhitelistDict.isWhitelisted(self, address: address): bool {
-    var (_, found: bool) = self.sDictGet(ADDRESS_SIZE, address as slice);
-    return found;
+fun WhitelistDict.isWhitelisted(self, address: address) {
+    return self.exists(address)
 }
-

@@ -167,5 +167,18 @@
       "wallet_v5 bits": 5775,
       "wallet_v5 cells": 20
     }
+  },
+  {
+    "commitDesc": "use `map<K,V>` instead of plain dict",
+    "gas": {
+      "EXTERNAL transfer": 3869,
+      "INTERNAL transfer": 4351,
+      "ADD extension": 4951,
+      "EXTENSION transfer": 2951
+    },
+    "codeSize": {
+      "wallet_v5 bits": 5775,
+      "wallet_v5 cells": 20
+    }
   }
 ]

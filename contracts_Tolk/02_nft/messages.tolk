@@ -23,7 +23,7 @@ struct (0x00000001) DeployNft {
 
 struct (0x00000002) BatchDeployNfts {
     queryId: uint64
-    deployList: dict        // actually, a map of [itemIndex => BatchDeployDictItem]
+    deployList: map<uint64, BatchDeployDictItem>
 }
 
 struct BatchDeployDictItem {

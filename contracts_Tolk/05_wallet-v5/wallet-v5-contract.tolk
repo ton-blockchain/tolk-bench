@@ -17,7 +17,7 @@ fun processExtraActions(extraActions: SnakedExtraActions, isExtension: bool) {
                 assert (myWorkchain == extensionWorkchain) throw ERROR_EXTENSION_WRONG_WORKCHAIN;
 
                 var storage = lazy Storage.load();
-                val inserted = storage.extensions.tryInsert(extensionAddrHash);
+                val inserted = storage.extensions.addIfNotExists(extensionAddrHash, true);
                 assert (inserted) throw ERROR_ADD_EXTENSION;
                 storage.save();
             }
@@ -28,10 +28,10 @@ fun processExtraActions(extraActions: SnakedExtraActions, isExtension: bool) {
                 assert (myWorkchain == extensionWorkchain) throw ERROR_EXTENSION_WRONG_WORKCHAIN;
 
                 var storage = lazy Storage.load();
-                val removed = storage.extensions.tryDelete(extensionAddrHash);
+                val removed = storage.extensions.delete(extensionAddrHash);
                 assert (removed) throw ERROR_REMOVE_EXTENSION;
                 if (!storage.isSignatureAllowed) {
-                    assert (storage.extensions != null) throw ERROR_REMOVE_LAST_EXTENSION_WHEN_SIGNATURE_DISABLED;
+                    assert (!storage.extensions.isEmpty()) throw ERROR_REMOVE_LAST_EXTENSION_WHEN_SIGNATURE_DISABLED;
                 }
                 storage.save();
             }
@@ -42,7 +42,7 @@ fun processExtraActions(extraActions: SnakedExtraActions, isExtension: bool) {
                 var storage = lazy Storage.load();
                 assert (storage.isSignatureAllowed != action.allowSignature) throw ERROR_THIS_SIGNATURE_MODE_ALREADY_SET;
                 if (!action.allowSignature) {
-                    assert (storage.extensions != null) throw ERROR_DISABLE_SIGNATURE_WHEN_EXTENSIONS_IS_EMPTY;
+                    assert (!storage.extensions.isEmpty()) throw ERROR_DISABLE_SIGNATURE_WHEN_EXTENSIONS_IS_EMPTY;
                 }
                 storage.isSignatureAllowed = action.allowSignature;
                 storage.save();
@@ -84,7 +84,7 @@ fun onExternalMessage(inMsgBody: slice) {
     var storage = lazy Storage.load();
 
     assert (isSignatureValid(signedSlice.hash(), signature, storage.publicKey)) throw ERROR_INVALID_SIGNATURE;
-    assert (storage.isSignatureAllowed | (storage.extensions == null)) throw ERROR_SIGNATURE_DISABLED;
+    assert (storage.isSignatureAllowed | storage.extensions.isEmpty()) throw ERROR_SIGNATURE_DISABLED;
     assert (msg.seqno == storage.seqno) throw ERROR_INVALID_SEQNO;
     assert (msg.walletId == storage.subwalletId) throw ERROR_INVALID_WALLET_ID;
     assert (msg.validUntil > blockchain.now()) throw ERROR_EXPIRED;
@@ -120,7 +120,7 @@ fun onInternalMessage(in: InMessage) {
                 return;
             }
 
-            assert (storage.isSignatureAllowed | (storage.extensions == null)) throw ERROR_SIGNATURE_DISABLED;
+            assert (storage.isSignatureAllowed | storage.extensions.isEmpty()) throw ERROR_SIGNATURE_DISABLED;
             assert (msg.seqno == storage.seqno) throw ERROR_INVALID_SEQNO;
             assert (msg.walletId == storage.subwalletId) throw ERROR_INVALID_WALLET_ID;
             assert (msg.validUntil > blockchain.now()) throw ERROR_EXPIRED;
@@ -180,7 +180,7 @@ get fun get_public_key(): int {
 }
 
 // Returns raw dictionary (or null if empty) where keys are address hashes. Workchains of extensions are same with wallet smart contract workchain
-get fun get_extensions(): dict {
+get fun get_extensions(): map<uint256, bool> {
     val storage = lazy Storage.load();
     return storage.extensions;
 }
