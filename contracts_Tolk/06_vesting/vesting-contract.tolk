@@ -1,4 +1,3 @@
-import "@stdlib/tvm-dicts"
 import "@stdlib/gas-payments"
 import "@stdlib/lisp-lists"
 import "storage"
@@ -107,7 +106,7 @@ fun onExternalMessage(extBody: slice) {
 
 struct VestingDataReply {
     vestingParameters: VestingParameters
-    whitelist: dict
+    whitelist: map<address, ()>
 }
 
 get fun seqno(): int {
@@ -139,20 +138,18 @@ get fun is_whitelisted(address: address): bool {
     return storage.whitelist.isWhitelisted(address);
 }
 
-get fun get_whitelist(): tuple {
+get fun get_whitelist(): tuple? {
     val storage = lazy Storage.load();
-    var d: dict = storage.whitelist;
 
     var list: tuple? = null;
-    do {
-        var (key: slice?, value: slice?, found: bool) = d.sDictDeleteFirstAndGet(ADDRESS_SIZE);
-        if (found) {
-            var (wc, addressHash) = (key! as address).getWorkchainAndHash();
-            list = listPrepend([wc, addressHash], list);
-        }
-    } while (found);
+    var r = storage.whitelist.findFirst();
+    while (r.isFound) {
+        var (wc, addressHash) = r.getKey().getWorkchainAndHash();
+        list = listPrepend([wc, addressHash], list);
+        r = storage.whitelist.iterateNext(r);
+    }
 
-    return list!;
+    return list;
 }
 
 get fun get_locked_amount(atTime: int): coins {

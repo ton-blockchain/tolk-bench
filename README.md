@@ -32,12 +32,12 @@ In gas units, plus code side (bits / cells).
 
 | Operation                       | FunC       | Tolk       | **Gas savings** |
 |---------------------------------|------------|------------|-----------------|
-| DEPLOY nft                      | 10469      | 5885       | **-43.79%**     |
-| BATCH deploy nft                | 1049281    | 686820     | **-34.54%**     |
+| DEPLOY nft                      | 10469      | 5833       | **-44.28%**     |
+| BATCH deploy nft                | 1049281    | 482845     | **-53.98%**     |
 | TRANSFER nft                    | 7109       | 4445       | **-37.47%**     |
 | GET static data                 | 4535       | 2527       | **-44.28%**     |
 | code size: nft-item             | 3441 / 14  | 2597 / 7   |                 |
-| code size: nft-collection       | 3564 / 19  | 4339 / 14  |                 |
+| code size: nft-collection       | 3564 / 19  | 4371 / 14  |                 |
 
 ### 03 — notcoin
 
@@ -71,7 +71,7 @@ In gas units, plus code side (bits / cells).
 |---------------------------------|------------|------------|-----------------|
 | EXTERNAL transfer               | 4939       | 3869       | **-21.66%**     |
 | INTERNAL transfer               | 5645       | 4351       | **-22.92%**     |
-| ADD extension                   | 6110       | 4949       | **-19.00%**     |
+| ADD extension                   | 6110       | 4951       | **-18.97%**     |
 | EXTENSION transfer              | 3854       | 2951       | **-23.43%**     |
 | code size: wallet_v5            | 4583 / 20  | 5775 / 20  |                 |
 
@@ -86,7 +86,7 @@ In gas units, plus code side (bits / cells).
 | INTERNAL to single nominator    | 10338      | 6740       | **-34.80%**     |
 | INTERNAL with comment           | 10628      | 6828       | **-35.75%**     |
 | EXTERNAL transfer after unlock  | 6740       | 4509       | **-33.10%**     |
-| code size: vesting wallet       | 7413 / 28  | 6973 / 26  |                 |
+| code size: vesting wallet       | 7413 / 28  | 7021 / 26  |                 |
 
 ### 07 — telemint (telegram gifts)
 
