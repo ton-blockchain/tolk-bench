@@ -9,7 +9,7 @@ import { collectCellStats, computedGeneric, computeMessageForwardFees, getMsgPri
 import { findTransactionRequired } from '@ton/test-utils';
 import { getSecureRandomBytes, KeyPair, keyPairFromSeed, sha256 } from '@ton/crypto';
 import { GasLogAndSave } from "../gas-logger";
-import { activateTVM11, myCompile } from "../my-compile";
+import { activateTVM12, myCompile } from "../my-compile";
 
 const numericFolder = '07_telemint';
 
@@ -65,7 +65,7 @@ describe(numericFolder, () => {
         GAS_LOG.rememberBocSize("NftItem", item_code);
 
         blockchain = await Blockchain.create();
-        activateTVM11(blockchain);
+        activateTVM12(blockchain);
 
         blockchain.now = 1000;
 

@@ -113,7 +113,7 @@ get fun get_collection_data(): CollectionDataReply {
 get fun get_nft_address_by_index(itemIndex: int): address {
     val storage = lazy NftCollectionStorage.load();
     val nftDeployed = calcDeployedNftItem(itemIndex, contract.getAddress(), storage.nftItemCode);
-    return address.fromValidBuilder(nftDeployed.buildAddress());
+    return nftDeployed.calculateAddress();
 }
 
 get fun royalty_params(): RoyaltyParams {

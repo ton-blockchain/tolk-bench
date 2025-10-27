@@ -74,9 +74,9 @@ function setGlobalVersion(blockchainConfig: Cell, version: number, capabilities?
     return blockchainConfig;
 }
 
-// activate TVM 11 before it's officially voted to and turned on by default
-export function activateTVM11(blockchain: Blockchain) {
-    blockchain.setConfig(setGlobalVersion(blockchain.config, 11));
+// activate TVM 12 before it's officially voted to and turned on by default
+export function activateTVM12(blockchain: Blockchain) {
+    blockchain.setConfig(setGlobalVersion(blockchain.config, 12));
 }
 
 // `myCompile` is a replacement for `compile` that searches for `.compile.ts` inside a given folder

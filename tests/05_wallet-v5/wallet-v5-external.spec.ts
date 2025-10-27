@@ -22,7 +22,7 @@ import { buildBlockchainLibraries, LibraryDeployer } from '../../wrappers/05_wal
 import { default as config } from './config';
 import { ActionSetCode, ActionSetData } from './test-only-actions';
 import { ErrorsV5 } from '../../wrappers/05_wallet-v5/Errors'
-import { activateTVM11, myCompile } from "../my-compile";
+import { activateTVM12, myCompile } from "../my-compile";
 
 const WALLET_ID = new WalletId({ networkGlobalId: -239, workChain: -1, subwalletNumber: 0 });
 
@@ -96,7 +96,7 @@ describe(numericFolder + ' external', () => {
 
     beforeEach(async () => {
         blockchain = await Blockchain.create();
-        activateTVM11(blockchain);
+        activateTVM12(blockchain);
         blockchain.libs = buildBlockchainLibraries([code]);
 
         keypair = keyPairFromSeed(await getSecureRandomBytes(32));

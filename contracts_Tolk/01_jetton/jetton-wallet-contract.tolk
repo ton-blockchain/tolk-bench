@@ -33,7 +33,7 @@ fun onInternalMessage(in: InMessage) {
         InternalTransferStep => {
             var storage = lazy WalletStorage.load();
             if (in.senderAddress != storage.minterAddress) {
-                assert (in.senderAddress.isAddressOfJettonWallet(msg.transferInitiator, storage.minterAddress, contract.getCode())) throw ERR_INVALID_WALLET;
+                assert (in.senderAddress == calcAddressOfJettonWallet(msg.transferInitiator, storage.minterAddress, contract.getCode())) throw ERR_INVALID_WALLET;
             }
             storage.jettonBalance += msg.jettonAmount;
             storage.save();

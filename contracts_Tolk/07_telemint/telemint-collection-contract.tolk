@@ -116,7 +116,7 @@ get fun get_collection_data(): CollectionDataReply {
 get fun get_nft_address_by_index(index: int): address {
     val storage = lazy CollectionStorage.load();
     val teleitemDeployed = calcDeployedTeleItem(index, contract.getAddress(), storage.nftItemCode);
-    return address.fromValidBuilder(teleitemDeployed.buildAddress());
+    return teleitemDeployed.calculateAddress();
 }
 
 get fun get_nft_content(index: int, individualNftContent: cell): cell {
