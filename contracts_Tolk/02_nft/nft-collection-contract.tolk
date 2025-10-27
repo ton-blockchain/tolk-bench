@@ -4,7 +4,7 @@ import "messages"
 
 fun deployNftItem(itemIndex: int, nftItemCode: cell, attachTonAmount: coins, initParams: Cell<NftItemInitAtDeployment>) {
     val deployMsg = createMessage({
-        bounce: true,
+        bounce: BounceMode.Only256BitsOfBody,
         dest: calcDeployedNftItem(itemIndex, contract.getAddress(), nftItemCode),
         value: attachTonAmount,
         body: initParams,
@@ -38,7 +38,7 @@ fun onInternalMessage(in: InMessage) {
         RequestRoyaltyParams => {
             val storage = lazy NftCollectionStorage.load();
             val respondMsg = createMessage({
-                bounce: false,
+                bounce: BounceMode.NoBounce,
                 dest: in.senderAddress,
                 value: 0,
                 body: ResponseRoyaltyParams {

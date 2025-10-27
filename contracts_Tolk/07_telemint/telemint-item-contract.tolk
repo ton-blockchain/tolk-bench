@@ -8,7 +8,7 @@ fun sendMoney(myBalance: coins, address: address, value: coins): coins {
     var amountToSend = min(myBalance - MIN_TONS_FOR_STORAGE, value);
     if (amountToSend > 0) {
         val sendMoneyMsg = createMessage({
-            bounce: false,
+            bounce: BounceMode.NoBounce,
             dest: address,
             value: amountToSend,
             body: SendMoneyToSomebody {
@@ -38,7 +38,7 @@ fun Auction.calcNewOwnerOnExpire(self, mutate myBalance: coins, oldOwner: addres
 
     val newOwner = lastBid.bidderAddress;
     val ownershipMsg = createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         dest: newOwner,
         value: 0,
         // if `coins` values are very-very large, body may not fit the same cell as message contents;
@@ -87,7 +87,7 @@ fun Auction.processNewBid(mutate self, mutate myBalance: coins, newBidAddress: a
         var toSend: int = min(myBalance - MIN_TONS_FOR_STORAGE, lastBid.bidAmount);
         if (toSend > 0) {
             val notificationMsg = createMessage({
-                bounce: false,
+                bounce: BounceMode.NoBounce,
                 dest: lastBid.bidderAddress,
                 value: toSend,
                 body: OutbidNotificationToBidder {
@@ -208,7 +208,7 @@ fun onInternalMessage(in: InMessage) {
 
         RequestRoyaltyParams => {
             val respondMsg = createMessage({
-                bounce: false,
+                bounce: BounceMode.NoBounce,
                 dest: in.senderAddress,
                 value: 0,
                 body: ResponseRoyaltyParams {
@@ -222,7 +222,7 @@ fun onInternalMessage(in: InMessage) {
         RequestStaticData => {
             val itemConfig = lazy state.config.load();
             val respondMsg = createMessage({
-                bounce: false,
+                bounce: BounceMode.NoBounce,
                 dest: in.senderAddress,
                 value: 0,
                 // since item index is encoded as 256-bit (not 64-bit),
@@ -252,7 +252,7 @@ fun onInternalMessage(in: InMessage) {
 
             if (msg.queryId) {
                 val respondMsg = createMessage({
-                    bounce: false,
+                    bounce: BounceMode.NoBounce,
                     dest: in.senderAddress,
                     value: 0,
                     body: RespondTeleitemOK{}
@@ -269,7 +269,7 @@ fun onInternalMessage(in: InMessage) {
             assert (auction.lastBid == null) throw ERR_ALREADY_HAS_STAKES;
             if (msg.queryId) {
                 val respondMsg = createMessage({
-                    bounce: false,
+                    bounce: BounceMode.NoBounce,
                     dest: in.senderAddress,
                     value: 0,
                     body: RespondTeleitemOK{}
@@ -301,7 +301,7 @@ fun onInternalMessage(in: InMessage) {
 
             if (msg.forwardTonAmount) {
                 val ownershipMsg = createMessage({
-                    bounce: false,
+                    bounce: BounceMode.NoBounce,
                     dest: msg.newOwnerAddress,
                     value: msg.forwardTonAmount,
                     // in FunC implementation, forward_payload was embedded directly (not into a ref);
@@ -320,7 +320,7 @@ fun onInternalMessage(in: InMessage) {
             }
             if (needResponse) {
                 val excessesMsg = createMessage({
-                    bounce: false,
+                    bounce: BounceMode.NoBounce,
                     dest: msg.sendExcessesTo,
                     value: restAmount,
                     body: ReturnExcessesBack {
@@ -338,7 +338,7 @@ fun onInternalMessage(in: InMessage) {
             val itemConfig = lazy state.config.load();
             assert (in.senderAddress == itemConfig.collectionAddress) throw ERR_FORBIDDEN_NOT_DEPLOY;
             val returnBidMsg = createMessage({
-                bounce: false,
+                bounce: BounceMode.NoBounce,
                 dest: msg.bidderAddress,
                 value: 0,
                 body: ReturnBidBackToBidder{}
