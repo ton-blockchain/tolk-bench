@@ -25,7 +25,7 @@ fun onInternalMessage(in: InMessage) {
             sendRawMessage(attachedMsg.msgCell, attachedMsg.sendMode);
 
             val excessesMsg = createMessage({
-                bounce: true,
+                bounce: BounceMode.Only256BitsOfBody,
                 dest: in.senderAddress,
                 value: 0,
                 body: SendExcesses {
@@ -54,7 +54,7 @@ fun onInternalMessage(in: InMessage) {
             storage.save();
 
             val excessesMsg = createMessage({
-                bounce: true,
+                bounce: BounceMode.Only256BitsOfBody,
                 dest: in.senderAddress,
                 value: 0,
                 body: ResponseAddedToWhitelist {

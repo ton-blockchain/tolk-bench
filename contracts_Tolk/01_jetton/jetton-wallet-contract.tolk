@@ -47,7 +47,7 @@ fun onInternalMessage(in: InMessage) {
                 msgValue -= (msg.forwardTonAmount + in.originalForwardFee);
 
                 val notifyOwnerMsg = createMessage({
-                    bounce: false,      // we should not bounce here cause receiver can have uninitialized contract
+                    bounce: BounceMode.NoBounce,      // cause receiver can have uninitialized contract
                     dest: storage.ownerAddress,
                     value: msg.forwardTonAmount,
                     body: TransferNotificationForRecipient {
@@ -62,7 +62,7 @@ fun onInternalMessage(in: InMessage) {
 
             if (msg.sendExcessesTo.isInternal() & (msgValue > 0)) {
                 val excessesMsg = createMessage({
-                    bounce: false,
+                    bounce: BounceMode.NoBounce,
                     dest: msg.sendExcessesTo,
                     value: msgValue,
                     body: ReturnExcessesBack {
@@ -93,7 +93,7 @@ fun onInternalMessage(in: InMessage) {
             ) throw ERR_NOT_ENOUGH_TON;
 
             val deployMsg = createMessage({
-                bounce: true,
+                bounce: BounceMode.Only256BitsOfBody,
                 dest: calcDeployedJettonWallet(msg.transferRecipient, storage.minterAddress, contract.getCode()),
                 value: 0,
                 body: InternalTransferStep {
@@ -116,7 +116,7 @@ fun onInternalMessage(in: InMessage) {
             storage.save();
 
             val notifyMinterMsg = createMessage({
-                bounce: true,
+                bounce: BounceMode.Only256BitsOfBody,
                 dest: storage.minterAddress,
                 value: 0,
                 body: BurnNotificationForMinter {

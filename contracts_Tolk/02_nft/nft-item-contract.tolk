@@ -52,7 +52,7 @@ fun onInternalMessage(in: InMessage) {
 
             if (msg.forwardTonAmount) {
                 val ownershipMsg = createMessage({
-                    bounce: false,
+                    bounce: BounceMode.NoBounce,
                     dest: msg.newOwnerAddress,
                     value: msg.forwardTonAmount,
                     body: NotificationForNewOwner {
@@ -65,7 +65,7 @@ fun onInternalMessage(in: InMessage) {
             }
             if (needResponse) {
                 val excessesMsg = createMessage({
-                    bounce: false,
+                    bounce: BounceMode.NoBounce,
                     dest: msg.sendExcessesTo,
                     value: restAmount,
                     body: ReturnExcessesBack {
@@ -81,7 +81,7 @@ fun onInternalMessage(in: InMessage) {
 
         RequestStaticData => {
             val respondMsg = createMessage({
-                bounce: false,
+                bounce: BounceMode.NoBounce,
                 dest: in.senderAddress,
                 value: 0,
                 // why ever, in FunC implementation, item index was encoded as 256-bit (not 64-bit),

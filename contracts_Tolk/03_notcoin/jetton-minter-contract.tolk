@@ -40,7 +40,7 @@ fun onInternalMessage(in: InMessage) {
             }
 
             val excessesMsg = createMessage({
-                bounce: false,
+                bounce: BounceMode.NoBounce,
                 dest: msg.sendExcessesTo,
                 value: 0,
                 body: ReturnExcessesBack {
@@ -64,7 +64,7 @@ fun onInternalMessage(in: InMessage) {
             }
 
             val respondMsg = createMessage({
-                bounce: false,
+                bounce: BounceMode.NoBounce,
                 dest: in.senderAddress,
                 value: 0,
                 body: ResponseWalletAddress {
@@ -96,7 +96,7 @@ fun onInternalMessage(in: InMessage) {
             reserveToncoinsOnBalance(ton("0.01"), RESERVE_MODE_EXACT_AMOUNT); // reserve for storage fees
 
             val deployMsg = createMessage({
-                bounce: true,
+                bounce: BounceMode.Only256BitsOfBody,
                 dest: calcDeployedJettonWallet(msg.mintRecipient, contract.getAddress(), storage.jettonWalletCode),
                 value: msg.tonAmount,
                 body: msg.internalTransferMsg,

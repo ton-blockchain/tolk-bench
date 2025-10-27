@@ -16,7 +16,7 @@ fun checkRestrictions(restrictions: OverrideRestrictionsAtDeploy, senderAddress:
 @inline_ref
 fun returnBidOnIncorrectConfig(returnToAddress: address) {
     val returnBidMsg = createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         dest: returnToAddress,
         value: 0,
         body: ReturnBidBackToBidder{}
@@ -65,7 +65,7 @@ fun onInternalMessage(in: InMessage) {
             var itemIndex = input.tokenName.bitsHash();
 
             val deployMsg = createMessage({
-                bounce: true,
+                bounce: BounceMode.Only256BitsOfBody,
                 dest: calcDeployedTeleItem(itemIndex, contract.getAddress(), storage.nftItemCode),
                 value: 0,
                 body: TelemintItemDeploy {
