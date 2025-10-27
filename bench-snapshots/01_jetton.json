@@ -270,5 +270,22 @@
       "wallet bits": 4798,
       "wallet cells": 10
     }
+  },
+  {
+    "commitDesc": "TVM 12: cheap builder-to-slice",
+    "gas": {
+      "MINT jettons by admin": 11774,
+      "TRANSFER with forward_amount": 12991,
+      "TRANSFER no forward_amount": 10504,
+      "BURN jettons": 7935,
+      "DISCOVER with include_address": 4380,
+      "DISCOVER no include_address": 3826
+    },
+    "codeSize": {
+      "minter bits": 4042,
+      "minter cells": 11,
+      "wallet bits": 4430,
+      "wallet cells": 12
+    }
   }
 ]
