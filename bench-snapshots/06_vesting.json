@@ -238,5 +238,21 @@
       "vesting wallet bits": 7021,
       "vesting wallet cells": 26
     }
+  },
+  {
+    "commitDesc": "TVM 12: type `address` restricted to internal only",
+    "gas": {
+      "ADD whitelist": 4384,
+      "UNLOCK internal partial": 5896,
+      "INTERNAL to vesting sender": 5160,
+      "INTERNAL to elector": 7623,
+      "INTERNAL to single nominator": 6748,
+      "INTERNAL with comment": 6836,
+      "EXTERNAL transfer after unlock": 4509
+    },
+    "codeSize": {
+      "vesting wallet bits": 7037,
+      "vesting wallet cells": 26
+    }
   }
 ]

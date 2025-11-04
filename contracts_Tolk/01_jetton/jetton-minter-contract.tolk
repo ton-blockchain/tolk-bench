@@ -23,7 +23,7 @@ fun onInternalMessage(in: InMessage) {
             storage.totalSupply -= msg.jettonAmount;
             storage.save();
 
-            if (!msg.sendExcessesTo.isInternal()) {
+            if (msg.sendExcessesTo == null) {
                 return;
             }
 
@@ -45,12 +45,10 @@ fun onInternalMessage(in: InMessage) {
                 ? msg.ownerAddress.toCell()
                 : null;
 
-            var walletAddress: address;
+            var walletAddress: address? = null;
             if (msg.ownerAddress.getWorkchain() == BASECHAIN) {
                 var storage = lazy MinterStorage.load();
                 walletAddress = calcAddressOfJettonWallet(msg.ownerAddress, contract.getAddress(), storage.jettonWalletCode);
-            } else {
-                walletAddress = createAddressNone();
             }
 
             val respondMsg = createMessage({

@@ -26,8 +26,8 @@ struct WalletStorage {
 
 struct MinterStorage {
     totalSupply: coins
-    adminAddress: address
-    nextAdminAddress: address
+    adminAddress: address?
+    nextAdminAddress: address?
     jettonWalletCode: cell
     metadataUri: Cell<SnakeString>
 }

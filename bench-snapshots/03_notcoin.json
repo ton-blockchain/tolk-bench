@@ -287,5 +287,22 @@
       "wallet bits": 5258,
       "wallet cells": 12
     }
+  },
+  {
+    "commitDesc": "TVM 12: type `address` restricted to internal only",
+    "gas": {
+      "MINT jettons by admin": 10690,
+      "TRANSFER with forward_amount": 14050,
+      "TRANSFER no forward_amount": 11681,
+      "BURN jettons": 8532,
+      "DISCOVER with include_address": 4195,
+      "DISCOVER no include_address": 3633
+    },
+    "codeSize": {
+      "minter bits": 7135,
+      "minter cells": 16,
+      "wallet bits": 5330,
+      "wallet cells": 12
+    }
   }
 ]

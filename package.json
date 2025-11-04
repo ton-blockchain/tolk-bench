@@ -22,7 +22,7 @@
         "@ton/blueprint": "^0.40.0",
         "@ton/core": "^0.61.0",
         "@ton/crypto": "^3.3.0",
-        "@ton/sandbox": "^0.37.1",
+        "@ton/sandbox": "^0.39.0",
         "@ton/test-utils": "^0.8.0",
         "@ton/ton": "^15.3.0",
         "@types/jest": "^29.5.4",
@@ -31,7 +31,7 @@
         "ts-jest": "^29.3.1",
         "ts-node": "^10.9.2",
         "typescript": "^5.8.3",
-        "@ton/tolk-js": "file://./ton-tolk-js-tmp-137.tgz",
+        "@ton/tolk-js": "file://./ton-tolk-js-tmp-147.tgz",
         "@ton-community/func-js": "^0.10.0",
         "ansi-colors": "^4.1.3"
     }

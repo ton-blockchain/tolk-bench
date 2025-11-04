@@ -45,7 +45,7 @@ struct ItemStorageNotInitialized {
 
 struct ItemStorage {
     config: Cell<ItemConfig>
-    ownerAddress: address
+    ownerAddress: address?
     content: Cell<ItemContent>
     auction: Cell<Auction>?
     royaltyParams: Cell<RoyaltyParams>

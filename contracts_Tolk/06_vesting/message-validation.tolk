@@ -76,7 +76,7 @@ fun address.matchesAddressFromConfig(self, configId: int): bool {
 
 struct MessageCellContentsStart {
     flags: uint4
-    senderAddress: address
+    senderAddress: any_address
     destinationAddress: address
 }
 

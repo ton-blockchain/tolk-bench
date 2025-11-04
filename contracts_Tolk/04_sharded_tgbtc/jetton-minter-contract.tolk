@@ -26,6 +26,17 @@ fun onBouncedMessage(in: InMessageBounced) {
     storage.save();
 }
 
+fun assertSenderIsAdmin(senderAddress: address, adminAddress: address?) {
+    // theoretically, minter's admin can be dropped and be `null`, so being precise, we should check:
+    // ```
+    // assert (adminAddress != null) throw ERROR_NOT_OWNER;
+    // ```
+    // but in practice, the above assertion is reduntant, we just bypass the nullability check:
+    assert (senderAddress == adminAddress!) throw ERROR_NOT_OWNER;
+    // then, if admin is `null`, error code 7 will be thrown (while executing operator `==`),
+    // it's suitable for current implementation
+}
+
 fun onInternalMessage(in: InMessage) {
     val msg = lazy AllowedMessageToMinter.fromSlice(in.body);
 
@@ -36,7 +47,7 @@ fun onInternalMessage(in: InMessage) {
             storage.totalSupply -= msg.jettonAmount;
             storage.save();
 
-            if (!msg.sendExcessesTo.isInternal()) {
+            if (msg.sendExcessesTo == null) {
                 return;
             }
 
@@ -56,12 +67,10 @@ fun onInternalMessage(in: InMessage) {
                 ? msg.ownerAddress.toCell()
                 : null;
 
-            var walletAddress: address;
+            var walletAddress: address? = null;
             if (msg.ownerAddress.getWorkchain() == MY_WORKCHAIN) {
                 val storage = lazy MinterStorage.load();
                 walletAddress = calcAddressOfJettonWallet(msg.ownerAddress, contract.getAddress(), storage.jettonWalletCode);
-            } else {
-                walletAddress = createAddressNone();
             }
 
             val respondMsg = createMessage({
@@ -79,7 +88,7 @@ fun onInternalMessage(in: InMessage) {
 
         MintNewJettons => {
             var storage = lazy MinterStorage.load();
-            assert (in.senderAddress == storage.adminAddress) throw ERROR_NOT_OWNER;
+            assertSenderIsAdmin(in.senderAddress, storage.adminAddress);
             assert (msg.mintRecipient.getWorkchain() == MY_WORKCHAIN) throw ERROR_WRONG_WORKCHAIN;
 
             val internalTransferMsg = lazy msg.internalTransferMsg.load({
@@ -107,37 +116,37 @@ fun onInternalMessage(in: InMessage) {
 
         ChangeMinterAdmin => {
             var storage = lazy MinterStorage.load();
-            assert (in.senderAddress == storage.adminAddress) throw ERROR_NOT_OWNER;
+            assertSenderIsAdmin(in.senderAddress, storage.adminAddress);
             storage.nextAdminAddress = msg.newAdminAddress;
             storage.save();
         }
 
         ClaimMinterAdmin => {
             var storage = lazy MinterStorage.load();
-            assert (in.senderAddress == storage.nextAdminAddress) throw ERROR_NOT_OWNER;
+            assertSenderIsAdmin(in.senderAddress, storage.nextAdminAddress);
             storage.adminAddress = storage.nextAdminAddress;
-            storage.nextAdminAddress = createAddressNone();
+            storage.nextAdminAddress = null;
             storage.save();
         }
 
         DropMinterAdmin => {
             var storage = lazy MinterStorage.load();
-            assert (in.senderAddress == storage.adminAddress) throw ERROR_NOT_OWNER;
-            storage.adminAddress = createAddressNone();
-            storage.nextAdminAddress = createAddressNone();
+            assertSenderIsAdmin(in.senderAddress, storage.adminAddress);
+            storage.adminAddress = null;
+            storage.nextAdminAddress = null;
             storage.save();
         }
 
         ChangeMinterMetadataUri => {
             var storage = lazy MinterStorage.load();
-            assert (in.senderAddress == storage.adminAddress) throw ERROR_NOT_OWNER;
+            assertSenderIsAdmin(in.senderAddress, storage.adminAddress);
             storage.metadataUri = msg.newMetadataUri.toCell();
             storage.save();
         }
 
         UpgradeMinterCode => {
             var storage = lazy MinterStorage.load();
-            assert (in.senderAddress == storage.adminAddress) throw ERROR_NOT_OWNER;
+            assertSenderIsAdmin(in.senderAddress, storage.adminAddress);
             contract.setCodePostponed(msg.newCode);
             contract.setData(msg.newData);
         }
@@ -155,7 +164,7 @@ fun onInternalMessage(in: InMessage) {
 struct JettonDataReply {
     totalSupply: int
     mintable: bool
-    adminAddress: address
+    adminAddress: address?
     jettonContent: Cell<OnchainMetadataReply>
     jettonWalletCode: cell
 }
@@ -190,7 +199,7 @@ get fun get_wallet_address(ownerAddress: address): address {
     return calcAddressOfJettonWallet(ownerAddress, contract.getAddress(), storage.jettonWalletCode);
 }
 
-get fun get_next_admin_address(): address {
+get fun get_next_admin_address(): address? {
     val storage = lazy MinterStorage.load();
     return storage.nextAdminAddress;
 }
