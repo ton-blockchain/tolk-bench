@@ -20,9 +20,14 @@ struct SignedDataAtDeploy {
     restrictions: Cell<OverrideRestrictionsAtDeploy>?
 }
 
+// we need to match original FunC tests and behavior; in tests, empty addresses in "restrictions"
+// are sent not as addr_none, but as (Maybe MsgAddressInt) (0 or 1+267 bits);
+// hence, don't use `address?` here, since it expects '00' (none) or 267 (internal) on deserialization;
+// instead, use `any_address?`, which later can be checked for `isInternal()`, but no reason to do, it's signed
+@overflow1023_policy("suppress")
 struct OverrideRestrictionsAtDeploy {
-    forceSenderAddress: address?
-    rewriteSenderAddress: address?
+    forceSenderAddress: any_address?
+    rewriteSenderAddress: any_address?
 }
 
 struct (0x299a3e15) TelemintItemDeploy {
@@ -69,7 +74,7 @@ struct (0x487a8e81) AskToStartAuction {
 struct (0x5fcc3d14) AskToTransfer {
     queryId: uint64
     newOwnerAddress: address
-    sendExcessesTo: address
+    sendExcessesTo: address?
     customPayload: cell?
     forwardTonAmount: coins
     forwardPayload: RemainingBitsAndRefs
@@ -93,7 +98,7 @@ struct (0xd53276db) ReturnExcessesBack {
 
 struct (0x05138d91) NotificationOwnershipAssigned<TPayload> {
     queryId: uint64
-    oldOwnerAddress: address
+    oldOwnerAddress: address?
     payload: TPayload
 }
 

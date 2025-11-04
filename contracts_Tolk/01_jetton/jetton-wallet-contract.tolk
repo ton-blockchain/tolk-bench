@@ -33,7 +33,7 @@ fun onInternalMessage(in: InMessage) {
         InternalTransferStep => {
             var storage = lazy WalletStorage.load();
             if (in.senderAddress != storage.minterAddress) {
-                assert (in.senderAddress == calcAddressOfJettonWallet(msg.transferInitiator, storage.minterAddress, contract.getCode())) throw ERR_INVALID_WALLET;
+                assert (in.senderAddress == calcAddressOfJettonWallet(msg.transferInitiator!, storage.minterAddress, contract.getCode())) throw ERR_INVALID_WALLET;
             }
             storage.jettonBalance += msg.jettonAmount;
             storage.save();
@@ -60,10 +60,10 @@ fun onInternalMessage(in: InMessage) {
                 notifyOwnerMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
             }
 
-            if (msg.sendExcessesTo.isInternal() & (msgValue > 0)) {
+            if (msg.sendExcessesTo != null & (msgValue > 0)) {
                 val excessesMsg = createMessage({
                     bounce: BounceMode.NoBounce,
-                    dest: msg.sendExcessesTo,
+                    dest: msg.sendExcessesTo!,
                     value: msgValue,
                     body: ReturnExcessesBack {
                         queryId: msg.queryId

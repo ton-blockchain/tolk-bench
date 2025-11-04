@@ -26,7 +26,7 @@ fun Auction.isExpired(self) {
 }
 
 @inline_ref
-fun Auction.calcNewOwnerOnExpire(self, mutate myBalance: coins, oldOwner: address, royaltyParamsCell: Cell<RoyaltyParams>): address {
+fun Auction.calcNewOwnerOnExpire(self, mutate myBalance: coins, oldOwner: address?, royaltyParamsCell: Cell<RoyaltyParams>): address? {
     if (self.lastBid == null) {
         // no stakes were made
         // NB: owner is not null now
@@ -109,7 +109,7 @@ fun Auction.processNewBid(mutate self, mutate myBalance: coins, newBidAddress: a
 }
 
 fun initializeItemOnDeployingByCollection(uninitedSt: ItemStorageNotInitialized, myBalance: int, msg: TelemintItemDeploy): ItemStorage {
-    var ownerAddress = createAddressNone();
+    var ownerAddress: address? = null;
     var auctionForStorage: Cell<Auction>? = null;
 
     val auctionConfig = lazy msg.auctionConfig.load();
@@ -192,6 +192,7 @@ fun onInternalMessage(in: InMessage) {
             if (state.auction == null) {
                 // only owner can fill-up balance, prevent coins lost right after the auction
                 // if owner send bid right after auction he can restore it by transfer response message
+                assert (state.ownerAddress != null) throw ERR_FORBIDDEN_TOPUP;
                 assert (in.senderAddress == state.ownerAddress) throw ERR_FORBIDDEN_TOPUP;
                 return;
             }
@@ -242,6 +243,7 @@ fun onInternalMessage(in: InMessage) {
 
         AskToStartAuction => {
             assert (state.auction == null) throw ERR_FORBIDDEN_NOT_STAKE;
+            assert (state.ownerAddress != null) throw ERR_FORBIDDEN_AUCTION;
             assert (in.senderAddress == state.ownerAddress) throw ERR_FORBIDDEN_AUCTION;
 
             val config = lazy msg.newAuctionConfig.load();
@@ -263,6 +265,7 @@ fun onInternalMessage(in: InMessage) {
 
         AskToCancelAuction => {
             assert (state.auction != null) throw ERR_NO_AUCTION;
+            assert (state.ownerAddress != null) throw ERR_FORBIDDEN_AUCTION;
             assert (in.senderAddress == state.ownerAddress) throw ERR_FORBIDDEN_AUCTION;
 
             val auction = lazy state.auction.load();
@@ -283,6 +286,7 @@ fun onInternalMessage(in: InMessage) {
 
         AskToTransfer => {
             assert (state.auction == null) throw ERR_FORBIDDEN_NOT_STAKE;
+            assert (state.ownerAddress != null) throw ERR_FORBIDDEN_TRANSFER;
             assert (in.senderAddress == state.ownerAddress) throw ERR_FORBIDDEN_TRANSFER;
             assert (msg.newOwnerAddress.getWorkchain() == MY_WORKCHAIN) throw ERR_INCORRECT_WORKCHAIN;
 
@@ -291,8 +295,7 @@ fun onInternalMessage(in: InMessage) {
             if (msg.forwardTonAmount) {
                 restAmount -= (msg.forwardTonAmount + fwdFee);
             }
-            var needResponse = msg.sendExcessesTo.isInternal();
-            if (needResponse) {
+            if (msg.sendExcessesTo != null) {
                 assert (msg.sendExcessesTo.getWorkchain() == MY_WORKCHAIN) throw ERR_INCORRECT_WORKCHAIN;
                 restAmount -= fwdFee;
             }
@@ -318,7 +321,7 @@ fun onInternalMessage(in: InMessage) {
                 });
                 ownershipMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
             }
-            if (needResponse) {
+            if (msg.sendExcessesTo != null) {
                 val excessesMsg = createMessage({
                     bounce: BounceMode.NoBounce,
                     dest: msg.sendExcessesTo,

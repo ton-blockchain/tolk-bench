@@ -8,7 +8,7 @@ fun checkRestrictions(restrictions: OverrideRestrictionsAtDeploy, senderAddress:
         assert (senderAddress == restrictions.forceSenderAddress) throw ERR_INVALID_SENDER_ADDRESS;
     }
     if (restrictions.rewriteSenderAddress != null) {
-        senderAddress = restrictions.rewriteSenderAddress;
+        senderAddress = restrictions.rewriteSenderAddress as address;
     }
     return senderAddress;
 }
@@ -100,7 +100,7 @@ fun onExternalMessage(inMsg: slice) {
 struct CollectionDataReply {
     nextItemIndex: int
     collectionMetadata: cell
-    ownerAddress: address
+    ownerAddress: address?
 }
 
 get fun get_collection_data(): CollectionDataReply {
@@ -109,7 +109,7 @@ get fun get_collection_data(): CollectionDataReply {
     return {
         nextItemIndex: -1,
         collectionMetadata: storage.content,
-        ownerAddress: createAddressNone(),
+        ownerAddress: null,
     }
 }
 

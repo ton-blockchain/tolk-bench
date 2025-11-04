@@ -42,8 +42,7 @@ fun onInternalMessage(in: InMessage) {
             if (msg.forwardTonAmount) {
                 restAmount -= (msg.forwardTonAmount + fwdFee);
             }
-            var needResponse = msg.sendExcessesTo.isInternal();
-            if (needResponse) {
+            if (msg.sendExcessesTo != null) {
                 assert (msg.sendExcessesTo.getWorkchain() == BASECHAIN) throw ERROR_INVALID_WORKCHAIN;
                 restAmount -= fwdFee;
             }
@@ -63,7 +62,7 @@ fun onInternalMessage(in: InMessage) {
                 });
                 ownershipMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
             }
-            if (needResponse) {
+            if (msg.sendExcessesTo != null) {
                 val excessesMsg = createMessage({
                     bounce: BounceMode.NoBounce,
                     dest: msg.sendExcessesTo,

@@ -34,7 +34,7 @@ fun onInternalMessage(in: InMessage) {
         InternalTransferStep => {
             var storage = lazy WalletStorage.load();
             if (in.senderAddress != storage.minterAddress) {
-                assert (in.senderAddress == calcAddressOfJettonWallet(msg.transferInitiator, storage.minterAddress, contract.getCode())) throw ERROR_NOT_VALID_WALLET;
+                assert (in.senderAddress == calcAddressOfJettonWallet(msg.transferInitiator!, storage.minterAddress, contract.getCode())) throw ERROR_NOT_VALID_WALLET;
             }
             storage.jettonBalance += msg.jettonAmount;
             storage.save();
@@ -54,7 +54,7 @@ fun onInternalMessage(in: InMessage) {
                 notifyOwnerMsg.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
             }
 
-            if (msg.sendExcessesTo.isInternal()) {
+            if (msg.sendExcessesTo != null) {
                 var toLeaveOnBalance = contract.getOriginalBalance() - in.valueCoins + contract.getStorageDuePayment();
                 reserveToncoinsOnBalance(max(toLeaveOnBalance, calculateJettonWalletMinStorageFee()), RESERVE_MODE_AT_MOST);
 

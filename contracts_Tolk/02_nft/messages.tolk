@@ -59,7 +59,7 @@ struct (0xd53276db) ReturnExcessesBack {
 struct (0x5fcc3d14) AskToChangeOwnership {
     queryId: uint64
     newOwnerAddress: address
-    sendExcessesTo: address
+    sendExcessesTo: address?
     customPayload: dict
     forwardTonAmount: coins
     forwardPayload: RemainingBitsAndRefs

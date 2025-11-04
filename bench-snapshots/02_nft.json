@@ -253,5 +253,20 @@
       "nft-collection bits": 3867,
       "nft-collection cells": 16
     }
+  },
+  {
+    "commitDesc": "TVM 12: type `address` restricted to internal only",
+    "gas": {
+      "DEPLOY nft": 5510,
+      "BATCH deploy nft": 458212,
+      "TRANSFER nft": 4448,
+      "GET static data": 2543
+    },
+    "codeSize": {
+      "nft-item bits": 2621,
+      "nft-item cells": 6,
+      "nft-collection bits": 3939,
+      "nft-collection cells": 14
+    }
   }
 ]
