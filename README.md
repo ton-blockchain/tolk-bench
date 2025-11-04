@@ -19,51 +19,51 @@ In gas units, plus code side (bits / cells).
 
 | Operation                       | FunC       | Tolk       | **Gas savings** |
 |---------------------------------|------------|------------|-----------------|
-| MINT jettons by admin           | 19278      | 11611      | **-39.77%**     |
-| TRANSFER with forward_amount    | 19420      | 13531      | **-30.32%**     |
-| TRANSFER no forward_amount      | 16964      | 11144      | **-34.31%**     |
-| BURN jettons                    | 12514      | 8302       | **-33.66%**     |
-| DISCOVER with include_address   | 7116       | 5355       | **-24.75%**     |
-| DISCOVER no include_address     | 6554       | 4801       | **-26.75%**     |
-| code size: minter               | 5046 / 14  | 4730 / 11  |                 |
-| code size: wallet               | 6081 / 18  | 4798 / 10  |                 |
+| MINT jettons by admin           | 19278      | 11914      | **-38.20%**     |
+| TRANSFER with forward_amount    | 19420      | 12904      | **-33.55%**     |
+| TRANSFER no forward_amount      | 16964      | 10401      | **-38.69%**     |
+| BURN jettons                    | 12514      | 7952       | **-36.46%**     |
+| DISCOVER with include_address   | 7116       | 4456       | **-37.38%**     |
+| DISCOVER no include_address     | 6554       | 3894       | **-40.59%**     |
+| code size: minter               | 5046 / 14  | 4130 / 12  |                 |
+| code size: wallet               | 6081 / 18  | 4485 / 11  |                 |
 
 ### 02 — basic nft
 
 | Operation                       | FunC       | Tolk       | **Gas savings** |
 |---------------------------------|------------|------------|-----------------|
-| DEPLOY nft                      | 10469      | 5833       | **-44.28%**     |
-| BATCH deploy nft                | 1049281    | 482845     | **-53.98%**     |
-| TRANSFER nft                    | 7109       | 4445       | **-37.47%**     |
-| GET static data                 | 4535       | 2527       | **-44.28%**     |
-| code size: nft-item             | 3441 / 14  | 2597 / 7   |                 |
-| code size: nft-collection       | 3564 / 19  | 4371 / 14  |                 |
+| DEPLOY nft                      | 10469      | 5510       | **-47.37%**     |
+| BATCH deploy nft                | 1049281    | 458212     | **-56.33%**     |
+| TRANSFER nft                    | 7109       | 4478       | **-37.01%**     |
+| GET static data                 | 4535       | 2543       | **-43.93%**     |
+| code size: nft-item             | 3441 / 14  | 2581 / 7   |                 |
+| code size: nft-collection       | 3564 / 19  | 3939 / 14  |                 |
 
 ### 03 — notcoin
 
 | Operation                       | FunC       | Tolk       | **Gas savings** |
 |---------------------------------|------------|------------|-----------------|
-| MINT jettons by admin           | 17053      | 10962      | **-35.72%**     |
-| TRANSFER with forward_amount    | 19638      | 14585      | **-25.73%**     |
-| TRANSFER no forward_amount      | 16984      | 12232      | **-27.98%**     |
-| BURN jettons                    | 12732      | 8800       | **-30.88%**     |
-| DISCOVER with include_address   | 7107       | 5002       | **-29.62%**     |
-| DISCOVER no include_address     | 6545       | 4448       | **-32.04%**     |
-| code size: minter               | 8782 / 21  | 7719 / 16  |                 |
-| code size: wallet               | 6794 / 15  | 5602 / 12  |                 |
+| MINT jettons by admin           | 17053      | 10664      | **-37.47%**     |
+| TRANSFER with forward_amount    | 19638      | 14024      | **-28.59%**     |
+| TRANSFER no forward_amount      | 16984      | 11655      | **-31.38%**     |
+| BURN jettons                    | 12732      | 8532       | **-32.99%**     |
+| DISCOVER with include_address   | 7107       | 4195       | **-40.97%**     |
+| DISCOVER no include_address     | 6545       | 3633       | **-44.49%**     |
+| code size: minter               | 8782 / 21  | 7119 / 16  |                 |
+| code size: wallet               | 6794 / 15  | 5314 / 12  |                 |
 
 ### 04 — sharded jetton (tgBTC)
 
 | Operation                       | FunC       | Tolk       | **Gas savings** |
 |---------------------------------|------------|------------|-----------------|
-| MINT jettons by admin           | 15019      | 11424      | **-23.94%**     |
-| TRANSFER with forward_amount    | 20021      | 15122      | **-24.47%**     |
-| TRANSFER no forward_amount      | 17489      | 12769      | **-26.99%**     |
-| BURN jettons                    | 13089      | 9069       | **-30.71%**     |
-| DISCOVER with include_address   | 7290       | 5419       | **-25.67%**     |
-| DISCOVER no include_address     | 6728       | 4865       | **-27.69%**     |
-| code size: minter               | 9454 / 21  | 8351 / 18  |                 |
-| code size: wallet               | 6941 / 13  | 5631 / 11  |                 |
+| MINT jettons by admin           | 15019      | 10830      | **-27.89%**     |
+| TRANSFER with forward_amount    | 20021      | 14388      | **-28.14%**     |
+| TRANSFER no forward_amount      | 17489      | 12019      | **-31.28%**     |
+| BURN jettons                    | 13089      | 8634       | **-34.04%**     |
+| DISCOVER with include_address   | 7290       | 4429       | **-39.25%**     |
+| DISCOVER no include_address     | 6728       | 3867       | **-42.52%**     |
+| code size: minter               | 9454 / 21  | 7639 / 16  |                 |
+| code size: wallet               | 6941 / 13  | 5333 / 10  |                 |
 
 ### 05 — wallet V5
 
@@ -79,34 +79,34 @@ In gas units, plus code side (bits / cells).
 
 | Operation                       | FunC       | Tolk       | **Gas savings** |
 |---------------------------------|------------|------------|-----------------|
-| ADD whitelist                   | 8000       | 4376       | **-45.30%**     |
-| UNLOCK internal partial         | 8365       | 5888       | **-29.61%**     |
-| INTERNAL to vesting sender      | 6543       | 5152       | **-21.26%**     |
-| INTERNAL to elector             | 11062      | 7615       | **-31.16%**     |
-| INTERNAL to single nominator    | 10338      | 6740       | **-34.80%**     |
-| INTERNAL with comment           | 10628      | 6828       | **-35.75%**     |
+| ADD whitelist                   | 8000       | 4384       | **-45.20%**     |
+| UNLOCK internal partial         | 8365       | 5896       | **-29.52%**     |
+| INTERNAL to vesting sender      | 6543       | 5160       | **-21.14%**     |
+| INTERNAL to elector             | 11062      | 7623       | **-31.09%**     |
+| INTERNAL to single nominator    | 10338      | 6748       | **-34.73%**     |
+| INTERNAL with comment           | 10628      | 6836       | **-35.68%**     |
 | EXTERNAL transfer after unlock  | 6740       | 4509       | **-33.10%**     |
-| code size: vesting wallet       | 7413 / 28  | 7021 / 26  |                 |
+| code size: vesting wallet       | 7413 / 28  | 7037 / 26  |                 |
 
 ### 07 — telemint (telegram gifts)
 
 | Operation                       | FunC       | Tolk       | **Gas savings** |
 |---------------------------------|------------|------------|-----------------|
 | EXTERNAL to collection          | 2569       | 1161       | **-54.81%**     |
-| DEPLOY item by admin            | 23706      | 14368      | **-39.39%**     |
-| REJECT incorrect sender         | 24142      | 15066      | **-37.59%**     |
-| OVERRIDE restrictions           | 24069      | 14998      | **-37.69%**     |
-| INCREASE next bid               | 12640      | 7302       | **-42.23%**     |
-| AUCTION end on expire           | 11317      | 7892       | **-30.26%**     |
-| AUCTION end reached max bid     | 20497      | 12741      | **-37.84%**     |
-| AUCTION start by owner          | 7762       | 4040       | **-47.95%**     |
-| AUCTION cancel if no bids       | 6341       | 3111       | **-50.94%**     |
-| AUCTION first bid               | 10394      | 5453       | **-47.54%**     |
-| AUCTION next bid                | 12640      | 7302       | **-42.23%**     |
-| TRANSFER item                   | 9508       | 6395       | **-32.74%**     |
-| GET royalty params              | 4245       | 2890       | **-31.92%**     |
-| code size: NftCollection        | 4649 / 17  | 3999 / 14  |                 |
-| code size: NftItem              | 14785 / 37 | 12768 / 31 |                 |
+| DEPLOY item by admin            | 23706      | 14205      | **-40.08%**     |
+| REJECT incorrect sender         | 24142      | 14903      | **-38.27%**     |
+| OVERRIDE restrictions           | 24069      | 14835      | **-38.36%**     |
+| INCREASE next bid               | 12640      | 7334       | **-41.98%**     |
+| AUCTION end on expire           | 11317      | 7932       | **-29.91%**     |
+| AUCTION end reached max bid     | 20497      | 12805      | **-37.53%**     |
+| AUCTION start by owner          | 7762       | 4118       | **-46.95%**     |
+| AUCTION cancel if no bids       | 6341       | 3189       | **-49.71%**     |
+| AUCTION first bid               | 10394      | 5477       | **-47.31%**     |
+| AUCTION next bid                | 12640      | 7334       | **-41.98%**     |
+| TRANSFER item                   | 9508       | 6619       | **-30.38%**     |
+| GET royalty params              | 4245       | 2906       | **-31.54%**     |
+| code size: NftCollection        | 4649 / 17  | 3695 / 15  |                 |
+| code size: NftItem              | 14785 / 37 | 13048 / 34 |                 |
 
 <br>
 
@@ -132,9 +132,11 @@ The compiler decides when and where to load data from slices. It enables:
 
 Inlining, constant condition folding, grouping of sequential `storeInt`, peephole optimizations, stack reordering — all applied automatically.
 
-#### 4. TVM-11 instructions
+#### 4. TVM-11 and TVM-12 instructions
 
-They allow accessing incoming message data without parsing `msg_cell` — but contribute only ~25% of the savings.
+TVM 11 allows accessing incoming message data without parsing `msg_cell`.
+TVM 12 has `BTOS` ("builder-to-slice" without intermediate cell creation).
+Combined, they contribute ~30% of the savings.
 Most of the gain comes from the language itself.
 
 #### 5. Fixing inefficiencies in original FunC code

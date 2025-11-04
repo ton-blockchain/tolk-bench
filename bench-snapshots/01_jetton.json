@@ -304,5 +304,22 @@
       "wallet bits": 4501,
       "wallet cells": 11
     }
+  },
+  {
+    "commitDesc": "final Tolk v1.2 compiler",
+    "gas": {
+      "MINT jettons by admin": 11914,
+      "TRANSFER with forward_amount": 12904,
+      "TRANSFER no forward_amount": 10401,
+      "BURN jettons": 7952,
+      "DISCOVER with include_address": 4456,
+      "DISCOVER no include_address": 3894
+    },
+    "codeSize": {
+      "minter bits": 4130,
+      "minter cells": 12,
+      "wallet bits": 4485,
+      "wallet cells": 11
+    }
   }
 ]
