@@ -33,11 +33,11 @@ In gas units, plus code side (bits / cells).
 | Operation                       | FunC       | Tolk       | **Gas savings** |
 |---------------------------------|------------|------------|-----------------|
 | DEPLOY nft                      | 10469      | 5510       | **-47.37%**     |
-| BATCH deploy nft                | 1049281    | 458212     | **-56.33%**     |
+| BATCH deploy nft                | 1049281    | 451112     | **-57.01%**     |
 | TRANSFER nft                    | 7109       | 4478       | **-37.01%**     |
 | GET static data                 | 4535       | 2543       | **-43.93%**     |
 | code size: nft-item             | 3441 / 14  | 2581 / 7   |                 |
-| code size: nft-collection       | 3564 / 19  | 3939 / 14  |                 |
+| code size: nft-collection       | 3564 / 19  | 4547 / 17  |                 |
 
 ### 03 — notcoin
 
@@ -49,7 +49,7 @@ In gas units, plus code side (bits / cells).
 | BURN jettons                    | 12732      | 8532       | **-32.99%**     |
 | DISCOVER with include_address   | 7107       | 4195       | **-40.97%**     |
 | DISCOVER no include_address     | 6545       | 3633       | **-44.49%**     |
-| code size: minter               | 8782 / 21  | 7119 / 16  |                 |
+| code size: minter               | 8782 / 21  | 7103 / 17  |                 |
 | code size: wallet               | 6794 / 15  | 5314 / 12  |                 |
 
 ### 04 — sharded jetton (tgBTC)
@@ -62,18 +62,18 @@ In gas units, plus code side (bits / cells).
 | BURN jettons                    | 13089      | 8634       | **-34.04%**     |
 | DISCOVER with include_address   | 7290       | 4429       | **-39.25%**     |
 | DISCOVER no include_address     | 6728       | 3867       | **-42.52%**     |
-| code size: minter               | 9454 / 21  | 7639 / 16  |                 |
+| code size: minter               | 9454 / 21  | 7623 / 17  |                 |
 | code size: wallet               | 6941 / 13  | 5333 / 10  |                 |
 
 ### 05 — wallet V5
 
 | Operation                       | FunC       | Tolk       | **Gas savings** |
 |---------------------------------|------------|------------|-----------------|
-| EXTERNAL transfer               | 4939       | 3869       | **-21.66%**     |
-| INTERNAL transfer               | 5645       | 4351       | **-22.92%**     |
-| ADD extension                   | 6110       | 4951       | **-18.97%**     |
-| EXTENSION transfer              | 3854       | 2951       | **-23.43%**     |
-| code size: wallet_v5            | 4583 / 20  | 5775 / 20  |                 |
+| EXTERNAL transfer               | 4939       | 3405       | **-31.06%**     |
+| INTERNAL transfer               | 5645       | 3887       | **-31.14%**     |
+| ADD extension                   | 6110       | 4487       | **-26.56%**     |
+| EXTENSION transfer              | 3854       | 2838       | **-26.36%**     |
+| code size: wallet_v5            | 4583 / 20  | 5807 / 19  |                 |
 
 ### 06 — vesting wallet
 
@@ -85,17 +85,17 @@ In gas units, plus code side (bits / cells).
 | INTERNAL to elector             | 11062      | 7623       | **-31.09%**     |
 | INTERNAL to single nominator    | 10338      | 6748       | **-34.73%**     |
 | INTERNAL with comment           | 10628      | 6836       | **-35.68%**     |
-| EXTERNAL transfer after unlock  | 6740       | 4509       | **-33.10%**     |
-| code size: vesting wallet       | 7413 / 28  | 7037 / 26  |                 |
+| EXTERNAL transfer after unlock  | 6740       | 4045       | **-39.99%**     |
+| code size: vesting wallet       | 7413 / 28  | 7053 / 26  |                 |
 
 ### 07 — telemint (telegram gifts)
 
 | Operation                       | FunC       | Tolk       | **Gas savings** |
 |---------------------------------|------------|------------|-----------------|
 | EXTERNAL to collection          | 2569       | 1161       | **-54.81%**     |
-| DEPLOY item by admin            | 23706      | 14205      | **-40.08%**     |
-| REJECT incorrect sender         | 24142      | 14903      | **-38.27%**     |
-| OVERRIDE restrictions           | 24069      | 14835      | **-38.36%**     |
+| DEPLOY item by admin            | 23706      | 13759      | **-41.96%**     |
+| REJECT incorrect sender         | 24142      | 14457      | **-40.12%**     |
+| OVERRIDE restrictions           | 24069      | 14389      | **-40.22%**     |
 | INCREASE next bid               | 12640      | 7334       | **-41.98%**     |
 | AUCTION end on expire           | 11317      | 7932       | **-29.91%**     |
 | AUCTION end reached max bid     | 20497      | 12805      | **-37.53%**     |
@@ -105,7 +105,7 @@ In gas units, plus code side (bits / cells).
 | AUCTION next bid                | 12640      | 7334       | **-41.98%**     |
 | TRANSFER item                   | 9508       | 6619       | **-30.38%**     |
 | GET royalty params              | 4245       | 2906       | **-31.54%**     |
-| code size: NftCollection        | 4649 / 17  | 3695 / 15  |                 |
+| code size: NftCollection        | 4649 / 17  | 3719 / 15  |                 |
 | code size: NftItem              | 14785 / 37 | 13048 / 34 |                 |
 
 <br>

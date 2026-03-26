@@ -113,7 +113,7 @@ struct NftDataReply {
     itemIndex: int
     collectionAddress: address
     ownerAddress: address? = null
-    content: Cell<SnakeString>? = null
+    content: string? = null
 }
 
 get fun get_nft_data(): NftDataReply {

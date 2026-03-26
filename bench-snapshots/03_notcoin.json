@@ -321,5 +321,22 @@
       "wallet bits": 5314,
       "wallet cells": 12
     }
+  },
+  {
+    "commitDesc": "Tolk v1.3: strings, lisp lists, new compiler",
+    "gas": {
+      "MINT jettons by admin": 10664,
+      "TRANSFER with forward_amount": 14024,
+      "TRANSFER no forward_amount": 11655,
+      "BURN jettons": 8532,
+      "DISCOVER with include_address": 4195,
+      "DISCOVER no include_address": 3633
+    },
+    "codeSize": {
+      "minter bits": 7103,
+      "minter cells": 17,
+      "wallet bits": 5314,
+      "wallet cells": 12
+    }
   }
 ]

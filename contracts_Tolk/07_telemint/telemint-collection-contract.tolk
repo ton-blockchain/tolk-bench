@@ -35,7 +35,7 @@ fun onInternalMessage(in: InMessage) {
         TopUp => {
             // NB: it is not possible to recover any money transferred to this account
             // so we return back all transfers except ones with comment #topup in it
-            assert (msg.comment.bitsEqual("#topup") & (msg.comment.remainingRefsCount() == 0)) throw ERR_WRONG_TOPUP_COMMENT;
+            assert (msg.comment.bitsEqual("#topup".literalSlice()) & (msg.comment.remainingRefsCount() == 0)) throw ERR_WRONG_TOPUP_COMMENT;
         }
 
         AskToDeployItem => {

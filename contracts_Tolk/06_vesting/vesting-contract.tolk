@@ -138,14 +138,13 @@ get fun is_whitelisted(address: address): bool {
     return storage.whitelist.isWhitelisted(address);
 }
 
-get fun get_whitelist(): tuple? {
+get fun get_whitelist(): lisp_list<(int8, uint256)> {
     val storage = lazy Storage.load();
 
-    var list: tuple? = null;
+    var list = lisp_list<(int8, uint256)> [];
     var r = storage.whitelist.findFirst();
     while (r.isFound) {
-        var (wc, addressHash) = r.getKey().getWorkchainAndHash();
-        list = listPrepend([wc, addressHash], list);
+        list.prependHead(r.getKey().getWorkchainAndHash());
         r = storage.whitelist.iterateNext(r);
     }
 
