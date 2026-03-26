@@ -108,7 +108,7 @@ fun Auction.processNewBid(mutate self, mutate myBalance: coins, newBidAddress: a
     self.endTime = newEndTime;
 }
 
-fun initializeItemOnDeployingByCollection(uninitedSt: ItemStorageNotInitialized, myBalance: int, msg: TelemintItemDeploy): ItemStorage {
+fun initializeItemOnDeployingByCollection(uninitedSt: ItemStorageNotInitialized, myBalance: coins, msg: TelemintItemDeploy): ItemStorage {
     var ownerAddress: address? = null;
     var auctionForStorage: Cell<Auction>? = null;
 
@@ -184,7 +184,7 @@ fun onInternalMessage(in: InMessage) {
 
     match (msg) {
         MakeNewStakeOrTopUp => {
-            var isTopup = msg.comment.bitsEqual("#topup") & (msg.comment.remainingRefsCount() == 0);
+            var isTopup = msg.comment.bitsEqual("#topup".literalSlice()) & (msg.comment.remainingRefsCount() == 0);
             if (isTopup) {
                 return;
             }

@@ -1,3 +1,4 @@
+import "@stdlib/strings"
 import "errors"
 import "jetton-utils"
 import "fees-management"
@@ -139,7 +140,8 @@ fun onInternalMessage(in: InMessage) {
         ChangeMinterMetadataUri => {
             var storage = lazy MinterStorage.load();
             assertSenderIsAdmin(in.senderAddress, storage.adminAddress);
-            storage.metadataUri = msg.newMetadataUri.toCell();
+            // convert "inlined snake string" to a normal (ref) string, bypassing the type system
+            storage.metadataUri = msg.newMetadataUri.toCell() as unknown as string;
             storage.save();
         }
 
@@ -169,20 +171,16 @@ struct JettonDataReply {
 }
 
 struct (0x00) OnchainMetadataReply {
-    contentDict: map<uint256, Cell<SnakeDataReply>>
-}
-
-struct (0x00) SnakeDataReply {
-    string: SnakeString
+    contentDict: map<uint256, string_prefixed0x>
 }
 
 get fun get_jetton_data(): JettonDataReply {
     val storage = lazy MinterStorage.load();
     var metadata: OnchainMetadataReply = {
-        contentDict: createEmptyMap()
+        contentDict: []
     };
-    metadata.contentDict.set(stringSha256("uri"), SnakeDataReply{string: storage.metadataUri.load()}.toCell());
-    metadata.contentDict.set(stringSha256("decimals"), SnakeDataReply{string: "9"}.toCell());
+    metadata.contentDict.set("uri".sha256(), storage.metadataUri.prefixWith00());
+    metadata.contentDict.set("decimals".sha256(), "9".prefixWith00());
 
     return {
         totalSupply: storage.totalSupply,

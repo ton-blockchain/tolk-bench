@@ -2,7 +2,7 @@ import "storage"
 
 struct NftItemInitAtDeployment {
     ownerAddress: address
-    content: Cell<SnakeString>
+    content: string
 }
 
 struct (0x693d3950) RequestRoyaltyParams {

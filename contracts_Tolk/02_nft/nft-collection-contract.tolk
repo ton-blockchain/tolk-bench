@@ -1,3 +1,4 @@
+import "@stdlib/strings"
 import "errors"
 import "storage"
 import "messages"
@@ -95,10 +96,6 @@ struct CollectionDataReply {
     adminAddress: address
 }
 
-struct (0x01) OffchainMetadataReply {
-    string: SnakeString
-}
-
 get fun get_collection_data(): CollectionDataReply {
     val storage = lazy NftCollectionStorage.load();
     val content = lazy storage.content.load();
@@ -121,7 +118,7 @@ get fun royalty_params(): RoyaltyParams {
     return storage.royaltyParams.load();
 }
 
-get fun get_nft_content(itemIndex: int, individualNftContent: Cell<SnakeString>): Cell<OffchainMetadataReply> {
+get fun get_nft_content(itemIndex: int, individualNftContent: string): string_prefixed0x {
     val storage = lazy NftCollectionStorage.load();
     val content = lazy storage.content.load();
 
@@ -130,10 +127,9 @@ get fun get_nft_content(itemIndex: int, individualNftContent: Cell<SnakeString>)
     // common content = "https://site.org/my-collection/"
     // individual nft = "my-picture-123.png"  (probably, a long string, snake-encoded)
     // result         = concatenation
-    return OffchainMetadataReply {
-        string: beginCell()
-            .storeSlice(content.commonContent.load())   // assume it's short (no refs)
-            .storeRef(individualNftContent)             // so, it's the first ref (snake encoding)
-            .endCell().beginParse()
-    }.toCell()
+    return StringBuilder.create()
+        .append(content.commonContent)
+        .append(individualNftContent)
+        .build()
+        .prefixWith01()     // to comply TEP: "off-chain content layout"
 }
