@@ -52,7 +52,7 @@ struct NftItemStorageMaybeNotInitialized {
 // the answer: when "inited", we store `content` (cell),
 // so, we have a ref, and for uninited, we don't have a ref
 fun NftItemStorageMaybeNotInitialized.isInitialized(self) {
-    val hasContent = self.contractData.remainingRefsCount();
+    val hasContent = self.contractData.remainingRefsCount() != 0;
     return hasContent
 }
 

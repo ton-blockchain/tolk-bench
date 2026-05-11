@@ -41,7 +41,7 @@ fun forwardInitStateOverhead() {
 }
 
 fun checkAmountIsEnoughToTransfer(msgValue: int, forwardTonAmount: int, fwdFee: int) {
-    var fwdCount = forwardTonAmount ? 2 : 1; // second sending (forward) will be cheaper that first
+    var fwdCount = forwardTonAmount != 0 ? 2 : 1; // second sending (forward) will be cheaper that first
 
     var jettonWalletGasConsumption = getPrecompiledGasConsumption();
     var sendTransferGasConsumption = (jettonWalletGasConsumption == null) ? GAS_CONSUMPTION_JettonTransfer : jettonWalletGasConsumption;

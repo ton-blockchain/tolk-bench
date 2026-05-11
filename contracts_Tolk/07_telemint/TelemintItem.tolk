@@ -4,6 +4,13 @@ import "fees-management"
 import "storage"
 import "messages"
 
+contract TelemintItem {
+    author: "The Tolk Team"
+    incomingMessages: AllowedMessageToItem
+    storage: ItemStorage
+    storageAtDeployment: ItemStorageNotInitialized
+}
+
 fun sendMoney(myBalance: coins, address: address, value: coins): coins {
     var amountToSend = min(myBalance - MIN_TONS_FOR_STORAGE, value);
     if (amountToSend > 0) {
@@ -252,7 +259,7 @@ fun onInternalMessage(in: InMessage) {
             state.auction = Auction.createStartingFromNow(msg.newAuctionConfig, config.minBid, config.duration).toCell();
             state.save();
 
-            if (msg.queryId) {
+            if (msg.queryId != 0) {
                 val respondMsg = createMessage({
                     bounce: BounceMode.NoBounce,
                     dest: in.senderAddress,
@@ -270,7 +277,7 @@ fun onInternalMessage(in: InMessage) {
 
             val auction = lazy state.auction.load();
             assert (auction.lastBid == null) throw ERR_ALREADY_HAS_STAKES;
-            if (msg.queryId) {
+            if (msg.queryId != 0) {
                 val respondMsg = createMessage({
                     bounce: BounceMode.NoBounce,
                     dest: in.senderAddress,
@@ -292,7 +299,7 @@ fun onInternalMessage(in: InMessage) {
 
             val fwdFee = calculateFwdFeeDeprecated();
             var restAmount: int = myBalance - MIN_TONS_FOR_STORAGE;
-            if (msg.forwardTonAmount) {
+            if (msg.forwardTonAmount != 0) {
                 restAmount -= (msg.forwardTonAmount + fwdFee);
             }
             if (msg.sendExcessesTo != null) {
@@ -302,7 +309,7 @@ fun onInternalMessage(in: InMessage) {
 
             assert (restAmount >= 0) throw ERR_NOT_ENOUGH_FUNDS; // base nft spends fixed amount of gas, will not check for response
 
-            if (msg.forwardTonAmount) {
+            if (msg.forwardTonAmount != 0) {
                 val ownershipMsg = createMessage({
                     bounce: BounceMode.NoBounce,
                     dest: msg.newOwnerAddress,

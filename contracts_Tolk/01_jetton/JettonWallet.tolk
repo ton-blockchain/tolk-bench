@@ -1,9 +1,14 @@
-import "@stdlib/gas-payments"
 import "errors"
 import "jetton-utils"
 import "messages"
 import "fees-management"
 import "storage"
+
+contract JettonWallet {
+    author: "The Tolk Team"
+    incomingMessages: AllowedMessageToWallet
+    storage: WalletStorage
+}
 
 type AllowedMessageToWallet =
     | AskToTransfer
@@ -43,7 +48,7 @@ fun onInternalMessage(in: InMessage) {
             var storageFee = MIN_TONS_FOR_STORAGE - min(tonBalanceBeforeMsg, MIN_TONS_FOR_STORAGE);
             msgValue -= (storageFee + JETTON_WALLET_GAS_CONSUMPTION);
 
-            if (msg.forwardTonAmount) {
+            if (msg.forwardTonAmount != 0) {
                 msgValue -= (msg.forwardTonAmount + in.originalForwardFee);
 
                 val notifyOwnerMsg = createMessage({
@@ -74,7 +79,7 @@ fun onInternalMessage(in: InMessage) {
         }
 
         AskToTransfer => {
-            assert (msg.forwardPayload.remainingBitsCount()) throw ERR_INVALID_PAYLOAD;
+            assert (msg.forwardPayload.remainingBitsCount() != 0) throw ERR_INVALID_PAYLOAD;
             assert (msg.transferRecipient.getWorkchain() == BASECHAIN) throw ERR_WRONG_WORKCHAIN;
 
             var storage = lazy WalletStorage.load();
@@ -83,7 +88,7 @@ fun onInternalMessage(in: InMessage) {
             storage.jettonBalance -= msg.jettonAmount;
             storage.save();
 
-            var forwardedMessagesCount = msg.forwardTonAmount ? 2 : 1;
+            var forwardedMessagesCount = msg.forwardTonAmount != 0 ? 2 : 1;
             assert (in.valueCoins >
                 msg.forwardTonAmount +
                 // 3 messages: wal1->wal2,  wal2->owner, wal2->response

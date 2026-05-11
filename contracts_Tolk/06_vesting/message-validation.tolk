@@ -177,7 +177,7 @@ fun AttachedMessage.validateIfLockedAmount(self, whitelist: WhitelistDict, locke
     val msg = lazy AllowedOpToOtherContract.fromSlice(body);
     match (msg) {
         AllowedOpText => {
-            if (msg.rest.remainingBitsCount()) {
+            if (msg.rest.remainingBitsCount() != 0) {
                 // allowed "d", "w", and some others
                 val action = lazy AllowedOpTextAction.fromSlice(msg.rest);
                 match (action) {

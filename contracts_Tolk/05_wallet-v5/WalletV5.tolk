@@ -4,6 +4,13 @@ import "storage"
 import "messages"
 import "c5-register-validation"
 
+contract WalletV5 {
+    author: "The Tolk Team"
+    incomingMessages: AllowedMessageToWalletV5
+    incomingExternal: AllowedExternalMessageToWalletV5
+    storage: Storage
+}
+
 const SIZE_SIGNATURE = 512
 
 @inline_ref

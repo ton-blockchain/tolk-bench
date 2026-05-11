@@ -338,5 +338,22 @@
       "wallet bits": 4485,
       "wallet cells": 11
     }
+  },
+  {
+    "commitDesc": "Tolk v1.4: contract keyword, new compiler",
+    "gas": {
+      "MINT jettons by admin": 11914,
+      "TRANSFER with forward_amount": 12904,
+      "TRANSFER no forward_amount": 10401,
+      "BURN jettons": 7952,
+      "DISCOVER with include_address": 4430,
+      "DISCOVER no include_address": 3868
+    },
+    "codeSize": {
+      "minter bits": 4114,
+      "minter cells": 12,
+      "wallet bits": 4485,
+      "wallet cells": 11
+    }
   }
 ]

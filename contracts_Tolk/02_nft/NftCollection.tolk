@@ -3,6 +3,12 @@ import "errors"
 import "storage"
 import "messages"
 
+contract NftCollection {
+    author: "The Tolk Team"
+    incomingMessages: AllowedMessageToNftCollection
+    storage: NftCollectionStorage
+}
+
 fun deployNftItem(itemIndex: int, nftItemCode: cell, attachTonAmount: coins, initParams: Cell<NftItemInitAtDeployment>) {
     val deployMsg = createMessage({
         bounce: BounceMode.Only256BitsOfBody,

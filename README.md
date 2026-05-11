@@ -23,9 +23,9 @@ In gas units, plus code side (bits / cells).
 | TRANSFER with forward_amount    | 19420      | 12904      | **-33.55%**     |
 | TRANSFER no forward_amount      | 16964      | 10401      | **-38.69%**     |
 | BURN jettons                    | 12514      | 7952       | **-36.46%**     |
-| DISCOVER with include_address   | 7116       | 4456       | **-37.38%**     |
-| DISCOVER no include_address     | 6554       | 3894       | **-40.59%**     |
-| code size: minter               | 5046 / 14  | 4130 / 12  |                 |
+| DISCOVER with include_address   | 7116       | 4430       | **-37.75%**     |
+| DISCOVER no include_address     | 6554       | 3868       | **-40.98%**     |
+| code size: minter               | 5046 / 14  | 4114 / 12  |                 |
 | code size: wallet               | 6081 / 18  | 4485 / 11  |                 |
 
 ### 02 — basic nft
@@ -47,9 +47,9 @@ In gas units, plus code side (bits / cells).
 | TRANSFER with forward_amount    | 19638      | 14024      | **-28.59%**     |
 | TRANSFER no forward_amount      | 16984      | 11655      | **-31.38%**     |
 | BURN jettons                    | 12732      | 8532       | **-32.99%**     |
-| DISCOVER with include_address   | 7107       | 4195       | **-40.97%**     |
-| DISCOVER no include_address     | 6545       | 3633       | **-44.49%**     |
-| code size: minter               | 8782 / 21  | 7103 / 17  |                 |
+| DISCOVER with include_address   | 7107       | 4169       | **-41.34%**     |
+| DISCOVER no include_address     | 6545       | 3607       | **-44.89%**     |
+| code size: minter               | 8782 / 21  | 7087 / 17  |                 |
 | code size: wallet               | 6794 / 15  | 5314 / 12  |                 |
 
 ### 04 — sharded jetton (tgBTC)
@@ -60,9 +60,9 @@ In gas units, plus code side (bits / cells).
 | TRANSFER with forward_amount    | 20021      | 14388      | **-28.14%**     |
 | TRANSFER no forward_amount      | 17489      | 12019      | **-31.28%**     |
 | BURN jettons                    | 13089      | 8634       | **-34.04%**     |
-| DISCOVER with include_address   | 7290       | 4429       | **-39.25%**     |
-| DISCOVER no include_address     | 6728       | 3867       | **-42.52%**     |
-| code size: minter               | 9454 / 21  | 7623 / 17  |                 |
+| DISCOVER with include_address   | 7290       | 4403       | **-39.60%**     |
+| DISCOVER no include_address     | 6728       | 3841       | **-42.91%**     |
+| code size: minter               | 9454 / 21  | 7607 / 17  |                 |
 | code size: wallet               | 6941 / 13  | 5333 / 10  |                 |
 
 ### 05 — wallet V5
