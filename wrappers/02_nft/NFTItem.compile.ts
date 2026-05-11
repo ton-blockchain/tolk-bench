@@ -4,7 +4,7 @@ export const compile: CompilerConfig = {
     // lang: 'func',
     // targets: ['nft-item.fc']
     lang: 'tolk',
-    entrypoint: 'nft-item-contract.tolk',
+    entrypoint: 'NftItem.tolk',
     withSrcLineComments: true,
     withStackComments: true,
 };

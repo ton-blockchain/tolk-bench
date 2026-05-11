@@ -298,5 +298,20 @@
       "nft-collection bits": 4547,
       "nft-collection cells": 17
     }
+  },
+  {
+    "commitDesc": "Tolk v1.4: contract keyword, new compiler",
+    "gas": {
+      "DEPLOY nft": 5510,
+      "BATCH deploy nft": 451112,
+      "TRANSFER nft": 4478,
+      "GET static data": 2543
+    },
+    "codeSize": {
+      "nft-item bits": 2581,
+      "nft-item cells": 7,
+      "nft-collection bits": 4547,
+      "nft-collection cells": 17
+    }
   }
 ]

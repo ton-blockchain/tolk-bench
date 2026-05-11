@@ -270,5 +270,21 @@
       "vesting wallet bits": 7053,
       "vesting wallet cells": 26
     }
+  },
+  {
+    "commitDesc": "Tolk v1.4: contract keyword, new compiler",
+    "gas": {
+      "ADD whitelist": 4384,
+      "UNLOCK internal partial": 5896,
+      "INTERNAL to vesting sender": 5160,
+      "INTERNAL to elector": 7623,
+      "INTERNAL to single nominator": 6748,
+      "INTERNAL with comment": 6836,
+      "EXTERNAL transfer after unlock": 4045
+    },
+    "codeSize": {
+      "vesting wallet bits": 7053,
+      "vesting wallet cells": 26
+    }
   }
 ]

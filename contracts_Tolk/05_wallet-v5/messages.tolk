@@ -21,7 +21,7 @@ type ExtraAction =
 type SnakedExtraActions = RemainingBitsAndRefs
 
 fun SnakedExtraActions.hasNext(self) {
-    return self.remainingRefsCount()
+    return self.remainingRefsCount() != 0
 }
 
 fun SnakedExtraActions.getNext(self): SnakedExtraActions {

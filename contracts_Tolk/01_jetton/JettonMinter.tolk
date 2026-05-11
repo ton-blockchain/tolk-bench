@@ -1,9 +1,14 @@
-import "@stdlib/gas-payments"
 import "errors"
 import "jetton-utils"
 import "messages"
 import "storage"
 import "fees-management"
+
+contract JettonMinter {
+    author: "The Tolk Team"
+    incomingMessages: AllowedMessageToMinter
+    storage: MinterStorage
+}
 
 type AllowedMessageToMinter =
     | MintNewJettons

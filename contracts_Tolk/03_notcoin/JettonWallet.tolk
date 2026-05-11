@@ -5,6 +5,12 @@ import "fees-management"
 import "storage"
 import "messages"
 
+contract JettonWallet {
+    author: "The Tolk Team"
+    incomingMessages: AllowedMessageToWallet
+    storage: WalletStorage
+}
+
 type AllowedMessageToWallet =
     | AskToTransfer
     | AskToBurn
@@ -39,7 +45,7 @@ fun onInternalMessage(in: InMessage) {
             storage.jettonBalance += msg.jettonAmount;
             storage.save();
 
-            if (msg.forwardTonAmount) {
+            if (msg.forwardTonAmount != 0) {
                 val notifyOwnerMsg = createMessage({
                     bounce: BounceMode.NoBounce,
                     dest: storage.ownerAddress,

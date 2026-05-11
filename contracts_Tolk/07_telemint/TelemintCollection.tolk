@@ -3,6 +3,12 @@ import "errors"
 import "storage"
 import "messages"
 
+contract TelemintCollection {
+    author: "The Tolk Team"
+    incomingMessages: AllowedMessageToCollection
+    storage: CollectionStorage
+}
+
 fun checkRestrictions(restrictions: OverrideRestrictionsAtDeploy, senderAddress: address): address {
     if (restrictions.forceSenderAddress != null) {
         assert (senderAddress == restrictions.forceSenderAddress) throw ERR_INVALID_SENDER_ADDRESS;

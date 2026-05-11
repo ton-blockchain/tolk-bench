@@ -193,5 +193,18 @@
       "wallet_v5 bits": 5807,
       "wallet_v5 cells": 19
     }
+  },
+  {
+    "commitDesc": "Tolk v1.4: contract keyword, new compiler",
+    "gas": {
+      "EXTERNAL transfer": 3405,
+      "INTERNAL transfer": 3887,
+      "ADD extension": 4487,
+      "EXTENSION transfer": 2838
+    },
+    "codeSize": {
+      "wallet_v5 bits": 5807,
+      "wallet_v5 cells": 19
+    }
   }
 ]

@@ -63,7 +63,7 @@ struct ItemStorageMaybeNotInitialized {
 // the answer: when "inited", we store `ownerAddress` and other fields,
 // so, we have some data bits, and for uninited, we have only 1 ref (see ItemStorageNotInitialized)
 fun ItemStorageMaybeNotInitialized.isInitialized(self) {
-    val hasData = self.contractData.remainingBitsCount();
+    val hasData = self.contractData.remainingBitsCount() != 0;
     return hasData
 }
 

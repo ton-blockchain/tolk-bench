@@ -5,6 +5,13 @@ import "message-validation"
 import "errors"
 import "messages"
 
+contract VestingWallet {
+    author: "The Tolk Team"
+    incomingMessages: AllowedMessageToVestingWallet
+    incomingExternal: ExternalMsgSchema
+    storage: Storage
+}
+
 type AllowedMessageToVestingWallet = RequestAddToWhitelist | AskToSendMessage
 
 fun onInternalMessage(in: InMessage) {
@@ -42,15 +49,16 @@ fun onInternalMessage(in: InMessage) {
 
             var addrToWhitelist = msg.addrToWhitelist;
             var nextRef = msg.restRefs;
+            var moreRefs: int;
             do {
                 storage.whitelist.addWhitelisted(addrToWhitelist);
 
-                var moreRefs = nextRef.remainingRefsCount();
-                if (moreRefs) {
+                moreRefs = nextRef.remainingRefsCount();
+                if (moreRefs != 0) {
                     nextRef = nextRef.loadRef().beginParse();
                     addrToWhitelist = nextRef.loadAddress();
                 }
-            } while (moreRefs);
+            } while (moreRefs != 0);
             storage.save();
 
             val excessesMsg = createMessage({

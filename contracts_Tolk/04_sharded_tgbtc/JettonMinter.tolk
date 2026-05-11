@@ -1,9 +1,16 @@
 import "@stdlib/strings"
 import "errors"
+import "sharding"
 import "jetton-utils"
 import "fees-management"
 import "storage"
 import "messages"
+
+contract JettonMinter {
+    author: "The Tolk Team"
+    incomingMessages: AllowedMessageToMinter
+    storage: MinterStorage
+}
 
 type AllowedMessageToMinter =
     | MintNewJettons
@@ -148,8 +155,8 @@ fun onInternalMessage(in: InMessage) {
         UpgradeMinterCode => {
             var storage = lazy MinterStorage.load();
             assertSenderIsAdmin(in.senderAddress, storage.adminAddress);
-            contract.setData(msg.newData);
             contract.setCodePostponed(msg.newCode);
+            contract.setData(msg.newData);
         }
 
         TopUpTons => {

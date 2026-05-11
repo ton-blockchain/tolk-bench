@@ -1,8 +1,14 @@
-import "@stdlib/gas-payments"
 import "errors"
 import "storage"
 import "messages"
 import "fees-management"
+
+contract NftItem {
+    author: "The Tolk Team"
+    incomingMessages: AllowedMessageToNftItem
+    storage: NftItemStorage
+    storageAtDeployment: NftItemStorageNotInitialized
+}
 
 type AllowedMessageToNftItem =
     | AskToChangeOwnership
@@ -34,12 +40,12 @@ fun onInternalMessage(in: InMessage) {
         AskToChangeOwnership => {
             assert (in.senderAddress == storage.ownerAddress) throw ERROR_NOT_FROM_OWNER;
 
-            assert (msg.forwardPayload.remainingBitsCount()) throw ERROR_INCORRECT_FORWARD_PAYLOAD;
+            assert (msg.forwardPayload.remainingBitsCount() != 0) throw ERROR_INCORRECT_FORWARD_PAYLOAD;
             assert (msg.newOwnerAddress.getWorkchain() == BASECHAIN) throw ERROR_INVALID_WORKCHAIN;
 
             val fwdFee = in.originalForwardFee;
             var restAmount = contract.getOriginalBalance() - MIN_TONS_FOR_STORAGE;
-            if (msg.forwardTonAmount) {
+            if (msg.forwardTonAmount != 0) {
                 restAmount -= (msg.forwardTonAmount + fwdFee);
             }
             if (msg.sendExcessesTo != null) {
@@ -49,7 +55,7 @@ fun onInternalMessage(in: InMessage) {
 
             assert (restAmount >= 0) throw ERROR_TOO_SMALL_REST_AMOUNT; // base nft spends fixed amount of gas, will not check for response
 
-            if (msg.forwardTonAmount) {
+            if (msg.forwardTonAmount != 0) {
                 val ownershipMsg = createMessage({
                     bounce: BounceMode.NoBounce,
                     dest: msg.newOwnerAddress,
