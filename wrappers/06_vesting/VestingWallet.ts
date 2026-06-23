@@ -75,6 +75,8 @@ export const ErrorCodes = {
     state_init_not_allowed: 102,
     comment_not_allowed: 103,
     symbols_not_allowed: 104,
+    not_from_owner: 105,
+    not_from_vesting_sender: 106,
 };
 
 export class VestingWallet implements Contract {
