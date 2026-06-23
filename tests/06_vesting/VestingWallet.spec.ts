@@ -242,9 +242,10 @@ describe(numericFolder, () => {
         expect(result.transactions).toHaveTransaction({
             from: notVestingSender.address,
             to: vestingWallet.address,
-            success: true,
+            success: false,
+            exitCode: ErrorCodes.not_from_vesting_sender,
         });
-        expect(result.transactions.length).toBe(2);
+        expect(result.transactions.length).toBe(3); // includes bounce message
 
         const whitelist = await vestingWallet.getWhitelist();
         expect(whitelist.length).toBe(0);
@@ -886,9 +887,10 @@ describe(numericFolder, () => {
         expect(result.transactions).toHaveTransaction({
             from: sender.address,
             to: vestingWallet.address,
-            success: true
+            success: false,
+            exitCode: ErrorCodes.not_from_owner,
         });
-        expect(result.transactions.length).toBe(2);
+        expect(result.transactions.length).toBe(3); // includes bounce message
 
         const whitelist = await vestingWallet.getWhitelist();
         expect(whitelist.length).toBe(0);

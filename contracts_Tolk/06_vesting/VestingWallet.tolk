@@ -21,7 +21,7 @@ fun onInternalMessage(in: InMessage) {
         AskToSendMessage => {
             var storage = lazy Storage.load();
             val vesting = lazy storage.vestingParameters.load();
-            assert (in.senderAddress == vesting.ownerAddress, 0);
+            assert (in.senderAddress == vesting.ownerAddress) throw ERROR_NOT_FROM_OWNER;
 
             val attachedMsg = msg.attachedMsg;
             var lockedAmount = vesting.getLockedAmount(blockchain.now());
@@ -45,7 +45,7 @@ fun onInternalMessage(in: InMessage) {
         RequestAddToWhitelist => {
             var storage = lazy Storage.load();
             val vesting = lazy storage.vestingParameters.load();
-            assert (in.senderAddress == vesting.senderAddress, 0);
+            assert (in.senderAddress == vesting.senderAddress) throw ERROR_NOT_FROM_VESTING_SENDER;
 
             var addrToWhitelist = msg.addrToWhitelist;
             var nextRef = msg.restRefs;
