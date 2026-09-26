@@ -338,5 +338,22 @@
       "wallet bits": 5333,
       "wallet cells": 10
     }
+  },
+  {
+    "commitDesc": "Tolk v1.5: more optimizations, new compiler",
+    "gas": {
+      "MINT jettons by admin": 10817,
+      "TRANSFER with forward_amount": 14385,
+      "TRANSFER no forward_amount": 12016,
+      "BURN jettons": 8634,
+      "DISCOVER with include_address": 4403,
+      "DISCOVER no include_address": 3841
+    },
+    "codeSize": {
+      "minter bits": 7607,
+      "minter cells": 17,
+      "wallet bits": 5325,
+      "wallet cells": 10
+    }
   }
 ]
