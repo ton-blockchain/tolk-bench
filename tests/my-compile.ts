@@ -99,8 +99,6 @@ export async function myCompile(numericFolder: string, contractName: string): Pr
         } else if (config.lang === 'tolk') {
             let tolkResult = await doCompileTolk({
                 entrypointFileName: config.entrypoint,
-                optimizationLevel: config.optimizationLevel,
-                experimentalOptions: config.experimentalOptions,
                 withSrcLineComments: config.withSrcLineComments,
                 withStackComments: config.withStackComments,
                 fsReadCallback: path => fs.readFileSync(CONTRACTS_TOLK_ROOT + numericFolder + '/' + path, 'utf-8'),

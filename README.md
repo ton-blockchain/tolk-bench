@@ -19,74 +19,74 @@ In gas units, plus code side (bits / cells).
 
 | Operation                       | FunC       | Tolk       | **Gas savings** |
 |---------------------------------|------------|------------|-----------------|
-| MINT jettons by admin           | 19278      | 11914      | **-38.20%**     |
-| TRANSFER with forward_amount    | 19420      | 12904      | **-33.55%**     |
-| TRANSFER no forward_amount      | 16964      | 10401      | **-38.69%**     |
+| MINT jettons by admin           | 19278      | 11909      | **-38.22%**     |
+| TRANSFER with forward_amount    | 19420      | 12899      | **-33.58%**     |
+| TRANSFER no forward_amount      | 16964      | 10396      | **-38.72%**     |
 | BURN jettons                    | 12514      | 7952       | **-36.46%**     |
 | DISCOVER with include_address   | 7116       | 4430       | **-37.75%**     |
 | DISCOVER no include_address     | 6554       | 3868       | **-40.98%**     |
 | code size: minter               | 5046 / 14  | 4114 / 12  |                 |
-| code size: wallet               | 6081 / 18  | 4485 / 11  |                 |
+| code size: wallet               | 6081 / 18  | 4485 / 10  |                 |
 
 ### 02 — basic nft
 
 | Operation                       | FunC       | Tolk       | **Gas savings** |
 |---------------------------------|------------|------------|-----------------|
-| DEPLOY nft                      | 10469      | 5510       | **-47.37%**     |
-| BATCH deploy nft                | 1049281    | 451112     | **-57.01%**     |
+| DEPLOY nft                      | 10469      | 5487       | **-47.59%**     |
+| BATCH deploy nft                | 1049281    | 451207     | **-57.00%**     |
 | TRANSFER nft                    | 7109       | 4478       | **-37.01%**     |
 | GET static data                 | 4535       | 2543       | **-43.93%**     |
 | code size: nft-item             | 3441 / 14  | 2581 / 7   |                 |
-| code size: nft-collection       | 3564 / 19  | 4547 / 17  |                 |
+| code size: nft-collection       | 3564 / 19  | 4539 / 16  |                 |
 
 ### 03 — notcoin
 
 | Operation                       | FunC       | Tolk       | **Gas savings** |
 |---------------------------------|------------|------------|-----------------|
-| MINT jettons by admin           | 17053      | 10664      | **-37.47%**     |
-| TRANSFER with forward_amount    | 19638      | 14024      | **-28.59%**     |
-| TRANSFER no forward_amount      | 16984      | 11655      | **-31.38%**     |
+| MINT jettons by admin           | 17053      | 10651      | **-37.54%**     |
+| TRANSFER with forward_amount    | 19638      | 14021      | **-28.60%**     |
+| TRANSFER no forward_amount      | 16984      | 11652      | **-31.39%**     |
 | BURN jettons                    | 12732      | 8532       | **-32.99%**     |
 | DISCOVER with include_address   | 7107       | 4169       | **-41.34%**     |
 | DISCOVER no include_address     | 6545       | 3607       | **-44.89%**     |
 | code size: minter               | 8782 / 21  | 7087 / 17  |                 |
-| code size: wallet               | 6794 / 15  | 5314 / 12  |                 |
+| code size: wallet               | 6794 / 15  | 5306 / 12  |                 |
 
 ### 04 — sharded jetton (tgBTC)
 
 | Operation                       | FunC       | Tolk       | **Gas savings** |
 |---------------------------------|------------|------------|-----------------|
-| MINT jettons by admin           | 15019      | 10830      | **-27.89%**     |
-| TRANSFER with forward_amount    | 20021      | 14388      | **-28.14%**     |
-| TRANSFER no forward_amount      | 17489      | 12019      | **-31.28%**     |
+| MINT jettons by admin           | 15019      | 10817      | **-27.98%**     |
+| TRANSFER with forward_amount    | 20021      | 14385      | **-28.15%**     |
+| TRANSFER no forward_amount      | 17489      | 12016      | **-31.29%**     |
 | BURN jettons                    | 13089      | 8634       | **-34.04%**     |
 | DISCOVER with include_address   | 7290       | 4403       | **-39.60%**     |
 | DISCOVER no include_address     | 6728       | 3841       | **-42.91%**     |
 | code size: minter               | 9454 / 21  | 7607 / 17  |                 |
-| code size: wallet               | 6941 / 13  | 5333 / 10  |                 |
+| code size: wallet               | 6941 / 13  | 5325 / 10  |                 |
 
 ### 05 — wallet V5
 
 | Operation                       | FunC       | Tolk       | **Gas savings** |
 |---------------------------------|------------|------------|-----------------|
 | EXTERNAL transfer               | 4939       | 3405       | **-31.06%**     |
-| INTERNAL transfer               | 5645       | 3887       | **-31.14%**     |
+| INTERNAL transfer               | 5645       | 3864       | **-31.55%**     |
 | ADD extension                   | 6110       | 4487       | **-26.56%**     |
-| EXTENSION transfer              | 3854       | 2838       | **-26.36%**     |
-| code size: wallet_v5            | 4583 / 20  | 5807 / 19  |                 |
+| EXTENSION transfer              | 3854       | 2928       | **-24.03%**     |
+| code size: wallet_v5            | 4583 / 20  | 5791 / 20  |                 |
 
 ### 06 — vesting wallet
 
 | Operation                       | FunC       | Tolk       | **Gas savings** |
 |---------------------------------|------------|------------|-----------------|
-| ADD whitelist                   | 8000       | 4384       | **-45.20%**     |
+| ADD whitelist                   | 8000       | 4369       | **-45.39%**     |
 | UNLOCK internal partial         | 8365       | 5896       | **-29.52%**     |
 | INTERNAL to vesting sender      | 6543       | 5160       | **-21.14%**     |
 | INTERNAL to elector             | 11062      | 7623       | **-31.09%**     |
 | INTERNAL to single nominator    | 10338      | 6748       | **-34.73%**     |
 | INTERNAL with comment           | 10628      | 6836       | **-35.68%**     |
 | EXTERNAL transfer after unlock  | 6740       | 4045       | **-39.99%**     |
-| code size: vesting wallet       | 7413 / 28  | 7053 / 26  |                 |
+| code size: vesting wallet       | 7413 / 28  | 7029 / 26  |                 |
 
 ### 07 — telemint (telegram gifts)
 

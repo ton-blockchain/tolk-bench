@@ -49,16 +49,14 @@ fun onInternalMessage(in: InMessage) {
 
             var addrToWhitelist = msg.addrToWhitelist;
             var nextRef = msg.restRefs;
-            var moreRefs: int;
-            do {
+            while (true) {
                 storage.whitelist.addWhitelisted(addrToWhitelist);
-
-                moreRefs = nextRef.remainingRefsCount();
-                if (moreRefs != 0) {
-                    nextRef = nextRef.loadRef().beginParse();
-                    addrToWhitelist = nextRef.loadAddress();
+                if (nextRef.remainingRefsCount() == 0) {
+                    break;
                 }
-            } while (moreRefs != 0);
+                nextRef = nextRef.loadRef().beginParse();
+                addrToWhitelist = nextRef.loadAddress();
+            }
             storage.save();
 
             val excessesMsg = createMessage({
