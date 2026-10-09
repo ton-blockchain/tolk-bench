@@ -23,11 +23,6 @@ struct (0xf7733acd) SendExcesses {
     queryId: uint64
 }
 
-struct ExternalMsgSchema {
-    signature: bits512
-    signedData: ExternalMsgAfterSignature
-}
-
 struct ExternalMsgAfterSignature {
     subwalletId: uint32
     validUntil: uint32
