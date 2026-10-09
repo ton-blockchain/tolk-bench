@@ -4,7 +4,7 @@ export const compile: CompilerConfig = {
     // lang: 'func',
     // targets: ['jetton-wallet.fc'],
     lang: 'tolk',
-    entrypoint: 'JettonWallet.tolk',
+    entrypoint: 'jetton-wallet-contract.tolk',
     withSrcLineComments: true,
     withStackComments: true,
 };
